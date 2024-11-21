@@ -30,6 +30,7 @@ export const useMatterJs = (
     isMerging?: boolean;
     tier?: number;
     composite?: Matter.Composite;
+    hasBeenDropped?: boolean;
   };
 
   const createCircle = useCallback((
@@ -42,8 +43,7 @@ export const useMatterJs = (
     const config = CIRCLE_CONFIG[tier];
     const baseDensity = 0.005;
     
-    // Use fixed stroke width of 2px for all circles
-    const strokeWidth = 2;
+    const strokeWidth = 3; // Increased stroke width for more visibility
     const visibleRadius = config.radius - strokeWidth;
     
     let densityMultiplier;
@@ -53,6 +53,7 @@ export const useMatterJs = (
       densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
     }
     
+    // Create a custom render function to add the glow effect
     const circle = Matter.Bodies.circle(x, y, visibleRadius, {
       restitution: 0.2,
       friction: 0.05,
@@ -67,7 +68,10 @@ export const useMatterJs = (
       render: {
         fillStyle: config.color,
         strokeStyle: config.strokeColor,
-        lineWidth: strokeWidth // Fixed 2px stroke width
+        lineWidth: strokeWidth,
+        sprite: {
+          texture: createCircleTexture(config.color, config.strokeColor, config.glowColor, visibleRadius * 2),
+        }
       },
       label: `circle-${tier}`,
       inertia: Infinity,
@@ -80,6 +84,7 @@ export const useMatterJs = (
 
     circle.isMerging = false;
     circle.tier = tier;
+    circle.hasBeenDropped = false;
 
     Matter.Body.setStatic(circle, false);
     Matter.Body.set(circle, {
@@ -92,12 +97,48 @@ export const useMatterJs = (
     return circle;
   }, []);
 
+  // Add this helper function to create the circle texture with glow
+  const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
+    const canvas = document.createElement('canvas');
+    const padding = 8; // Extra space for glow
+    canvas.width = size + (padding * 2);
+    canvas.height = size + (padding * 2);
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return '';
+
+    // Draw glow
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Draw circle with glow
+    ctx.beginPath();
+    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 2, 0, Math.PI * 2);
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 3;
+    ctx.fill();
+    ctx.stroke();
+
+    return canvas.toDataURL();
+  };
+
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
+
+    // Prevent merging if either body is already merging
+    if (bodyA.isMerging || bodyB.isMerging) return;
+    
+    // Mark both bodies as merging to prevent multiple merges
+    bodyA.isMerging = true;
+    bodyB.isMerging = true;
 
     const midX = (bodyA.position.x + bodyB.position.x) / 2;
     const midY = (bodyA.position.y + bodyB.position.y) / 2;
 
+    // Remove both bodies from the world
     Matter.Composite.remove(engineRef.current.world, bodyA);
     Matter.Composite.remove(engineRef.current.world, bodyB);
 
@@ -105,9 +146,13 @@ export const useMatterJs = (
     const newCircle = createCircle(newTier, midX, midY);
     
     if (newCircle) {
+      // Set the new circle as dropped immediately
+      (newCircle as CircleBody).hasBeenDropped = true;
+      
+      // Give a small upward boost to the new circle
       Matter.Body.setVelocity(newCircle, {
         x: 0,
-        y: -5
+        y: -2 // Reduced from -5 for more controlled bouncing
       });
     }
     
@@ -145,7 +190,7 @@ export const useMatterJs = (
     // Force an initial engine update
     Matter.Engine.update(engineRef.current, runner.delta);
 
-    // Create walls with zero slop
+    // Create walls with dark theme colors
     const walls = [
       // Floor
       Matter.Bodies.rectangle(width / 2, height + 30, width, 60, {
@@ -153,7 +198,7 @@ export const useMatterJs = (
         friction: 0.05,
         restitution: 0.1,
         slop: 0,
-        render: { fillStyle: '#94a3b8' }
+        render: { fillStyle: '#27272a' }  // zinc-800
       }),
       // Left wall
       Matter.Bodies.rectangle(-30, height / 2, 60, height, {
@@ -161,7 +206,7 @@ export const useMatterJs = (
         friction: 0.05,
         restitution: 0.1,
         slop: 0,
-        render: { fillStyle: '#94a3b8' }
+        render: { fillStyle: '#27272a' }  // zinc-800
       }),
       // Right wall
       Matter.Bodies.rectangle(width + 30, height / 2, 60, height, {
@@ -169,7 +214,7 @@ export const useMatterJs = (
         friction: 0.05,
         restitution: 0.1,
         slop: 0,
-        render: { fillStyle: '#94a3b8' }
+        render: { fillStyle: '#27272a' }  // zinc-800
       })
     ];
 
@@ -189,18 +234,23 @@ export const useMatterJs = (
         const bodyA = pair.bodyA as CircleBody;
         const bodyB = pair.bodyB as CircleBody;
         
-        if (bodyA.label?.startsWith('circle-') && 
-            bodyB.label?.startsWith('circle-') && 
+        // Only process collisions between circles
+        if (!bodyA.label?.startsWith('circle-') || !bodyB.label?.startsWith('circle-')) {
+          return;
+        }
+
+        // Only merge if both circles have been dropped and aren't already merging
+        if (bodyA.hasBeenDropped && 
+            bodyB.hasBeenDropped && 
             !bodyA.isMerging && 
             !bodyB.isMerging) {
           
           const tierA = bodyA.tier;
           const tierB = bodyB.tier;
 
-          if (tierA === tierB && tierA && tierA < 9) {
-            bodyA.isMerging = true;
-            bodyB.isMerging = true;
-
+          // Check if tiers match and are valid for merging
+          if (tierA === tierB && tierA !== undefined && tierA < 12) {
+            // Use requestAnimationFrame to handle the merge on the next frame
             requestAnimationFrame(() => {
               mergeBodies(bodyA, bodyB);
             });
@@ -209,10 +259,14 @@ export const useMatterJs = (
       });
     };
 
+    // Listen for both collisionStart and collisionActive
     Matter.Events.on(engineRef.current, 'collisionStart', collisionHandler);
+    Matter.Events.on(engineRef.current, 'collisionActive', collisionHandler);
 
     return () => {
+      // Clean up both event listeners
       Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
+      Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
       Matter.Render.stop(render);
       Matter.Runner.stop(runner);
       Matter.Engine.clear(engineRef.current);
@@ -349,17 +403,17 @@ export const useMatterJs = (
   }, []);
 
   const endDrag = useCallback((mouseX?: number) => {
-    // Don't allow dropping while animating
     if (isAnimatingRef.current) return;
     
     if (!currentCircleRef.current || !isDraggingRef.current) return;
     
-    currentCircleRef.current.isStatic = false;
+    const circle = currentCircleRef.current as CircleBody;
+    circle.hasBeenDropped = true;
+    circle.isStatic = false;
     isDraggingRef.current = false;
     currentCircleRef.current = null;
     
     onDrop();
-    // Pass the current mouse position to prepareNextSpawn
     prepareNextSpawn(mouseX);
   }, [onDrop, prepareNextSpawn]);
 

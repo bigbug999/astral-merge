@@ -110,18 +110,19 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Next:</span>
-          <div className="w-16 h-16 border-2 border-foreground/30 rounded-lg flex items-center justify-center">
+          <span className="text-sm font-medium text-zinc-300">Next:</span>
+          <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
             <div 
               className="rounded-full"
               style={{
                 width: CIRCLE_CONFIG[nextTier].radius * 2,
                 height: CIRCLE_CONFIG[nextTier].radius * 2,
                 backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                border: `2px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`, // Fixed border width for preview
+                border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].glowColor}`,
                 transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
               }}
             />
@@ -129,11 +130,11 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-end">
-          <div className="text-xl font-bold">
+          <div className="text-xl font-bold text-zinc-100">
             Score: {score}
           </div>
           {combo > 0 && (
-            <div className="text-sm text-primary animate-pulse">
+            <div className="text-sm text-emerald-400 animate-pulse">
               Combo x{(1 + (combo * 0.5)).toFixed(1)}
             </div>
           )}
@@ -146,7 +147,7 @@ export default function Home() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] border-2 border-foreground rounded-lg overflow-hidden touch-none"
+        className="relative w-full max-w-sm aspect-[2/3] border-2 border-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
       />
     </div>
   );
