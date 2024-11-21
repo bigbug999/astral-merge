@@ -4,7 +4,7 @@ import { useRef, useState, useCallback } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
 import { CIRCLE_CONFIG } from '@/types/game';
 
-type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 // Helper function to get random tier with weights
 const getRandomTier = (maxTierSeen: number): TierType => {
@@ -15,10 +15,13 @@ const getRandomTier = (maxTierSeen: number): TierType => {
     3: maxTierSeen >= 3 ? 15 : 0,  // 15% chance if unlocked
     4: maxTierSeen >= 4 ? 7 : 0,   // 7% chance if unlocked
     5: maxTierSeen >= 5 ? 3 : 0,   // 3% chance if unlocked
-    6: 0,   // Never randomly spawn tier 6 or higher
-    7: 0,
-    8: 0,
+    6: maxTierSeen >= 6 ? 2 : 0,
+    7: maxTierSeen >= 7 ? 1 : 0,
+    8: 0,   // Never randomly spawn tier 8 or higher
     9: 0,
+    10: 0,
+    11: 0,
+    12: 0,
   };
 
   const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);

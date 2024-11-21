@@ -19,14 +19,26 @@ export const useMatterJs = (
     tier?: number;
   };
 
-  const createCircle = useCallback((tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, x: number, y: number) => {
+  const createCircle = useCallback((
+    tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
+    x: number,
+    y: number
+  ) => {
     if (!renderRef.current) return null;
 
     const config = CIRCLE_CONFIG[tier];
+    
+    // Calculate density inversely proportional to tier
+    // Tier 1: heaviest, scaling down as tier increases
+    const baseDensity = 0.008;
+    const densityMultiplier = tier <= 3 
+      ? Math.max(4 - tier, 1) * 2  // Tiers 1-3 get progressively lighter but still heavier than others
+      : 1;                         // Tiers 4+ have base density
+    
     const circle = Matter.Bodies.circle(x, y, config.radius, {
       restitution: 0.6,
       friction: 0.001,
-      density: 0.008,
+      density: baseDensity * densityMultiplier,  // Apply scaled density
       frictionAir: 0.0001,
       render: {
         fillStyle: config.color,
@@ -52,7 +64,7 @@ export const useMatterJs = (
     Matter.Composite.remove(engineRef.current.world, bodyA);
     Matter.Composite.remove(engineRef.current.world, bodyB);
 
-    const newTier = Math.min((bodyA.tier || 1) + 1, 9) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+    const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
     const newCircle = createCircle(newTier, midX, midY);
     
     // Apply upward force to the new circle
@@ -153,7 +165,7 @@ export const useMatterJs = (
     const { width } = renderRef.current.canvas;
     
     // Create circle directly with nextTier
-    const circle = createCircle(nextTier as 1|2|3|4|5|6|7|8|9, x || width / 2, 50);
+    const circle = createCircle(nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, x || width / 2, 50);
     if (circle) {
       circle.isStatic = true;
       currentCircleRef.current = circle;
