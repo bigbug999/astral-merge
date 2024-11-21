@@ -173,13 +173,16 @@ export default function Home() {
         </div>
       </div>
 
-      <div 
-        ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
-      />
+      <div className="w-full max-w-sm relative">
+        <div className="pb-[150%] w-full" />
+        <div 
+          ref={containerRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          className="absolute inset-0 outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
+        />
+      </div>
     </div>
   );
 }

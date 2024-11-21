@@ -36,35 +36,27 @@ export const useMatterJs = (
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
+    const dpr = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
-    const pixelRatio = window.devicePixelRatio || 1;
-    const padding = 8 * pixelRatio; // Scale padding
-    
-    // Scale canvas dimensions
-    canvas.width = (size + padding * 2) * pixelRatio;
-    canvas.height = (size + padding * 2) * pixelRatio;
+    const padding = 8 * dpr; // Scale padding with DPR
+    canvas.width = (size + padding * 2) * dpr;
+    canvas.height = (size + padding * 2) * dpr;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
 
-    // Scale all drawing operations
-    ctx.scale(pixelRatio, pixelRatio);
-
+    // Scale all dimensions by DPR
+    ctx.scale(dpr, dpr);
+    
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15 * pixelRatio; // Scale blur
+    ctx.shadowBlur = 15 * dpr; // Scale blur with DPR
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
     // Draw circle with glow
     ctx.beginPath();
-    ctx.arc(
-      size/2 + padding/pixelRatio, 
-      size/2 + padding/pixelRatio, 
-      size/2 - 1, 
-      0, 
-      Math.PI * 2
-    );
+    ctx.arc(size/2 + padding/dpr, size/2 + padding/dpr, size/2 - 1, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
@@ -251,20 +243,18 @@ export const useMatterJs = (
   }, [createCircle, onNewTier]);
 
   const createDangerZone = (width: number) => {
+    const dpr = window.devicePixelRatio || 1;
     const dangerZoneHeight = 120;
-    const pixelRatio = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
-    
-    // Scale canvas dimensions
-    canvas.width = width * pixelRatio;
-    canvas.height = dangerZoneHeight * pixelRatio;
+    canvas.width = width * dpr;
+    canvas.height = dangerZoneHeight * dpr;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
 
-    // Scale all drawing operations
-    ctx.scale(pixelRatio, pixelRatio);
-
+    // Scale context by DPR
+    ctx.scale(dpr, dpr);
+    
     // Create thinner stripes
     const stripeHeight = 2; // Reduced to 2px lines
     const stripeGap = 2;    // Reduced to 2px gaps
@@ -310,10 +300,8 @@ export const useMatterJs = (
     const { width, height } = container.getBoundingClientRect();
     
     // Get device pixel ratio and scale canvas accordingly
-    const pixelRatio = window.devicePixelRatio || 1;
-    const scaledWidth = width * pixelRatio;
-    const scaledHeight = height * pixelRatio;
-
+    const dpr = window.devicePixelRatio || 1;
+    
     const render = Matter.Render.create({
       element: container,
       engine: engineRef.current,
@@ -322,16 +310,22 @@ export const useMatterJs = (
         height,
         wireframes: false,
         background: 'transparent',
-        pixelRatio: pixelRatio, // Set pixel ratio for Matter.js renderer
+        pixelRatio: dpr, // Set pixel ratio for Matter.js renderer
       }
     });
     
-    // Scale the canvas to match device pixel ratio
-    render.canvas.width = scaledWidth;
-    render.canvas.height = scaledHeight;
-    render.canvas.style.width = `${width}px`;
-    render.canvas.style.height = `${height}px`;
-    render.context.scale(pixelRatio, pixelRatio);
+    // Scale the canvas for retina/high DPR displays
+    const canvas = render.canvas;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    
+    // Scale the rendering context
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.scale(dpr, dpr);
+    }
     
     renderRef.current = render;
     
