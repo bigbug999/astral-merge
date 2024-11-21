@@ -37,22 +37,34 @@ export const useMatterJs = (
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
-    const padding = 8; // Extra space for glow
-    canvas.width = size + (padding * 2);
-    canvas.height = size + (padding * 2);
+    const pixelRatio = window.devicePixelRatio || 1;
+    const padding = 8 * pixelRatio; // Scale padding
+    
+    // Scale canvas dimensions
+    canvas.width = (size + padding * 2) * pixelRatio;
+    canvas.height = (size + padding * 2) * pixelRatio;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
 
+    // Scale all drawing operations
+    ctx.scale(pixelRatio, pixelRatio);
+
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 15 * pixelRatio; // Scale blur
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
     // Draw circle with glow
     ctx.beginPath();
-    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
+    ctx.arc(
+      size/2 + padding/pixelRatio, 
+      size/2 + padding/pixelRatio, 
+      size/2 - 1, 
+      0, 
+      Math.PI * 2
+    );
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
@@ -240,12 +252,18 @@ export const useMatterJs = (
 
   const createDangerZone = (width: number) => {
     const dangerZoneHeight = 120;
+    const pixelRatio = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = dangerZoneHeight;
+    
+    // Scale canvas dimensions
+    canvas.width = width * pixelRatio;
+    canvas.height = dangerZoneHeight * pixelRatio;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
+
+    // Scale all drawing operations
+    ctx.scale(pixelRatio, pixelRatio);
 
     // Create thinner stripes
     const stripeHeight = 2; // Reduced to 2px lines
@@ -290,6 +308,11 @@ export const useMatterJs = (
 
     const container = containerRef.current;
     const { width, height } = container.getBoundingClientRect();
+    
+    // Get device pixel ratio and scale canvas accordingly
+    const pixelRatio = window.devicePixelRatio || 1;
+    const scaledWidth = width * pixelRatio;
+    const scaledHeight = height * pixelRatio;
 
     const render = Matter.Render.create({
       element: container,
@@ -299,8 +322,17 @@ export const useMatterJs = (
         height,
         wireframes: false,
         background: 'transparent',
+        pixelRatio: pixelRatio, // Set pixel ratio for Matter.js renderer
       }
     });
+    
+    // Scale the canvas to match device pixel ratio
+    render.canvas.width = scaledWidth;
+    render.canvas.height = scaledHeight;
+    render.canvas.style.width = `${width}px`;
+    render.canvas.style.height = `${height}px`;
+    render.context.scale(pixelRatio, pixelRatio);
+    
     renderRef.current = render;
     
     const runner = Matter.Runner.create({
