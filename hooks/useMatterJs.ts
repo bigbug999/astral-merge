@@ -9,10 +9,10 @@ export const useMatterJs = (
   nextTier: number
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 1.8 },
-    positionIterations: 30,     // Increased from 20
-    velocityIterations: 24,     // Increased from 16
-    constraintIterations: 12,   // Increased from 10
+    gravity: { y: 2.2 },
+    positionIterations: 8,
+    velocityIterations: 6,
+    constraintIterations: 2,
     enableSleeping: false
   }));
   const renderRef = useRef<Matter.Render | null>(null);
@@ -33,70 +33,6 @@ export const useMatterJs = (
     hasBeenDropped?: boolean;
   };
 
-  const createCircle = useCallback((
-    tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
-    x: number,
-    y: number
-  ) => {
-    if (!renderRef.current || !engineRef.current) return null;
-
-    const config = CIRCLE_CONFIG[tier];
-    const baseDensity = 0.005;
-    
-    const strokeWidth = 3; // Increased stroke width for more visibility
-    const visibleRadius = config.radius - strokeWidth;
-    
-    let densityMultiplier;
-    if (tier <= 4) {
-      densityMultiplier = Math.pow(0.85, tier - 1);
-    } else {
-      densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
-    }
-    
-    // Create a custom render function to add the glow effect
-    const circle = Matter.Bodies.circle(x, y, visibleRadius, {
-      restitution: 0.2,
-      friction: 0.05,
-      density: baseDensity * densityMultiplier,
-      frictionAir: 0.00001,
-      slop: 0.01,
-      collisionFilter: {
-        group: 0,
-        category: 0x0001,
-        mask: 0xFFFFFFFF
-      },
-      render: {
-        fillStyle: config.color,
-        strokeStyle: config.strokeColor,
-        lineWidth: strokeWidth,
-        sprite: {
-          texture: createCircleTexture(config.color, config.strokeColor, config.glowColor, visibleRadius * 2),
-        }
-      },
-      label: `circle-${tier}`,
-      inertia: Infinity,
-      inverseInertia: 0
-    }) as CircleBody;
-
-    // Scale up the collision body to match the original intended size
-    const scaleRatio = config.radius / visibleRadius;
-    Matter.Body.scale(circle, scaleRatio, scaleRatio);
-
-    circle.isMerging = false;
-    circle.tier = tier;
-    circle.hasBeenDropped = false;
-
-    Matter.Body.setStatic(circle, false);
-    Matter.Body.set(circle, {
-      torque: 0,
-      angularSpeed: 0,
-      angularVelocity: 0
-    });
-
-    Matter.Composite.add(engineRef.current.world, circle);
-    return circle;
-  }, []);
-
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
@@ -115,15 +51,83 @@ export const useMatterJs = (
     
     // Draw circle with glow
     ctx.beginPath();
-    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 2, 0, Math.PI * 2);
+    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.fill();
     ctx.stroke();
 
     return canvas.toDataURL();
   };
+
+  const createCircle = useCallback((
+    tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
+    x: number,
+    y: number
+  ) => {
+    if (!renderRef.current || !engineRef.current) return null;
+
+    const config = CIRCLE_CONFIG[tier];
+    const baseDensity = 0.003;
+    
+    // Create visual radius with smaller gap (changed from -2 to -1)
+    const collisionRadius = config.radius;
+    const visualRadius = collisionRadius - 1; // Reduced visual gap
+    
+    // Create circle texture with glow
+    const texture = createCircleTexture(
+      config.color,
+      config.strokeColor,
+      config.color.replace('0.1', '0.3'),
+      visualRadius * 2
+    );
+    
+    let densityMultiplier;
+    if (tier <= 4) {
+      densityMultiplier = Math.pow(0.85, tier - 1);
+    } else {
+      densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
+    }
+    
+    const circle = Matter.Bodies.circle(x, y, collisionRadius, {
+      restitution: 0.4,
+      friction: 0.001,
+      density: baseDensity * densityMultiplier,
+      frictionAir: 0.0001,
+      frictionStatic: 0,
+      slop: 0.05,
+      collisionFilter: {
+        group: 0,
+        category: 0x0001,
+        mask: 0xFFFFFFFF
+      },
+      render: {
+        sprite: {
+          texture: texture,
+          xScale: 1,
+          yScale: 1
+        }
+      },
+      label: `circle-${tier}`,
+      inertia: Infinity,
+      inverseInertia: 0
+    }) as CircleBody;
+
+    circle.isMerging = false;
+    circle.tier = tier;
+    circle.hasBeenDropped = false;
+
+    Matter.Body.setStatic(circle, false);
+    Matter.Body.set(circle, {
+      torque: 0,
+      angularSpeed: 0,
+      angularVelocity: 0
+    });
+
+    Matter.Composite.add(engineRef.current.world, circle);
+    return circle;
+  }, []);
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
@@ -195,26 +199,29 @@ export const useMatterJs = (
       // Floor
       Matter.Bodies.rectangle(width / 2, height + 30, width, 60, {
         isStatic: true,
-        friction: 0.05,
-        restitution: 0.1,
-        slop: 0,
-        render: { fillStyle: '#27272a' }  // zinc-800
+        friction: 0.001,
+        restitution: 0.4,
+        slop: 0.05,
+        frictionStatic: 0,
+        render: { fillStyle: '#27272a' }
       }),
       // Left wall
       Matter.Bodies.rectangle(-30, height / 2, 60, height, {
         isStatic: true,
-        friction: 0.05,
-        restitution: 0.1,
-        slop: 0,
-        render: { fillStyle: '#27272a' }  // zinc-800
+        friction: 0.001,
+        restitution: 0.4,
+        slop: 0.05,
+        frictionStatic: 0,
+        render: { fillStyle: '#27272a' }
       }),
       // Right wall
       Matter.Bodies.rectangle(width + 30, height / 2, 60, height, {
         isStatic: true,
-        friction: 0.05,
-        restitution: 0.1,
-        slop: 0,
-        render: { fillStyle: '#27272a' }  // zinc-800
+        friction: 0.001,
+        restitution: 0.4,
+        slop: 0.05,
+        frictionStatic: 0,
+        render: { fillStyle: '#27272a' }
       })
     ];
 

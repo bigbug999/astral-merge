@@ -52,28 +52,8 @@ export const CIRCLE_CONFIG = {
     glowColor: 'rgba(249, 115, 22, 0.2)',
     radius: 76 
   },
-  9: { 
-    color: 'rgba(99, 102, 241, 0.1)',   // Indigo
-    strokeColor: '#6366F1',
-    glowColor: 'rgba(99, 102, 241, 0.2)',
-    radius: 87 
-  },
-  10: { 
-    color: 'rgba(139, 92, 246, 0.1)',   // Violet
-    strokeColor: '#8B5CF6',
-    glowColor: 'rgba(139, 92, 246, 0.2)',
-    radius: 94 
-  },
-  11: { 
-    color: 'rgba(236, 72, 153, 0.1)',   // Pink
-    strokeColor: '#EC4899',
-    glowColor: 'rgba(236, 72, 153, 0.2)',
-    radius: 98 
-  },
-  12: { 
-    color: 'rgba(6, 182, 212, 0.1)',    // Cyan
-    strokeColor: '#06B6D4',
-    glowColor: 'rgba(6, 182, 212, 0.2)',
-    radius: 102 
-  },
+  9: { color: '#6366F1', strokeColor: '#4338CA', radius: 87 },   // Indigo - 174px diameter
+  10: { color: '#8B5CF6', strokeColor: '#6D28D9', radius: 94 },  // Violet - 188px diameter
+  11: { color: '#EC4899', strokeColor: '#BE185D', radius: 98 },  // Pink - 196px diameter
+  12: { color: '#06B6D4', strokeColor: '#0891B2', radius: 102 }, // Cyan - 204px diameter
 } as const; 
