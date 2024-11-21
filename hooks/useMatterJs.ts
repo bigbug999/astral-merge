@@ -29,6 +29,8 @@ export const useMatterJs = (
       frictionAir: 0.0001,
       render: {
         fillStyle: config.color,
+        strokeStyle: config.strokeColor,
+        lineWidth: Math.max(3, config.radius * 0.1)
       },
       label: `circle-${tier}`,
     }) as CircleBody;
@@ -50,7 +52,15 @@ export const useMatterJs = (
     Matter.Composite.remove(engineRef.current.world, bodyB);
 
     const newTier = Math.min((bodyA.tier || 1) + 1, 9) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-    createCircle(newTier, midX, midY);
+    const newCircle = createCircle(newTier, midX, midY);
+    
+    // Apply upward force to the new circle
+    if (newCircle) {
+      Matter.Body.setVelocity(newCircle, {
+        x: 0,
+        y: -5 // Negative value for upward movement
+      });
+    }
     
     onNewTier(newTier);
   }, [createCircle, onNewTier]);

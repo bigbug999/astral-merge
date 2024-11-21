@@ -88,6 +88,7 @@ export default function Home() {
                 width: CIRCLE_CONFIG[nextTier].radius * 2,
                 height: CIRCLE_CONFIG[nextTier].radius * 2,
                 backgroundColor: CIRCLE_CONFIG[nextTier].color,
+                border: `${Math.max(3, CIRCLE_CONFIG[nextTier].radius * 0.1)}px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
               }}
             />
           </div>

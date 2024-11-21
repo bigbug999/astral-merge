@@ -4,13 +4,13 @@ export interface CircleProps {
 }
 
 export const CIRCLE_CONFIG = {
-  1: { color: '#3B82F6', radius: 24 },   // Blue - 48px
-  2: { color: '#22C55E', radius: 32 },   // Green - 64px
-  3: { color: '#EF4444', radius: 42 },   // Red - 84px
-  4: { color: '#EAB308', radius: 56 },   // Yellow - 112px
-  5: { color: '#A855F7', radius: 74 },   // Purple - 148px
-  6: { color: '#EC4899', radius: 98 },   // Pink - 196px
-  7: { color: '#14B8A6', radius: 128 },  // Teal - 256px
-  8: { color: '#F97316', radius: 168 },  // Orange - 336px
-  9: { color: '#6366F1', radius: 220 },  // Indigo - 440px
+  1: { color: '#3B82F6', strokeColor: '#1D4ED8', radius: 24 },   // Blue
+  2: { color: '#22C55E', strokeColor: '#15803D', radius: 32 },   // Green
+  3: { color: '#EF4444', strokeColor: '#B91C1C', radius: 42 },   // Red
+  4: { color: '#EAB308', strokeColor: '#A16207', radius: 56 },   // Yellow
+  5: { color: '#A855F7', strokeColor: '#7E22CE', radius: 74 },   // Purple
+  6: { color: '#EC4899', strokeColor: '#BE185D', radius: 98 },   // Pink
+  7: { color: '#14B8A6', strokeColor: '#0F766E', radius: 128 },  // Teal
+  8: { color: '#F97316', strokeColor: '#C2410C', radius: 168 },  // Orange
+  9: { color: '#6366F1', strokeColor: '#4338CA', radius: 220 },  // Indigo
 } as const; 
