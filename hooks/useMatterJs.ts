@@ -17,6 +17,7 @@ export const useMatterJs = (
   type CircleBody = Matter.Body & {
     isMerging?: boolean;
     tier?: number;
+    composite?: Matter.Composite;
   };
 
   const createCircle = useCallback((
@@ -28,18 +29,23 @@ export const useMatterJs = (
 
     const config = CIRCLE_CONFIG[tier];
     
-    // Calculate density inversely proportional to tier
-    // Tier 1: heaviest, scaling down as tier increases
+    // Calculate density based on tier
     const baseDensity = 0.008;
     const densityMultiplier = tier <= 3 
       ? Math.max(4 - tier, 1) * 2  // Tiers 1-3 get progressively lighter but still heavier than others
       : 1;                         // Tiers 4+ have base density
     
+    // Adjust properties based on tier for better slipping
+    const friction = tier <= 3 ? 0.0005 : 0.001;      // Lower tiers have less friction
+    const restitution = tier <= 3 ? 0.7 : 0.5;        // Lower tiers bounce more
+    const frictionAir = tier <= 3 ? 0.00005 : 0.0001; // Lower tiers have less air resistance
+    
     const circle = Matter.Bodies.circle(x, y, config.radius, {
-      restitution: 0.6,
-      friction: 0.001,
-      density: baseDensity * densityMultiplier,  // Apply scaled density
-      frictionAir: 0.0001,
+      restitution: restitution,
+      friction: friction,
+      density: baseDensity * densityMultiplier,
+      frictionAir: frictionAir,
+      slop: 0.05, // Allow for slight overlap
       render: {
         fillStyle: config.color,
         strokeStyle: config.strokeColor,
@@ -67,11 +73,10 @@ export const useMatterJs = (
     const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
     const newCircle = createCircle(newTier, midX, midY);
     
-    // Apply upward force to the new circle
     if (newCircle) {
       Matter.Body.setVelocity(newCircle, {
         x: 0,
-        y: -5 // Negative value for upward movement
+        y: -5
       });
     }
     

@@ -81,6 +81,12 @@ export default function Home() {
     endDrag();
   }, [endDrag]);
 
+  // Fixed preview size of 32px diameter (16px radius)
+  const PREVIEW_DIAMETER = 32;
+  const getPreviewScale = (originalDiameter: number) => {
+    return PREVIEW_DIAMETER / originalDiameter;
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
@@ -93,7 +99,8 @@ export default function Home() {
                 width: CIRCLE_CONFIG[nextTier].radius * 2,
                 height: CIRCLE_CONFIG[nextTier].radius * 2,
                 backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                border: `${Math.max(3, CIRCLE_CONFIG[nextTier].radius * 0.1)}px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                border: `2px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`, // Fixed border width for preview
+                transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
               }}
             />
           </div>
