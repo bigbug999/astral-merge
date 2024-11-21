@@ -8,16 +8,16 @@ type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 // Helper function to get random tier with weights
 const getRandomTier = (maxTierSeen: number): TierType => {
-  // Adjust weights based on maxTierSeen
+  // Adjust weights based on maxTierSeen, capped at tier 4
   const weights = {
     1: 50,  // 50% chance for tier 1
     2: maxTierSeen >= 2 ? 25 : 0,  // 25% chance if unlocked
     3: maxTierSeen >= 3 ? 15 : 0,  // 15% chance if unlocked
-    4: maxTierSeen >= 4 ? 7 : 0,   // 7% chance if unlocked
-    5: maxTierSeen >= 5 ? 3 : 0,   // 3% chance if unlocked
-    6: maxTierSeen >= 6 ? 2 : 0,
-    7: maxTierSeen >= 7 ? 1 : 0,
-    8: 0,   // Never randomly spawn tier 8 or higher
+    4: maxTierSeen >= 4 ? 10 : 0,  // 10% chance if unlocked
+    5: 0,   // Never spawn tier 5 or higher
+    6: 0,
+    7: 0,
+    8: 0,
     9: 0,
     10: 0,
     11: 0,
