@@ -97,7 +97,7 @@ export const useMatterJs = (
       density: baseDensity * densityMultiplier,
       frictionAir: 0.0005,
       frictionStatic: 0.05,
-      slop: 0.01,
+      slop: 0.05,
       collisionFilter: {
         group: 0,
         category: 0x0001,
@@ -291,6 +291,7 @@ export const useMatterJs = (
     const container = containerRef.current;
     const { width, height } = container.getBoundingClientRect();
 
+    // Create the render
     const render = Matter.Render.create({
       element: container,
       engine: engineRef.current,
@@ -304,8 +305,8 @@ export const useMatterJs = (
     renderRef.current = render;
     
     const runner = Matter.Runner.create({
-      isFixed: true,           // Enable fixed timestep
-      delta: 1000 / 120,       // Run at 120Hz for smoother physics
+      isFixed: true,
+      delta: 1000 / 120,
     });
     runnerRef.current = runner;
 
@@ -316,7 +317,7 @@ export const useMatterJs = (
     // Force an initial engine update
     Matter.Engine.update(engineRef.current, runner.delta);
 
-    // Create danger zone
+    // Update the danger zone and walls to use zIndex instead of layer
     const dangerZone = Matter.Bodies.rectangle(width / 2, 60, width, 120, {
       isStatic: true,
       isSensor: true,
@@ -330,17 +331,17 @@ export const useMatterJs = (
       label: 'danger-zone'
     });
 
-    // Create all walls including danger zone in a single array
     const walls = [
       dangerZone,
-      // Floor - moved slightly up and wider
       Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
         slop: 0.01,
-        chamfer: { radius: 2 }, // Add chamfer to walls
-        render: { fillStyle: '#27272a' }
+        chamfer: { radius: 2 },
+        render: { 
+          fillStyle: '#27272a'
+        }
       }),
       // Left wall - moved slightly left and taller
       Matter.Bodies.rectangle(-25, height / 2, 50, height + 60, {
@@ -349,7 +350,9 @@ export const useMatterJs = (
         restitution: 0.4,
         slop: 0.01,
         chamfer: { radius: 2 },
-        render: { fillStyle: '#27272a' }
+        render: { 
+          fillStyle: '#27272a'
+        }
       }),
       // Right wall - moved slightly right and taller
       Matter.Bodies.rectangle(width + 25, height / 2, 50, height + 60, {
@@ -358,7 +361,9 @@ export const useMatterJs = (
         restitution: 0.4,
         slop: 0.01,
         chamfer: { radius: 2 },
-        render: { fillStyle: '#27272a' }
+        render: { 
+          fillStyle: '#27272a'
+        }
       })
     ];
 
