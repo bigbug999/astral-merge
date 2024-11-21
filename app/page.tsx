@@ -1,3 +1,9 @@
+declare global {
+  interface Window {
+    comboTimeoutId?: NodeJS.Timeout;
+  }
+}
+
 'use client';
 
 import { useRef, useState, useCallback } from 'react';
@@ -53,15 +59,27 @@ export default function Home() {
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
-    setCombo(prev => prev + 1); // Increment combo on successful merge
+    setCombo(prev => prev + 1);
     setScore(prev => prev + calculateScore(tier, combo));
 
-    // Reset combo after a short delay if no new merges occur
+    // Clear any existing timeout
+    if (window.comboTimeoutId) {
+      clearTimeout(window.comboTimeoutId);
+    }
+
+    // Set new timeout for 4 seconds
     const timeoutId = setTimeout(() => {
       setCombo(0);
-    }, 2000);
+    }, 4000);
 
-    return () => clearTimeout(timeoutId);
+    // Store the timeout ID globally so we can clear it later
+    window.comboTimeoutId = timeoutId;
+
+    return () => {
+      if (window.comboTimeoutId) {
+        clearTimeout(window.comboTimeoutId);
+      }
+    };
   }, [combo]);
 
   const handleDrop = useCallback(() => {
@@ -109,6 +127,20 @@ export default function Home() {
     return PREVIEW_DIAMETER / originalDiameter;
   };
 
+  // Add helper function to get combo color
+  const getComboColor = (combo: number) => {
+    // Get the tier based on combo count (every 2 combos = 1 tier up)
+    const colorTier = Math.min(Math.floor(combo / 2) + 1, 12) as keyof typeof CIRCLE_CONFIG;
+    const config = CIRCLE_CONFIG[colorTier];
+    
+    // For tiers 1-8, use strokeColor
+    if (colorTier <= 8) {
+      return config.strokeColor;
+    }
+    // For tiers 9-12, use color directly
+    return config.color;
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
@@ -122,7 +154,7 @@ export default function Home() {
                 height: CIRCLE_CONFIG[nextTier].radius * 2,
                 backgroundColor: CIRCLE_CONFIG[nextTier].color,
                 border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].glowColor}`,
+                boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
                 transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
               }}
             />
@@ -133,11 +165,14 @@ export default function Home() {
           <div className="text-xl font-bold text-zinc-100">
             Score: {score}
           </div>
-          {combo > 0 && (
-            <div className="text-sm text-emerald-400 animate-pulse">
-              Combo x{(1 + (combo * 0.5)).toFixed(1)}
-            </div>
-          )}
+          <div 
+            className={`text-sm transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
+            style={{
+              color: combo > 0 ? getComboColor(combo) : '#a1a1aa' // zinc-400 for zero combo
+            }}
+          >
+            Combo x{(1 + (combo * 0.5)).toFixed(1)}
+          </div>
         </div>
       </div>
 
@@ -146,8 +181,7 @@ export default function Home() {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] border-2 border-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
+        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
       />
     </div>
   );

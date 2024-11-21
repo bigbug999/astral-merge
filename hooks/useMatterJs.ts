@@ -9,10 +9,10 @@ export const useMatterJs = (
   nextTier: number
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 2.2 },
-    positionIterations: 8,
-    velocityIterations: 6,
-    constraintIterations: 2,
+    gravity: { y: 1.5 },
+    positionIterations: 12,
+    velocityIterations: 8,
+    constraintIterations: 4,
     enableSleeping: false
   }));
   const renderRef = useRef<Matter.Render | null>(null);
@@ -23,7 +23,8 @@ export const useMatterJs = (
   const nextSpawnXRef = useRef<number | null>(null);
   const isAnimatingRef = useRef(false);
   const animationStartTimeRef = useRef<number | null>(null);
-  const ANIMATION_DURATION = 500; // 500ms for the animation
+  const ANIMATION_DURATION = 200; // Reduced from 300ms to 200ms for initial drop
+  const MERGE_ANIMATION_DURATION = 150; // Reduced from 200ms to 150ms for merging
 
   // Extend the Matter.Body type to include our custom properties
   type CircleBody = Matter.Body & {
@@ -69,11 +70,18 @@ export const useMatterJs = (
     if (!renderRef.current || !engineRef.current) return null;
 
     const config = CIRCLE_CONFIG[tier];
-    const baseDensity = 0.003;
+    const baseDensity = 0.001;
     
-    // Create visual radius with smaller gap (changed from -2 to -1)
+    // Calculate density multiplier based on tier
+    let densityMultiplier;
+    if (tier <= 4) {
+      densityMultiplier = Math.pow(0.85, tier - 1);
+    } else {
+      densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
+    }
+    
     const collisionRadius = config.radius;
-    const visualRadius = collisionRadius - 1; // Reduced visual gap
+    const visualRadius = collisionRadius - 1;
     
     // Create circle texture with glow
     const texture = createCircleTexture(
@@ -83,20 +91,13 @@ export const useMatterJs = (
       visualRadius * 2
     );
     
-    let densityMultiplier;
-    if (tier <= 4) {
-      densityMultiplier = Math.pow(0.85, tier - 1);
-    } else {
-      densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
-    }
-    
     const circle = Matter.Bodies.circle(x, y, collisionRadius, {
-      restitution: 0.4,
-      friction: 0.001,
+      restitution: 0.5,
+      friction: 0.01,
       density: baseDensity * densityMultiplier,
-      frictionAir: 0.0001,
-      frictionStatic: 0,
-      slop: 0.05,
+      frictionAir: 0.0005,
+      frictionStatic: 0.05,
+      slop: 0.01,
       collisionFilter: {
         group: 0,
         category: 0x0001,
@@ -109,9 +110,7 @@ export const useMatterJs = (
           yScale: 1
         }
       },
-      label: `circle-${tier}`,
-      inertia: Infinity,
-      inverseInertia: 0
+      label: `circle-${tier}`
     }) as CircleBody;
 
     circle.isMerging = false;
@@ -139,28 +138,104 @@ export const useMatterJs = (
     bodyA.isMerging = true;
     bodyB.isMerging = true;
 
-    const midX = (bodyA.position.x + bodyB.position.x) / 2;
-    const midY = (bodyA.position.y + bodyB.position.y) / 2;
+    const startPosA = { x: bodyA.position.x, y: bodyA.position.y };
+    const startPosB = { x: bodyB.position.x, y: bodyB.position.y };
+    const midX = (startPosA.x + startPosB.x) / 2;
+    const midY = (startPosA.y + startPosB.y) / 2;
 
-    // Remove both bodies from the world
-    Matter.Composite.remove(engineRef.current.world, bodyA);
-    Matter.Composite.remove(engineRef.current.world, bodyB);
+    // Make both circles static during animation
+    Matter.Body.setStatic(bodyA, true);
+    Matter.Body.setStatic(bodyB, true);
 
-    const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-    const newCircle = createCircle(newTier, midX, midY);
-    
-    if (newCircle) {
-      // Set the new circle as dropped immediately
-      (newCircle as CircleBody).hasBeenDropped = true;
+    // Store original scales
+    const originalScale = 1;
+    const targetScale = 1.15; // Slightly reduced from 1.2 for snappier feel
+
+    const startTime = performance.now();
+
+    const animateMerge = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / MERGE_ANIMATION_DURATION, 1);
+
+      // Easing function for smooth animation
+      const easeInOutQuad = (t: number) => 
+        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       
-      // Give a small upward boost to the new circle
-      Matter.Body.setVelocity(newCircle, {
-        x: 0,
-        y: -2 // Reduced from -5 for more controlled bouncing
-      });
-    }
-    
-    onNewTier(newTier);
+      const easedProgress = easeInOutQuad(progress);
+
+      // First half of animation: move circles together and scale up
+      if (progress <= 0.5) {
+        const halfProgress = easedProgress * 2;
+        
+        // Move circles towards center
+        Matter.Body.setPosition(bodyA, {
+          x: startPosA.x + (midX - startPosA.x) * halfProgress,
+          y: startPosA.y + (midY - startPosA.y) * halfProgress
+        });
+        
+        Matter.Body.setPosition(bodyB, {
+          x: startPosB.x + (midX - startPosB.x) * halfProgress,
+          y: startPosB.y + (midY - startPosB.y) * halfProgress
+        });
+
+        // Scale up
+        const scale = originalScale + (targetScale - originalScale) * halfProgress;
+        if (bodyA.render.sprite) bodyA.render.sprite.xScale = bodyA.render.sprite.yScale = scale;
+        if (bodyB.render.sprite) bodyB.render.sprite.xScale = bodyB.render.sprite.yScale = scale;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animateMerge);
+      } else {
+        // Animation complete - create new merged circle
+        Matter.Composite.remove(engineRef.current.world, bodyA);
+        Matter.Composite.remove(engineRef.current.world, bodyB);
+
+        const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+        const newCircle = createCircle(newTier, midX, midY);
+        
+        if (newCircle) {
+          // Set the new circle as dropped immediately
+          (newCircle as CircleBody).hasBeenDropped = true;
+          
+          // Start with larger scale and animate down
+          if (newCircle.render.sprite) {
+            newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = targetScale;
+          }
+
+          // Animate the new circle scaling down to normal size
+          const scaleDownStart = performance.now();
+          const scaleDownDuration = 100; // Reduced from 150ms to 100ms
+
+          const animateScaleDown = (currentTime: number) => {
+            const scaleProgress = Math.min((currentTime - scaleDownStart) / scaleDownDuration, 1);
+            const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
+            const easedScaleProgress = easeOutQuad(scaleProgress);
+            
+            if (newCircle.render.sprite) {
+              const scale = targetScale + (1 - targetScale) * easedScaleProgress;
+              newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = scale;
+            }
+
+            if (scaleProgress < 1) {
+              requestAnimationFrame(animateScaleDown);
+            } else {
+              // Give a small upward boost after scaling down
+              Matter.Body.setVelocity(newCircle, {
+                x: 0,
+                y: -2.5 // Slightly increased from -2 for snappier bounce
+              });
+            }
+          };
+
+          requestAnimationFrame(animateScaleDown);
+        }
+        
+        onNewTier(newTier);
+      }
+    };
+
+    requestAnimationFrame(animateMerge);
   }, [createCircle, onNewTier]);
 
   useEffect(() => {
@@ -196,41 +271,45 @@ export const useMatterJs = (
 
     // Create walls with dark theme colors
     const walls = [
-      // Floor
-      Matter.Bodies.rectangle(width / 2, height + 30, width, 60, {
+      // Floor - moved slightly up and wider
+      Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
-        friction: 0.001,
+        friction: 0.05,
         restitution: 0.4,
-        slop: 0.05,
-        frictionStatic: 0,
+        slop: 0.01,
+        chamfer: { radius: 2 }, // Add chamfer to walls
         render: { fillStyle: '#27272a' }
       }),
-      // Left wall
-      Matter.Bodies.rectangle(-30, height / 2, 60, height, {
+      // Left wall - moved slightly left and taller
+      Matter.Bodies.rectangle(-25, height / 2, 50, height + 60, {
         isStatic: true,
-        friction: 0.001,
+        friction: 0.05,
         restitution: 0.4,
-        slop: 0.05,
-        frictionStatic: 0,
+        slop: 0.01,
+        chamfer: { radius: 2 },
         render: { fillStyle: '#27272a' }
       }),
-      // Right wall
-      Matter.Bodies.rectangle(width + 30, height / 2, 60, height, {
+      // Right wall - moved slightly right and taller
+      Matter.Bodies.rectangle(width + 25, height / 2, 50, height + 60, {
         isStatic: true,
-        friction: 0.001,
+        friction: 0.05,
         restitution: 0.4,
-        slop: 0.05,
-        frictionStatic: 0,
+        slop: 0.01,
+        chamfer: { radius: 2 },
         render: { fillStyle: '#27272a' }
       })
     ];
 
     Matter.Composite.add(engineRef.current.world, walls);
 
-    // Configure engine again before starting the runner
-    engineRef.current.positionIterations = 40;
-    engineRef.current.velocityIterations = 30;
-    engineRef.current.constraintIterations = 20;
+    // Update engine settings
+    engineRef.current.world.gravity.scale = 0.001;
+    engineRef.current.timing.timeScale = 1.0;
+    
+    // Increase solver iterations for better physics
+    engineRef.current.positionIterations = 12;
+    engineRef.current.velocityIterations = 8;
+    engineRef.current.constraintIterations = 4;
 
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
@@ -289,7 +368,6 @@ export const useMatterJs = (
     const circleRadius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
     const padding = circleRadius + 5;
     
-    // Store initial spawn position
     nextSpawnXRef.current = mouseX !== undefined ? 
       Math.max(padding, Math.min(width - padding, mouseX)) : 
       width / 2;
@@ -321,10 +399,14 @@ export const useMatterJs = (
         const elapsed = timestamp - animationStartTimeRef.current;
         const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
         
-        // Linear interpolation for Y position
-        const newY = startY + (totalDistance * progress);
+        // Modified easing function for smoother transition to physics
+        const easeOutQuad = (x: number): number => {
+          return 1 - (1 - x) * (1 - x);
+        };
         
-        // Use the latest X position from nextSpawnXRef
+        const easedProgress = easeOutQuad(progress);
+        const newY = startY + (totalDistance * easedProgress);
+        
         Matter.Body.setPosition(circle, {
           x: nextSpawnXRef.current || width / 2,
           y: newY
@@ -333,7 +415,6 @@ export const useMatterJs = (
         if (progress < 1) {
           requestAnimationFrame(animateSlideDown);
         } else {
-          // Animation complete
           isAnimatingRef.current = false;
           animationStartTimeRef.current = null;
         }
@@ -382,7 +463,7 @@ export const useMatterJs = (
   }, [createCircle, nextTier]);
 
   const updateDrag = useCallback((x: number) => {
-    if (!renderRef.current) return;
+    if (!renderRef.current || !isDraggingRef.current) return;
     
     const { width } = renderRef.current.canvas;
     const circle = currentCircleRef.current as CircleBody;
@@ -410,12 +491,23 @@ export const useMatterJs = (
   }, []);
 
   const endDrag = useCallback((mouseX?: number) => {
-    if (isAnimatingRef.current) return;
+    // Only process endDrag if we're actually dragging and not animating
+    if (!isDraggingRef.current || isAnimatingRef.current) return;
     
-    if (!currentCircleRef.current || !isDraggingRef.current) return;
+    if (!currentCircleRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
     circle.hasBeenDropped = true;
+    
+    // Calculate the initial drop velocity based on the gravity and animation
+    const initialDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
+    
+    // Set initial velocity to match animation
+    Matter.Body.setVelocity(circle, {
+      x: 0,
+      y: initialDropVelocity
+    });
+    
     circle.isStatic = false;
     isDraggingRef.current = false;
     currentCircleRef.current = null;
