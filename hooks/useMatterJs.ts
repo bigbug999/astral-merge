@@ -5,7 +5,8 @@ import { CIRCLE_CONFIG } from '@/types/game';
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
-  onNewTier: (tier: number) => void
+  onNewTier: (tier: number) => void,
+  nextTier: number
 ) => {
   const engineRef = useRef(Matter.Engine.create({ gravity: { y: 1 } }));
   const renderRef = useRef<Matter.Render | null>(null);
@@ -151,14 +152,14 @@ export const useMatterJs = (
     if (!renderRef.current) return;
     const { width } = renderRef.current.canvas;
     
-    // Create circle at the top with no gravity
-    const circle = createCircle(1, x || width / 2, 50);
+    // Create circle directly with nextTier
+    const circle = createCircle(nextTier as 1|2|3|4|5|6|7|8|9, x || width / 2, 50);
     if (circle) {
-      circle.isStatic = true; // Make it static while dragging
+      circle.isStatic = true;
       currentCircleRef.current = circle;
       isDraggingRef.current = true;
     }
-  }, [createCircle]);
+  }, [createCircle, nextTier]);
 
   const updateDrag = useCallback((x: number) => {
     if (!currentCircleRef.current || !isDraggingRef.current || !renderRef.current) return;
@@ -176,12 +177,10 @@ export const useMatterJs = (
   const endDrag = useCallback(() => {
     if (!currentCircleRef.current || !isDraggingRef.current) return;
     
-    // Make the circle dynamic and let it fall
     currentCircleRef.current.isStatic = false;
     isDraggingRef.current = false;
     currentCircleRef.current = null;
     
-    // Notify parent component that drop has occurred
     onDrop();
   }, [onDrop]);
 

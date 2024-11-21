@@ -37,21 +37,23 @@ const getRandomTier = (maxTierSeen: number): TierType => {
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [score, setScore] = useState(0);
-  const [currentTier, setCurrentTier] = useState<TierType>(1);
-  const [nextTier, setNextTier] = useState<TierType>(1);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
+  const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
 
-  const handleDrop = useCallback(() => {
-    setCurrentTier(nextTier);
-    setNextTier(getRandomTier(maxTierSeen));
-  }, [nextTier, maxTierSeen]);
-
-  // Update maxTierSeen when a new tier is created (from merging)
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
   }, []);
 
-  const { startDrag, updateDrag, endDrag } = useMatterJs(containerRef, handleDrop, handleNewTier);
+  const handleDrop = useCallback(() => {
+    setNextTier(getRandomTier(maxTierSeen));
+  }, [maxTierSeen]);
+
+  const { startDrag, updateDrag, endDrag } = useMatterJs(
+    containerRef, 
+    handleDrop, 
+    handleNewTier,
+    nextTier
+  );
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
     if (!containerRef.current) return;
