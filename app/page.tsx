@@ -4,8 +4,10 @@ import { useRef, useState, useCallback } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
 import { CIRCLE_CONFIG } from '@/types/game';
 
+type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
 // Helper function to get random tier with weights
-const getRandomTier = (maxTierSeen: number): 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 => {
+const getRandomTier = (maxTierSeen: number): TierType => {
   // Adjust weights based on maxTierSeen
   const weights = {
     1: 50,  // 50% chance for tier 1
@@ -25,7 +27,7 @@ const getRandomTier = (maxTierSeen: number): 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 =
   for (const [tier, weight] of Object.entries(weights)) {
     random -= weight;
     if (random <= 0) {
-      return Number(tier) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+      return Number(tier) as TierType;
     }
   }
   
@@ -35,8 +37,8 @@ const getRandomTier = (maxTierSeen: number): 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 =
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [score, setScore] = useState(0);
-  const [currentTier, setCurrentTier] = useState<1>(1);
-  const [nextTier, setNextTier] = useState<1>(1);
+  const [currentTier, setCurrentTier] = useState<TierType>(1);
+  const [nextTier, setNextTier] = useState<TierType>(1);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
 
   const handleDrop = useCallback(() => {
