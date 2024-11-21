@@ -144,21 +144,18 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-300">Next:</span>
-          <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
-            <div 
-              className="rounded-full"
-              style={{
-                width: CIRCLE_CONFIG[nextTier].radius * 2,
-                height: CIRCLE_CONFIG[nextTier].radius * 2,
-                backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-                transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-              }}
-            />
-          </div>
+        <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
+          <div 
+            className="rounded-full"
+            style={{
+              width: CIRCLE_CONFIG[nextTier].radius * 2,
+              height: CIRCLE_CONFIG[nextTier].radius * 2,
+              backgroundColor: CIRCLE_CONFIG[nextTier].color,
+              border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+              boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+              transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
+            }}
+          />
         </div>
 
         <div className="flex flex-col items-end">

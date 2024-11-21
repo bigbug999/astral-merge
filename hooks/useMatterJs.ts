@@ -10,9 +10,9 @@ export const useMatterJs = (
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.5 },
-    positionIterations: 12,
-    velocityIterations: 8,
-    constraintIterations: 4,
+    positionIterations: 16,
+    velocityIterations: 12,
+    constraintIterations: 6,
     enableSleeping: false
   }));
   const renderRef = useRef<Matter.Render | null>(null);
@@ -238,6 +238,53 @@ export const useMatterJs = (
     requestAnimationFrame(animateMerge);
   }, [createCircle, onNewTier]);
 
+  const createDangerZone = (width: number) => {
+    const dangerZoneHeight = 120;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = dangerZoneHeight;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return '';
+
+    // Create thinner stripes
+    const stripeHeight = 2; // Reduced to 2px lines
+    const stripeGap = 2;    // Reduced to 2px gaps
+    const stripeAngle = -45;
+    
+    ctx.save();
+    
+    // Rotate context for angled stripes
+    ctx.translate(0, 0);
+    ctx.rotate((stripeAngle * Math.PI) / 180);
+    
+    // Calculate dimensions for rotated stripes
+    const hypotenuse = Math.sqrt(Math.pow(width, 2) + Math.pow(dangerZoneHeight, 2));
+    const numStripes = Math.ceil(hypotenuse / (stripeHeight + stripeGap));
+    
+    // Draw more frequent stripes
+    for (let i = -numStripes; i < numStripes * 2; i++) {
+      const y = i * (stripeHeight + stripeGap);
+      // Using slightly darker grey for better visibility of thin lines
+      if (i % 2 === 0) {
+        ctx.fillStyle = 'rgba(75, 75, 75, 0.15)'; // Increased opacity slightly for thin lines
+        ctx.fillRect(-hypotenuse, y, hypotenuse * 2, stripeHeight);
+      }
+    }
+    
+    ctx.restore();
+
+    // Add bottom stroke
+    ctx.beginPath();
+    ctx.moveTo(0, dangerZoneHeight - 1);
+    ctx.lineTo(width, dangerZoneHeight - 1);
+    ctx.strokeStyle = 'rgba(75, 75, 75, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    return canvas.toDataURL();
+  };
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -269,8 +316,23 @@ export const useMatterJs = (
     // Force an initial engine update
     Matter.Engine.update(engineRef.current, runner.delta);
 
-    // Create walls with dark theme colors
+    // Create danger zone
+    const dangerZone = Matter.Bodies.rectangle(width / 2, 60, width, 120, {
+      isStatic: true,
+      isSensor: true,
+      render: {
+        sprite: {
+          texture: createDangerZone(width),
+          xScale: 1,
+          yScale: 1
+        }
+      },
+      label: 'danger-zone'
+    });
+
+    // Create all walls including danger zone in a single array
     const walls = [
+      dangerZone,
       // Floor - moved slightly up and wider
       Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
@@ -348,6 +410,25 @@ export const useMatterJs = (
     // Listen for both collisionStart and collisionActive
     Matter.Events.on(engineRef.current, 'collisionStart', collisionHandler);
     Matter.Events.on(engineRef.current, 'collisionActive', collisionHandler);
+
+    // Add collision detection for danger zone
+    Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
+      event.pairs.forEach((pair) => {
+        const bodyA = pair.bodyA as CircleBody;
+        const bodyB = pair.bodyB as CircleBody;
+        
+        // Check if either body is the danger zone
+        if (bodyA.label === 'danger-zone' || bodyB.label === 'danger-zone') {
+          const circle = bodyA.label.startsWith('circle-') ? bodyA : 
+                        bodyB.label.startsWith('circle-') ? bodyB : null;
+                          
+          if (circle && circle.hasBeenDropped) {
+            // TODO: Handle game over condition
+            console.log('Game Over - Circle touched danger zone!');
+          }
+        }
+      });
+    });
 
     return () => {
       // Clean up both event listeners
