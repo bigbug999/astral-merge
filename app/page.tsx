@@ -1,101 +1,109 @@
-import Image from "next/image";
+'use client';
+
+import { useRef, useState, useCallback } from 'react';
+import { useMatterJs } from '@/hooks/useMatterJs';
+import { CIRCLE_CONFIG } from '@/types/game';
+
+// Helper function to get random tier with weights
+const getRandomTier = (maxTierSeen: number): 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 => {
+  // Adjust weights based on maxTierSeen
+  const weights = {
+    1: 50,  // 50% chance for tier 1
+    2: maxTierSeen >= 2 ? 25 : 0,  // 25% chance if unlocked
+    3: maxTierSeen >= 3 ? 15 : 0,  // 15% chance if unlocked
+    4: maxTierSeen >= 4 ? 7 : 0,   // 7% chance if unlocked
+    5: maxTierSeen >= 5 ? 3 : 0,   // 3% chance if unlocked
+    6: 0,   // Never randomly spawn tier 6 or higher
+    7: 0,
+    8: 0,
+    9: 0,
+  };
+
+  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const [tier, weight] of Object.entries(weights)) {
+    random -= weight;
+    if (random <= 0) {
+      return Number(tier) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+    }
+  }
+  
+  return 1; // Fallback to tier 1
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [score, setScore] = useState(0);
+  const [currentTier, setCurrentTier] = useState<1>(1);
+  const [nextTier, setNextTier] = useState<1>(1);
+  const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const handleDrop = useCallback(() => {
+    setCurrentTier(nextTier);
+    setNextTier(getRandomTier(maxTierSeen));
+  }, [nextTier, maxTierSeen]);
+
+  // Update maxTierSeen when a new tier is created (from merging)
+  const handleNewTier = useCallback((tier: number) => {
+    setMaxTierSeen(prev => Math.max(prev, tier));
+  }, []);
+
+  const { startDrag, updateDrag, endDrag } = useMatterJs(containerRef, handleDrop, handleNewTier);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    
+    const { left, width } = containerRef.current.getBoundingClientRect();
+    const relativeX = event.clientX - left;
+    
+    if (relativeX >= 0 && relativeX <= width) {
+      startDrag(relativeX);
+    }
+  }, [startDrag]);
+
+  const handlePointerMove = useCallback((event: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    
+    const { left } = containerRef.current.getBoundingClientRect();
+    const relativeX = event.clientX - left;
+    updateDrag(relativeX);
+  }, [updateDrag]);
+
+  const handlePointerUp = useCallback(() => {
+    endDrag();
+  }, [endDrag]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Next:</span>
+          <div className="w-16 h-16 border-2 border-foreground/30 rounded-lg flex items-center justify-center">
+            <div 
+              className="rounded-full"
+              style={{
+                width: CIRCLE_CONFIG[nextTier].radius * 2,
+                height: CIRCLE_CONFIG[nextTier].radius * 2,
+                backgroundColor: CIRCLE_CONFIG[nextTier].color,
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="text-xl font-bold">
+          Score: {score}
+        </div>
+      </div>
+
+      <div 
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        className="relative w-full max-w-sm aspect-[2/3] border-2 border-foreground rounded-lg overflow-hidden touch-none"
+      />
     </div>
   );
 }
