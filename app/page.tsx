@@ -37,15 +37,32 @@ const getRandomTier = (maxTierSeen: number): TierType => {
   return 1; // Fallback to tier 1
 };
 
+// Reduce base scoring to start at 2 points for tier 1
+const calculateScore = (tier: number, combo: number) => {
+  const baseScore = Math.pow(2, tier) * 1; // Now tier 1 will be 2 points (2^1 * 1)
+  const multiplier = 1 + (combo * 0.5); // Keeping the same combo multiplier
+  return Math.floor(baseScore * multiplier);
+};
+
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
-  }, []);
+    setCombo(prev => prev + 1); // Increment combo on successful merge
+    setScore(prev => prev + calculateScore(tier, combo));
+
+    // Reset combo after a short delay if no new merges occur
+    const timeoutId = setTimeout(() => {
+      setCombo(0);
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [combo]);
 
   const handleDrop = useCallback(() => {
     setNextTier(getRandomTier(maxTierSeen));
@@ -106,8 +123,15 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="text-xl font-bold">
-          Score: {score}
+        <div className="flex flex-col items-end">
+          <div className="text-xl font-bold">
+            Score: {score}
+          </div>
+          {combo > 0 && (
+            <div className="text-sm text-primary animate-pulse">
+              Combo x{(1 + (combo * 0.5)).toFixed(1)}
+            </div>
+          )}
         </div>
       </div>
 
