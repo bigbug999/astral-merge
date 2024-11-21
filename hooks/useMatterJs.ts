@@ -19,6 +19,11 @@ export const useMatterJs = (
   const runnerRef = useRef<Matter.Runner | null>(null);
   const currentCircleRef = useRef<Matter.Body | null>(null);
   const isDraggingRef = useRef(false);
+  const isFirstSpawnRef = useRef(true);
+  const nextSpawnXRef = useRef<number | null>(null);
+  const isAnimatingRef = useRef(false);
+  const animationStartTimeRef = useRef<number | null>(null);
+  const ANIMATION_DURATION = 500; // 500ms for the animation
 
   // Extend the Matter.Body type to include our custom properties
   type CircleBody = Matter.Body & {
@@ -216,59 +221,137 @@ export const useMatterJs = (
     };
   }, [containerRef, createCircle, mergeBodies]);
 
-  const startDrag = useCallback((x: number) => {
+  const prepareNextSpawn = useCallback((mouseX?: number) => {
     if (!renderRef.current) return;
     const { width } = renderRef.current.canvas;
     
-    // Get the radius of the next circle
     const circleRadius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
-    
-    // Add padding equal to the circle's radius plus a small buffer
     const padding = circleRadius + 5;
     
-    // Constrain initial spawn position to be within safe bounds
-    const safeX = Math.max(
-      padding, 
-      Math.min(width - padding, x || width / 2)
-    );
+    // Store initial spawn position
+    nextSpawnXRef.current = mouseX !== undefined ? 
+      Math.max(padding, Math.min(width - padding, mouseX)) : 
+      width / 2;
     
-    // Create circle at safe position
     const circle = createCircle(
       nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
-      safeX, 
-      50
+      nextSpawnXRef.current,
+      -circleRadius
     );
     
     if (circle) {
       circle.isStatic = true;
       currentCircleRef.current = circle;
       isDraggingRef.current = true;
+      isAnimatingRef.current = true;
+      animationStartTimeRef.current = performance.now();
+      
+      const startY = -circleRadius;
+      const targetY = 30;
+      const totalDistance = targetY - startY;
+      
+      const animateSlideDown = (timestamp: number) => {
+        if (!circle || !isDraggingRef.current) return;
+        
+        if (!animationStartTimeRef.current) {
+          animationStartTimeRef.current = timestamp;
+        }
+        
+        const elapsed = timestamp - animationStartTimeRef.current;
+        const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+        
+        // Linear interpolation for Y position
+        const newY = startY + (totalDistance * progress);
+        
+        // Use the latest X position from nextSpawnXRef
+        Matter.Body.setPosition(circle, {
+          x: nextSpawnXRef.current || width / 2,
+          y: newY
+        });
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateSlideDown);
+        } else {
+          // Animation complete
+          isAnimatingRef.current = false;
+          animationStartTimeRef.current = null;
+        }
+      };
+      
+      requestAnimationFrame(animateSlideDown);
+    }
+  }, [createCircle, nextTier]);
+
+  const startDrag = useCallback((x: number) => {
+    // Don't allow starting a new drag while animating
+    if (isAnimatingRef.current) return;
+    
+    if (!renderRef.current) return;
+    const { width } = renderRef.current.canvas;
+    
+    if (isFirstSpawnRef.current) {
+      // First spawn logic - also moved closer to top
+      const spawnX = width / 2;
+      const spawnY = 30;
+      
+      const circle = createCircle(
+        nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
+        spawnX,
+        spawnY
+      );
+      
+      if (circle) {
+        circle.isStatic = true;
+        currentCircleRef.current = circle;
+        isDraggingRef.current = true;
+        isFirstSpawnRef.current = false;
+      }
+    } else if (currentCircleRef.current) {
+      // Update position only if not animating
+      const radius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
+      const padding = radius + 5;
+      const constrainedX = Math.max(padding, Math.min(width - padding, x));
+      nextSpawnXRef.current = constrainedX;
+      
+      Matter.Body.setPosition(currentCircleRef.current, {
+        x: constrainedX,
+        y: currentCircleRef.current.position.y
+      });
     }
   }, [createCircle, nextTier]);
 
   const updateDrag = useCallback((x: number) => {
-    if (!currentCircleRef.current || !isDraggingRef.current || !renderRef.current) return;
+    if (!renderRef.current) return;
     
     const { width } = renderRef.current.canvas;
     const circle = currentCircleRef.current as CircleBody;
-    const radius = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG || 1].radius;
+    if (!circle) return;
     
-    // Add padding equal to the circle's radius plus a small buffer
+    const radius = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG || 1].radius;
     const padding = radius + 5;
     
-    // Constrain x position within safe bounds
+    // Update X position even during animation
     const constrainedX = Math.max(
       padding, 
       Math.min(width - padding, x)
     );
     
-    Matter.Body.setPosition(currentCircleRef.current, {
-      x: constrainedX,
-      y: currentCircleRef.current.position.y,
-    });
+    // Store the last valid mouse position
+    nextSpawnXRef.current = constrainedX;
+    
+    // Only update the circle position directly if not animating
+    if (!isAnimatingRef.current) {
+      Matter.Body.setPosition(circle, {
+        x: constrainedX,
+        y: circle.position.y,
+      });
+    }
   }, []);
 
-  const endDrag = useCallback(() => {
+  const endDrag = useCallback((mouseX?: number) => {
+    // Don't allow dropping while animating
+    if (isAnimatingRef.current) return;
+    
     if (!currentCircleRef.current || !isDraggingRef.current) return;
     
     currentCircleRef.current.isStatic = false;
@@ -276,7 +359,9 @@ export const useMatterJs = (
     currentCircleRef.current = null;
     
     onDrop();
-  }, [onDrop]);
+    // Pass the current mouse position to prepareNextSpawn
+    prepareNextSpawn(mouseX);
+  }, [onDrop, prepareNextSpawn]);
 
   return {
     engine: engineRef.current,

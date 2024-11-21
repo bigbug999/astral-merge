@@ -94,8 +94,13 @@ export default function Home() {
     updateDrag(relativeX);
   }, [updateDrag]);
 
-  const handlePointerUp = useCallback(() => {
-    endDrag();
+  const handlePointerUp = useCallback((event: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    
+    const { left } = containerRef.current.getBoundingClientRect();
+    const relativeX = event.clientX - left;
+    
+    endDrag(relativeX);
   }, [endDrag]);
 
   // Fixed preview size of 32px diameter (16px radius)
