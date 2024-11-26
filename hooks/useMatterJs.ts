@@ -521,6 +521,16 @@ export const useMatterJs = (
       });
     });
 
+    // Store the event handler reference so we can remove it later
+    const beforeUpdateHandler = () => {
+      if (runnerRef.current) {
+        Matter.Runner.tick(runnerRef.current, engineRef.current);
+      }
+    };
+
+    // Add the event listener with the stored handler
+    Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
+
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
 
@@ -534,8 +544,8 @@ export const useMatterJs = (
       Matter.Engine.clear(engineRef.current);
       render.canvas.remove();
       runnerRef.current = null;
-      // Add to cleanup
-      Matter.Events.off(engineRef.current, 'beforeUpdate');
+      // Remove the event listener with the same handler reference
+      Matter.Events.off(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
     };
   }, [containerRef, createCircle, mergeBodies]);
 
