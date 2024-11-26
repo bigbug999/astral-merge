@@ -473,53 +473,59 @@ export const useMatterJs = (
     });
 
     // Add before update event handler to check for and wake up falling sleeping bodies
-    Matter.Events.on(engineRef.current, 'beforeUpdate', () => {
-      const bodies = Matter.Composite.allBodies(engineRef.current.world);
-      
-      bodies.forEach((body) => {
-        const circle = body as CircleBody;
+    const beforeUpdateHandler = () => {
+      if (engineRef.current && containerRef.current) {
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
         
-        // Only check circles that are sleeping and have been dropped
-        if (circle.label?.startsWith('circle-') && 
-            circle.isSleeping && 
-            circle.hasBeenDropped) {
+        bodies.forEach((body) => {
+          const circle = body as CircleBody;
           
-          // Check if there's any support below this circle
-          const position = circle.position;
-          const radius = circle.circleRadius || 0;
-          
-          // Create a small rectangle below the circle to check for collisions
-          const detector = Matter.Bodies.rectangle(
-            position.x,
-            position.y + radius + 1, // Just below the circle
-            radius * 0.5, // Narrow detector
-            2, // Very thin
-            { isSensor: true }
-          );
+          // Only check circles that are sleeping and have been dropped
+          if (circle.label?.startsWith('circle-') && 
+              circle.isSleeping && 
+              circle.hasBeenDropped) {
+            
+            // Check if there's any support below this circle
+            const position = circle.position;
+            const radius = circle.circleRadius || 0;
+            
+            // Create a small rectangle below the circle to check for collisions
+            const detector = Matter.Bodies.rectangle(
+              position.x,
+              position.y + radius + 1, // Just below the circle
+              radius * 0.5, // Narrow detector
+              2, // Very thin
+              { isSensor: true }
+            );
 
-          // Check for collisions with the detector
-          const collisions = Matter.Query.collides(detector, bodies);
-          
-          // If no collisions (except with self) or only colliding with other sleeping bodies
-          const hasSupport = collisions.some(collision => {
-            const other = collision.bodyA === detector ? collision.bodyB : collision.bodyA;
-            return other !== circle && 
-                   !other.isSleeping && 
-                   !other.label?.startsWith('danger-zone');
-          });
-
-          // Wake up the circle if it has no support
-          if (!hasSupport) {
-            Matter.Sleeping.set(circle, false);
-            // Add a small downward velocity to ensure it starts moving
-            Matter.Body.setVelocity(circle, {
-              x: circle.velocity.x,
-              y: Math.max(circle.velocity.y, 0.1)
+            // Check for collisions with the detector
+            const collisions = Matter.Query.collides(detector, bodies);
+            
+            // If no collisions (except with self) or only colliding with other sleeping bodies
+            const hasSupport = collisions.some(collision => {
+              const other = collision.bodyA === detector ? collision.bodyB : collision.bodyA;
+              return other !== circle && 
+                     !other.isSleeping && 
+                     !other.label?.startsWith('danger-zone');
             });
+
+            // Wake up the circle if it has no support
+            if (!hasSupport) {
+              Matter.Sleeping.set(circle, false);
+              // Add a small downward velocity to ensure it starts moving
+              Matter.Body.setVelocity(circle, {
+                x: circle.velocity.x,
+                y: Math.max(circle.velocity.y, 0.1)
+              });
+            }
           }
-        }
-      });
-    });
+        });
+      }
+    };
+
+    if (engineRef.current) {
+      Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
+    }
 
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
@@ -535,7 +541,9 @@ export const useMatterJs = (
       render.canvas.remove();
       runnerRef.current = null;
       // Add to cleanup
-      Matter.Events.off(engineRef.current, 'beforeUpdate');
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
+      }
     };
   }, [containerRef, createCircle, mergeBodies]);
 
