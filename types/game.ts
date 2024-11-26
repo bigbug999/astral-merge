@@ -78,11 +78,22 @@ export const CIRCLE_CONFIG = {
   }
 } as const; 
 
-// Add PowerUp types
+// Update PowerUpState interface
 export interface PowerUpState {
   isHeavyBallActive: boolean;
   isSuperHeavyBallActive: boolean;
+  isNegativeBallActive: boolean;
+  heavyBallUses: number;      // Add counter for heavy ball uses
+  superHeavyBallUses: number; // Add counter for super heavy ball uses
+  negativeBallUses: number;   // Add counter for negative ball uses
 }
+
+// Add constants for initial uses
+export const POWER_UP_USES = {
+  HEAVY_BALL: 10,
+  SUPER_HEAVY_BALL: 5,
+  NEGATIVE_BALL: 3,
+} as const;
 
 // Add heavy ball configuration
 export const HEAVY_BALL_CONFIG = {
@@ -104,4 +115,18 @@ export const SUPER_HEAVY_BALL_CONFIG = {
   strokeColor: '#ff0000', // Red color for super heavy
   strokeWidth: 4,
   glowColor: 'rgba(255, 0, 0, 0.3)',
+} as const; 
+
+// Update negative ball configuration
+export const NEGATIVE_BALL_CONFIG = {
+  density: 0.005,         // Light for fast movement
+  friction: 0.00001,      // Almost no friction
+  frictionAir: 0.000001,  // Minimal air resistance
+  restitution: 0.98,      // Extremely bouncy
+  strokeColor: '#FF1493', // Hot pink
+  strokeWidth: 4,
+  glowColor: 'rgba(255, 20, 147, 0.5)',
+  deletionLimit: 2,       // Changed from 3 to 2 balls to delete
+  initialSpeed: 8,        // Initial speed multiplier
+  bounceForce: 0.03      // Force applied on bounces
 } as const; 

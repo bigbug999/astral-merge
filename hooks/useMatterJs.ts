@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
-import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG, SUPER_HEAVY_BALL_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG, SUPER_HEAVY_BALL_CONFIG, NEGATIVE_BALL_CONFIG } from '@/types/game';
 
 const OBJECT_POOL_SIZE = 50;
 
@@ -22,6 +22,9 @@ interface CircleBody extends Matter.Body {
   hasBeenDropped?: boolean;
   composite?: Matter.Composite;
   isHeavyBall?: boolean;
+  isNegativeBall?: boolean;
+  deletionsRemaining?: number;
+  powerUpDropTime?: number;
 }
 
 export const useMatterJs = (
@@ -29,7 +32,8 @@ export const useMatterJs = (
   onDrop: () => void,
   onNewTier: (tier: number) => void,
   nextTier: number,
-  powerUps: PowerUpState
+  powerUps: PowerUpState,
+  onPowerUpUse: () => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.5 },
@@ -56,6 +60,7 @@ export const useMatterJs = (
   const frameRateLimiterRef = useRef<number>(0);
   const TARGET_FPS = 60;
   const FRAME_TIME = 1000 / TARGET_FPS;
+  const isCreatingDropBallRef = useRef(false);
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
@@ -85,6 +90,43 @@ export const useMatterJs = (
     return canvas.toDataURL();
   };
 
+  // Add a function to update the current ball's appearance
+  const updateCurrentBallAppearance = useCallback(() => {
+    if (!currentCircleRef.current) return;
+    
+    const circle = currentCircleRef.current as CircleBody;
+    const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+    const visualRadius = (visualConfig.radius - 1);
+
+    // Update the ball's appearance based on active power-up
+    if (circle.render.sprite) {
+      circle.render.sprite.texture = createCircleTexture(
+        visualConfig.color,
+        powerUps.isNegativeBallActive
+          ? NEGATIVE_BALL_CONFIG.strokeColor
+          : powerUps.isSuperHeavyBallActive
+            ? SUPER_HEAVY_BALL_CONFIG.strokeColor
+            : powerUps.isHeavyBallActive 
+              ? HEAVY_BALL_CONFIG.strokeColor 
+              : visualConfig.strokeColor,
+        powerUps.isNegativeBallActive
+          ? NEGATIVE_BALL_CONFIG.glowColor
+          : powerUps.isSuperHeavyBallActive
+            ? SUPER_HEAVY_BALL_CONFIG.glowColor
+            : powerUps.isHeavyBallActive 
+              ? HEAVY_BALL_CONFIG.glowColor 
+              : visualConfig.glowColor,
+        visualRadius * 2
+      );
+    }
+  }, [powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive, powerUps.isNegativeBallActive]);
+
+  // Add effect to update appearance when power-ups change
+  useEffect(() => {
+    updateCurrentBallAppearance();
+  }, [powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive, powerUps.isNegativeBallActive, updateCurrentBallAppearance]);
+
+  // Update createCircle to use normal visuals
   const createCircle = useCallback((
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
@@ -92,60 +134,26 @@ export const useMatterJs = (
   ) => {
     if (!renderRef.current || !engineRef.current) return null;
 
-    // Get physics properties based on power-up state
-    const physicsConfig = powerUps.isSuperHeavyBallActive 
-      ? {
-          density: 0.5,            // Much heavier
-          friction: 0.0001,        // Almost no friction
-          frictionAir: 0.00001,    // Almost no air resistance
-          restitution: 0.01,       // Almost no bounce
-          frictionStatic: 0.0001,  // No static friction
-          slop: 1,                 // Very forgiving collisions
-          torque: 0,               // No rotation
-          inertia: Infinity,       // Resist rotation
-        }
-      : powerUps.isHeavyBallActive 
-        ? {
-            density: 0.1,          // Increased from 0.025 to 0.1
-            friction: 0.0005,      // Reduced friction
-            frictionAir: 0.00005,  // Reduced air friction
-            restitution: 0.1,      // Less bouncy
-            frictionStatic: 0.001, // Lower static friction
-            slop: 0.5,            // More forgiving collisions
-            torque: 0,            // Reduced rotation
-            inertia: 1000,        // Some rotation resistance
-          }
-        : {
-            density: 0.015,
-            friction: 0.1,
-            frictionAir: 0.001,
-            restitution: 0.5,
-          };
-
     // Get visual properties from CIRCLE_CONFIG
     const visualConfig = CIRCLE_CONFIG[tier];
     const collisionRadius = visualConfig.radius;
     const visualRadius = collisionRadius - 1;
     
-    // Create circle texture with glow
+    // Create circle texture with normal visuals initially
     const texture = createCircleTexture(
       visualConfig.color,
-      powerUps.isSuperHeavyBallActive
-        ? SUPER_HEAVY_BALL_CONFIG.strokeColor
-        : powerUps.isHeavyBallActive 
-          ? HEAVY_BALL_CONFIG.strokeColor 
-          : visualConfig.strokeColor,
-      powerUps.isSuperHeavyBallActive
-        ? SUPER_HEAVY_BALL_CONFIG.glowColor
-        : powerUps.isHeavyBallActive 
-          ? HEAVY_BALL_CONFIG.glowColor 
-          : visualConfig.glowColor,
+      visualConfig.strokeColor,
+      visualConfig.glowColor,
       visualRadius * 2
     );
-    
+
+    // Create with normal physics initially
     const circle = Matter.Bodies.circle(x, y, collisionRadius, {
-      ...physicsConfig,
-      frictionStatic: powerUps.isHeavyBallActive ? 0.01 : 0.2,
+      density: 0.015,
+      friction: 0.1,
+      frictionAir: 0.001,
+      restitution: 0.5,
+      frictionStatic: 0.2,
       slop: 0.05,
       sleepThreshold: Infinity,
       collisionFilter: {
@@ -166,7 +174,6 @@ export const useMatterJs = (
     circle.isMerging = false;
     circle.tier = tier;
     circle.hasBeenDropped = false;
-    circle.isHeavyBall = powerUps.isHeavyBallActive;
 
     Matter.Body.setStatic(circle, false);
     Matter.Body.set(circle, {
@@ -177,7 +184,7 @@ export const useMatterJs = (
 
     Matter.Composite.add(engineRef.current.world, circle);
     return circle;
-  }, [powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive]);
+  }, []);
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
@@ -199,25 +206,35 @@ export const useMatterJs = (
     // Create new merged circle
     const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
     
-    // Store current power-up states
+    // Always create the new circle with no power-ups
     const currentPowerUps = {
-      isHeavyBallActive: powerUps.isHeavyBallActive,
-      isSuperHeavyBallActive: powerUps.isSuperHeavyBallActive
+      isHeavyBallActive: false,    // Force no power-ups for merged ball
+      isSuperHeavyBallActive: false,
+      isNegativeBallActive: false
     };
 
     // Temporarily disable all power-ups for the new merged ball
     powerUps.isHeavyBallActive = false;
     powerUps.isSuperHeavyBallActive = false;
+    powerUps.isNegativeBallActive = false;
     
-    const newCircle = createCircle(newTier, midX, midY);
+    const newCircle = createCircle(newTier, midX, midY, false);
     
-    // Restore power-up states
-    powerUps.isHeavyBallActive = currentPowerUps.isHeavyBallActive;
-    powerUps.isSuperHeavyBallActive = currentPowerUps.isSuperHeavyBallActive;
+    // Restore original power-up states from the game state
+    powerUps.isHeavyBallActive = powerUps.heavyBallUses > 0 && powerUps.isHeavyBallActive;
+    powerUps.isSuperHeavyBallActive = powerUps.superHeavyBallUses > 0 && powerUps.isSuperHeavyBallActive;
+    powerUps.isNegativeBallActive = powerUps.negativeBallUses > 0 && powerUps.isNegativeBallActive;
     
     if (newCircle) {
       (newCircle as CircleBody).hasBeenDropped = true;
+      // Give a small upward boost to the merged ball
       Matter.Body.setVelocity(newCircle, { x: 0, y: -2.5 });
+      
+      // Ensure the new circle has no power-up properties
+      (newCircle as CircleBody).isHeavyBall = false;
+      (newCircle as CircleBody).isNegativeBall = false;
+      (newCircle as CircleBody).deletionsRemaining = undefined;
+      (newCircle as CircleBody).powerUpDropTime = undefined;
     }
 
     onNewTier(newTier);
@@ -393,16 +410,55 @@ export const useMatterJs = (
           return;
         }
 
-        if (bodyA.hasBeenDropped && 
-            bodyB.hasBeenDropped && 
-            !bodyA.isMerging && 
-            !bodyB.isMerging) {
+        // Handle negative ball collisions with enhanced bounce
+        if ((bodyA.isNegativeBall || bodyB.isNegativeBall) &&
+            bodyA.hasBeenDropped && bodyB.hasBeenDropped) {
+          const negativeBall = bodyA.isNegativeBall ? bodyA : bodyB;
+          const targetBall = bodyA.isNegativeBall ? bodyB : bodyA;
+
+          // Only process if the target ball is not also a negative ball
+          if (!targetBall.isNegativeBall && 
+              negativeBall.deletionsRemaining && 
+              negativeBall.deletionsRemaining > 0) {
+            // Remove the target ball
+            Matter.Composite.remove(engineRef.current.world, targetBall);
+            negativeBall.deletionsRemaining--;
+
+            // Enhanced bounce effect after deletion
+            const bounceForce = NEGATIVE_BALL_CONFIG.bounceForce * 1.5;
+            Matter.Body.setVelocity(negativeBall, {
+              x: negativeBall.velocity.x * 1.5, // Increased horizontal velocity boost
+              y: -Math.abs(negativeBall.velocity.y) - bounceForce // Stronger upward bounce
+            });
+
+            // If the negative ball has completed its deletions, remove it with a final effect
+            if (negativeBall.deletionsRemaining <= 0) {
+              // Add a final bounce before removal
+              Matter.Body.applyForce(negativeBall,
+                negativeBall.position,
+                { x: 0, y: -0.02 }
+              );
+              
+              // Remove after a short delay to show the final bounce
+              setTimeout(() => {
+                if (engineRef.current) {
+                  Matter.Composite.remove(engineRef.current.world, negativeBall);
+                }
+              }, 100);
+            }
+          }
+          return; // Exit early for any collision involving negative balls
+        }
+
+        // Normal merge logic - only process if neither ball is a negative ball
+        if (!bodyA.isNegativeBall && !bodyB.isNegativeBall &&
+            bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
+            !bodyA.isMerging && !bodyB.isMerging) {
           
           const tierA = bodyA.tier;
           const tierB = bodyB.tier;
 
           if (tierA === tierB && tierA !== undefined && tierA < 12) {
-            // Add to collision queue instead of processing immediately
             collisionQueue.push([bodyA, bodyB]);
             requestAnimationFrame(processCollisionQueue);
           }
@@ -488,46 +544,84 @@ export const useMatterJs = (
       Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
     }
 
-    // Add continuous force for super heavy balls
+    const POWER_UP_DURATION = 5000; // 5 seconds in milliseconds
+
     const forceInterval = setInterval(() => {
       if (engineRef.current) {
         const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        const currentTime = Date.now();
+
         bodies.forEach((body) => {
           const circle = body as CircleBody;
-          if (circle.label?.startsWith('circle-') && 
-              circle.hasBeenDropped) {
+          if (circle.label?.startsWith('circle-') && circle.hasBeenDropped) {
             
-            if (circle.isHeavyBall) {
-              if (powerUps.isSuperHeavyBallActive) {
-                // Super heavy ball forces (existing code)
-                Matter.Body.applyForce(circle, 
-                  circle.position, 
-                  { x: 0, y: 0.01 }
-                );
-                // ... rest of super heavy logic ...
-              } else if (powerUps.isHeavyBallActive) {
-                // Regular heavy ball forces
-                Matter.Body.applyForce(circle, 
-                  circle.position, 
-                  { x: 0, y: 0.003 }  // Constant but lighter downward force
-                );
+            // Check if power-up is active
+            if (circle.powerUpDropTime && circle.isHeavyBall) {
+              const elapsedTime = currentTime - circle.powerUpDropTime;
+              
+              if (elapsedTime > POWER_UP_DURATION) {
+                // Immediately reset to normal physics properties
+                Matter.Body.set(circle, {
+                  density: 0.015,
+                  friction: 0.1,
+                  frictionAir: 0.001,
+                  restitution: 0.5,
+                  frictionStatic: 0.2,
+                  slop: 0.05
+                });
+                circle.isHeavyBall = false;
+                circle.powerUpDropTime = undefined;
                 
-                // Lighter random horizontal force to prevent stacking
-                if (circle.velocity.y < 0.2) {
+                // Update the circle's appearance
+                if (circle.render.sprite) {
+                  const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+                  circle.render.sprite.texture = createCircleTexture(
+                    visualConfig.color,
+                    visualConfig.strokeColor,
+                    visualConfig.glowColor,
+                    (visualConfig.radius - 1) * 2
+                  );
+                }
+              } 
+              // Apply forces while power-up is active
+              else {
+                if (powerUps.isSuperHeavyBallActive) {
                   Matter.Body.applyForce(circle, 
                     circle.position, 
-                    { 
-                      x: (Math.random() - 0.5) * 0.0002,
-                      y: 0
-                    }
+                    { x: 0, y: 0.01 }
                   );
+                  
+                  if (circle.velocity.y < 0.2) {
+                    Matter.Body.applyForce(circle, 
+                      circle.position, 
+                      { 
+                        x: (Math.random() - 0.5) * 0.0002,
+                        y: 0
+                      }
+                    );
+                  }
+                } else if (powerUps.isHeavyBallActive) {
+                  Matter.Body.applyForce(circle, 
+                    circle.position, 
+                    { x: 0, y: 0.003 }
+                  );
+                  
+                  if (circle.velocity.y < 0.2) {
+                    Matter.Body.applyForce(circle, 
+                      circle.position, 
+                      { 
+                        x: (Math.random() - 0.5) * 0.0002,
+                        y: 0
+                      }
+                    );
+                  }
                 }
               }
             }
           }
         });
       }
-    }, 16); // Run at ~60fps
+    }, 16);
 
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
@@ -561,6 +655,8 @@ export const useMatterJs = (
       Math.max(padding, Math.min(width - padding, mouseX)) : 
       width / 2;
     
+    // Create the next ball without power-ups
+    isCreatingDropBallRef.current = false;
     const circle = createCircle(
       nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
       nextSpawnXRef.current,
@@ -685,6 +781,71 @@ export const useMatterJs = (
     if (!currentCircleRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
+    
+    // Apply power-up effects and visuals when dropping
+    if (powerUps.isNegativeBallActive) {
+      // Update physics
+      Matter.Body.set(circle, {
+        ...NEGATIVE_BALL_CONFIG,
+        frictionStatic: 0.0001,
+        slop: 0.05
+      });
+      
+      // Update visuals immediately
+      if (circle.render.sprite) {
+        circle.render.sprite.texture = createCircleTexture(
+          CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].color,
+          NEGATIVE_BALL_CONFIG.strokeColor,
+          NEGATIVE_BALL_CONFIG.glowColor,
+          (CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].radius - 1) * 2
+        );
+      }
+      
+      circle.isNegativeBall = true;
+      circle.deletionsRemaining = NEGATIVE_BALL_CONFIG.deletionLimit;
+      onPowerUpUse();
+    } else if (powerUps.isSuperHeavyBallActive) {
+      // Update physics
+      Matter.Body.set(circle, {
+        ...SUPER_HEAVY_BALL_CONFIG,
+        frictionStatic: 0.0001,
+        slop: 1
+      });
+      
+      // Update visuals immediately
+      if (circle.render.sprite) {
+        circle.render.sprite.texture = createCircleTexture(
+          CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].color,
+          SUPER_HEAVY_BALL_CONFIG.strokeColor,
+          SUPER_HEAVY_BALL_CONFIG.glowColor,
+          (CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].radius - 1) * 2
+        );
+      }
+      
+      circle.isHeavyBall = true;
+      onPowerUpUse();
+    } else if (powerUps.isHeavyBallActive) {
+      // Update physics
+      Matter.Body.set(circle, {
+        ...HEAVY_BALL_CONFIG,
+        frictionStatic: 0.001,
+        slop: 0.5
+      });
+      
+      // Update visuals immediately
+      if (circle.render.sprite) {
+        circle.render.sprite.texture = createCircleTexture(
+          CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].color,
+          HEAVY_BALL_CONFIG.strokeColor,
+          HEAVY_BALL_CONFIG.glowColor,
+          (CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].radius - 1) * 2
+        );
+      }
+      
+      circle.isHeavyBall = true;
+      onPowerUpUse();
+    }
+
     circle.hasBeenDropped = true;
     
     Matter.Sleeping.set(circle, false);
@@ -761,7 +922,49 @@ export const useMatterJs = (
         }, i * pulseDuration);
       }
     }
-  }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive]);
+
+    // Set the power-up drop time when the ball is dropped
+    if (powerUps.isHeavyBallActive || powerUps.isSuperHeavyBallActive) {
+      circle.powerUpDropTime = Date.now();
+    }
+
+    // Special handling for negative balls
+    if (circle.isNegativeBall) {
+      // Add more dynamic initial velocity
+      const horizontalVelocity = (Math.random() - 0.5) * 8; // Increased horizontal velocity
+      const initialVelocity = NEGATIVE_BALL_CONFIG.initialSpeed;
+      Matter.Body.setVelocity(circle, {
+        x: horizontalVelocity,
+        y: initialVelocity // Faster initial drop
+      });
+      
+      // Add periodic bounce forces with higher values
+      const addBounceForce = () => {
+        if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
+          Matter.Body.applyForce(circle, 
+            circle.position, 
+            { 
+              x: (Math.random() - 0.5) * 0.02, // Stronger horizontal force
+              y: -NEGATIVE_BALL_CONFIG.bounceForce - (Math.random() * 0.02)  // Stronger upward force
+            }
+          );
+        }
+      };
+
+      // More frequent bounce forces
+      const bounceInterval = setInterval(() => {
+        if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
+          addBounceForce();
+        } else {
+          clearInterval(bounceInterval);
+        }
+      }, 300); // Reduced interval for more frequent bounces
+
+      // Clear interval when ball is removed
+      setTimeout(() => clearInterval(bounceInterval), 10000);
+    }
+  }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive, 
+      powerUps.isNegativeBallActive, onPowerUpUse, createCircleTexture]);
 
   return {
     engine: engineRef.current,
@@ -771,4 +974,25 @@ export const useMatterJs = (
     endDrag,
     isDragging: isDraggingRef.current,
   };
+}; 
+
+// Add this helper function for color interpolation
+const interpolateColor = (color1: string, color2: string, progress: number) => {
+  // Simple color interpolation for hex colors
+  if (color1.startsWith('#') && color2.startsWith('#')) {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    const r = Math.round(r1 + (r2 - r1) * progress);
+    const g = Math.round(g1 + (g2 - g1) * progress);
+    const b = Math.round(b1 + (b2 - b1) * progress);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  return color1; // Fallback to original color if not hex
 }; 
