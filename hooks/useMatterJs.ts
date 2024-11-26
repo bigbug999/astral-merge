@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
-import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG, SUPER_HEAVY_BALL_CONFIG } from '@/types/game';
 
 const OBJECT_POOL_SIZE = 50;
 
@@ -92,29 +92,54 @@ export const useMatterJs = (
   ) => {
     if (!renderRef.current || !engineRef.current) return null;
 
-    const config = CIRCLE_CONFIG[tier];
-    
-    // Configure physics properties based on power-up state
-    const physicsConfig = powerUps.isHeavyBallActive ? {
-      density: HEAVY_BALL_CONFIG.density,
-      friction: HEAVY_BALL_CONFIG.friction,
-      frictionAir: HEAVY_BALL_CONFIG.frictionAir,
-      restitution: HEAVY_BALL_CONFIG.restitution
-    } : {
-      density: 0.001,
-      friction: 0.02,
-      frictionAir: 0.001,
-      restitution: 0.3
-    };
-    
-    const collisionRadius = config.radius;
+    // Get physics properties based on power-up state
+    const physicsConfig = powerUps.isSuperHeavyBallActive 
+      ? {
+          density: 0.5,            // Much heavier
+          friction: 0.0001,        // Almost no friction
+          frictionAir: 0.00001,    // Almost no air resistance
+          restitution: 0.01,       // Almost no bounce
+          frictionStatic: 0.0001,  // No static friction
+          slop: 1,                 // Very forgiving collisions
+          torque: 0,               // No rotation
+          inertia: Infinity,       // Resist rotation
+        }
+      : powerUps.isHeavyBallActive 
+        ? {
+            density: 0.1,          // Increased from 0.025 to 0.1
+            friction: 0.0005,      // Reduced friction
+            frictionAir: 0.00005,  // Reduced air friction
+            restitution: 0.1,      // Less bouncy
+            frictionStatic: 0.001, // Lower static friction
+            slop: 0.5,            // More forgiving collisions
+            torque: 0,            // Reduced rotation
+            inertia: 1000,        // Some rotation resistance
+          }
+        : {
+            density: 0.015,
+            friction: 0.1,
+            frictionAir: 0.001,
+            restitution: 0.5,
+          };
+
+    // Get visual properties from CIRCLE_CONFIG
+    const visualConfig = CIRCLE_CONFIG[tier];
+    const collisionRadius = visualConfig.radius;
     const visualRadius = collisionRadius - 1;
     
     // Create circle texture with glow
     const texture = createCircleTexture(
-      config.color,
-      powerUps.isHeavyBallActive ? HEAVY_BALL_CONFIG.strokeColor : config.strokeColor,
-      powerUps.isHeavyBallActive ? HEAVY_BALL_CONFIG.glowColor : config.glowColor,
+      visualConfig.color,
+      powerUps.isSuperHeavyBallActive
+        ? SUPER_HEAVY_BALL_CONFIG.strokeColor
+        : powerUps.isHeavyBallActive 
+          ? HEAVY_BALL_CONFIG.strokeColor 
+          : visualConfig.strokeColor,
+      powerUps.isSuperHeavyBallActive
+        ? SUPER_HEAVY_BALL_CONFIG.glowColor
+        : powerUps.isHeavyBallActive 
+          ? HEAVY_BALL_CONFIG.glowColor 
+          : visualConfig.glowColor,
       visualRadius * 2
     );
     
@@ -152,7 +177,7 @@ export const useMatterJs = (
 
     Matter.Composite.add(engineRef.current.world, circle);
     return circle;
-  }, [powerUps.isHeavyBallActive]);
+  }, [powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive]);
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
@@ -164,103 +189,38 @@ export const useMatterJs = (
     bodyA.isMerging = true;
     bodyB.isMerging = true;
 
-    // Optimize by pre-calculating positions and using RAF timestamp
-    const startPosA = { x: bodyA.position.x, y: bodyA.position.y };
-    const startPosB = { x: bodyB.position.x, y: bodyB.position.y };
-    const midX = (startPosA.x + startPosB.x) / 2;
-    const midY = (startPosA.y + startPosB.y) / 2;
+    // Calculate midpoint for new circle spawn
+    const midX = (bodyA.position.x + bodyB.position.x) / 2;
+    const midY = (bodyA.position.y + bodyB.position.y) / 2;
 
-    // Cache scale values
-    const originalScale = 1;
-    const targetScale = 1.15;
-    const scaleDiff = targetScale - originalScale;
+    // Remove old circles immediately
+    Matter.Composite.remove(engineRef.current.world, [bodyA, bodyB]);
 
-    // Make both circles static during animation
-    Matter.Body.setStatic(bodyA, true);
-    Matter.Body.setStatic(bodyB, true);
-
-    let animationFrameId: number;
-    const startTime = performance.now();
-
-    const animateMerge = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / MERGE_ANIMATION_DURATION, 1);
-
-      // Use a simpler easing function
-      const easeProgress = progress < 0.5 
-        ? 2 * progress * progress 
-        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-      // First half of animation: move circles together and scale up
-      if (progress <= 0.5) {
-        const halfProgress = easeProgress * 2;
-        
-        // Optimize position calculations
-        const newX_A = startPosA.x + (midX - startPosA.x) * halfProgress;
-        const newY_A = startPosA.y + (midY - startPosA.y) * halfProgress;
-        const newX_B = startPosB.x + (midX - startPosB.x) * halfProgress;
-        const newY_B = startPosB.y + (midY - startPosB.y) * halfProgress;
-        
-        Matter.Body.setPosition(bodyA, { x: newX_A, y: newY_A });
-        Matter.Body.setPosition(bodyB, { x: newX_B, y: newY_B });
-
-        // Optimize scale calculations
-        const scale = originalScale + scaleDiff * halfProgress;
-        if (bodyA.render.sprite) bodyA.render.sprite.xScale = bodyA.render.sprite.yScale = scale;
-        if (bodyB.render.sprite) bodyB.render.sprite.xScale = bodyB.render.sprite.yScale = scale;
-      }
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(animateMerge);
-      } else {
-        // Cleanup and create new merged circle
-        cancelAnimationFrame(animationFrameId);
-        Matter.Composite.remove(engineRef.current.world, [bodyA, bodyB]);
-
-        const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-        
-        // Temporarily disable heavy ball power-up for the new merged ball
-        const currentPowerUpState = powerUps.isHeavyBallActive;
-        powerUps.isHeavyBallActive = false;
-        const newCircle = createCircle(newTier, midX, midY);
-        powerUps.isHeavyBallActive = currentPowerUpState;
-        
-        if (newCircle) {
-          (newCircle as CircleBody).hasBeenDropped = true;
-          
-          if (newCircle.render.sprite) {
-            newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = targetScale;
-          }
-
-          // Optimize scale down animation
-          const scaleDownStart = performance.now();
-          const scaleDownDuration = 100;
-          const scaleRange = targetScale - 1;
-
-          const animateScaleDown = (timestamp: number) => {
-            const scaleProgress = Math.min((timestamp - scaleDownStart) / scaleDownDuration, 1);
-            // Simplified easing
-            const easedScale = 1 + scaleRange * (1 - scaleProgress * scaleProgress);
-            
-            if (newCircle.render.sprite) {
-              newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = easedScale;
-            }
-
-            if (scaleProgress < 1) {
-              requestAnimationFrame(animateScaleDown);
-            } else {
-              Matter.Body.setVelocity(newCircle, { x: 0, y: -2.5 });
-            }
-          };
-
-          requestAnimationFrame(animateScaleDown);
-        }
-
-        onNewTier(newTier);
-      }
+    // Create new merged circle
+    const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+    
+    // Store current power-up states
+    const currentPowerUps = {
+      isHeavyBallActive: powerUps.isHeavyBallActive,
+      isSuperHeavyBallActive: powerUps.isSuperHeavyBallActive
     };
 
-    requestAnimationFrame(animateMerge);
+    // Temporarily disable all power-ups for the new merged ball
+    powerUps.isHeavyBallActive = false;
+    powerUps.isSuperHeavyBallActive = false;
+    
+    const newCircle = createCircle(newTier, midX, midY);
+    
+    // Restore power-up states
+    powerUps.isHeavyBallActive = currentPowerUps.isHeavyBallActive;
+    powerUps.isSuperHeavyBallActive = currentPowerUps.isSuperHeavyBallActive;
+    
+    if (newCircle) {
+      (newCircle as CircleBody).hasBeenDropped = true;
+      Matter.Body.setVelocity(newCircle, { x: 0, y: -2.5 });
+    }
+
+    onNewTier(newTier);
   }, [createCircle, onNewTier, powerUps]);
 
   const createDangerZone = (width: number) => {
@@ -370,9 +330,10 @@ export const useMatterJs = (
       dangerZone,
       Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
-        friction: 0.05,
-        restitution: 0.4,
-        slop: 0.05,           // Increased slop for better performance
+        friction: 0.01,
+        frictionStatic: 0.01,
+        restitution: 0.5,
+        slop: 0.05,
         chamfer: { radius: 2 },
         render: { 
           fillStyle: '#27272a'
@@ -527,6 +488,47 @@ export const useMatterJs = (
       Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
     }
 
+    // Add continuous force for super heavy balls
+    const forceInterval = setInterval(() => {
+      if (engineRef.current) {
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        bodies.forEach((body) => {
+          const circle = body as CircleBody;
+          if (circle.label?.startsWith('circle-') && 
+              circle.hasBeenDropped) {
+            
+            if (circle.isHeavyBall) {
+              if (powerUps.isSuperHeavyBallActive) {
+                // Super heavy ball forces (existing code)
+                Matter.Body.applyForce(circle, 
+                  circle.position, 
+                  { x: 0, y: 0.01 }
+                );
+                // ... rest of super heavy logic ...
+              } else if (powerUps.isHeavyBallActive) {
+                // Regular heavy ball forces
+                Matter.Body.applyForce(circle, 
+                  circle.position, 
+                  { x: 0, y: 0.003 }  // Constant but lighter downward force
+                );
+                
+                // Lighter random horizontal force to prevent stacking
+                if (circle.velocity.y < 0.2) {
+                  Matter.Body.applyForce(circle, 
+                    circle.position, 
+                    { 
+                      x: (Math.random() - 0.5) * 0.0002,
+                      y: 0
+                    }
+                  );
+                }
+              }
+            }
+          }
+        });
+      }
+    }, 16); // Run at ~60fps
+
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
 
@@ -544,8 +546,9 @@ export const useMatterJs = (
       if (engineRef.current) {
         Matter.Events.off(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
       }
+      clearInterval(forceInterval);
     };
-  }, [containerRef, createCircle, mergeBodies]);
+  }, [containerRef, createCircle, mergeBodies, powerUps.isSuperHeavyBallActive]);
 
   const prepareNextSpawn = useCallback((mouseX?: number) => {
     if (!renderRef.current) return;
@@ -691,40 +694,74 @@ export const useMatterJs = (
       timeScale: 1.0
     });
     
-    // Calculate initial drop velocity with a boost for heavy balls
+    // Calculate initial drop velocity with adjusted boosts
     const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
-    const initialDropVelocity = powerUps.isHeavyBallActive 
-      ? baseDropVelocity * 2  // Double the initial velocity for heavy balls
-      : baseDropVelocity;
+    const initialDropVelocity = powerUps.isSuperHeavyBallActive 
+      ? baseDropVelocity * 20    // 20x velocity for super heavy balls
+      : powerUps.isHeavyBallActive 
+        ? baseDropVelocity * 8   // Increased from 2x to 8x for heavy balls
+        : baseDropVelocity;
     
     Matter.Body.setVelocity(circle, {
       x: 0,
       y: initialDropVelocity
     });
     
+    // Add immediate force based on power-up
+    if (powerUps.isSuperHeavyBallActive) {
+      Matter.Body.applyForce(circle, 
+        circle.position, 
+        { x: 0, y: 0.2 }        // Strong force for super heavy
+      );
+    } else if (powerUps.isHeavyBallActive) {
+      Matter.Body.applyForce(circle, 
+        circle.position, 
+        { x: 0, y: 0.05 }       // Medium force for heavy
+      );
+    }
+    
     // Ensure the body is not static and has proper physics properties
     circle.isStatic = false;
     Matter.Body.set(circle, {
       isSleeping: false,
-      motion: 1, // Set motion above sleep threshold
-      speed: Math.abs(initialDropVelocity) // Ensure speed is non-zero
+      motion: 1,
+      speed: Math.abs(initialDropVelocity)
     });
     
     isDraggingRef.current = false;
     currentCircleRef.current = null;
     
-    // Add a small timeout to ensure the body stays awake during initial fall
     setTimeout(() => {
       if (circle && !circle.isSleeping) {
         Matter.Body.set(circle, {
-          motion: circle.speed // Update motion based on current speed
+          motion: circle.speed
         });
       }
     }, 50);
     
     onDrop();
     prepareNextSpawn(mouseX);
-  }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive]);
+
+    // For super heavy balls, add periodic force pulses
+    if (powerUps.isSuperHeavyBallActive) {
+      const pulseDuration = 500; // Duration of force pulses in ms
+      const pulseCount = 3;      // Number of pulses
+      
+      for (let i = 0; i < pulseCount; i++) {
+        setTimeout(() => {
+          if (circle && !circle.isMerging) {
+            Matter.Body.applyForce(circle, 
+              circle.position, 
+              { 
+                x: 0,
+                y: 0.05 * (1 - (i / pulseCount))  // Decreasing force over time
+              }
+            );
+          }
+        }, i * pulseDuration);
+      }
+    }
+  }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive]);
 
   return {
     engine: engineRef.current,

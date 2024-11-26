@@ -81,6 +81,7 @@ export const CIRCLE_CONFIG = {
 // Add PowerUp types
 export interface PowerUpState {
   isHeavyBallActive: boolean;
+  isSuperHeavyBallActive: boolean;
 }
 
 // Add heavy ball configuration
@@ -92,4 +93,15 @@ export const HEAVY_BALL_CONFIG = {
   strokeColor: '#ffffff',
   strokeWidth: 4,
   glowColor: 'rgba(255, 255, 255, 0.3)',
+} as const; 
+
+// Add super heavy ball configuration
+export const SUPER_HEAVY_BALL_CONFIG = {
+  density: 0.075,         // 3x the heavy ball density
+  friction: 0.001,        
+  frictionAir: 0.0001,    
+  restitution: 0.1,       // Even less bouncy
+  strokeColor: '#ff0000', // Red color for super heavy
+  strokeWidth: 4,
+  glowColor: 'rgba(255, 0, 0, 0.3)',
 } as const; 

@@ -8,7 +8,9 @@ declare global {
 
 import { useRef, useState, useCallback } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
-import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG, SUPER_HEAVY_BALL_CONFIG } from '@/types/game';
+import { AnvilIcon } from '@/components/icons/AnvilIcon';
+import { SuperAnvilIcon } from '@/components/icons/SuperAnvilIcon';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -58,6 +60,7 @@ export default function Home() {
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
   const [powerUps, setPowerUps] = useState<PowerUpState>({
     isHeavyBallActive: false,
+    isSuperHeavyBallActive: false,
   });
 
   const handleNewTier = useCallback((tier: number) => {
@@ -148,7 +151,16 @@ export default function Home() {
   const handleHeavyBallClick = useCallback(() => {
     setPowerUps(prev => ({
       ...prev,
-      isHeavyBallActive: !prev.isHeavyBallActive
+      isHeavyBallActive: !prev.isHeavyBallActive,
+      isSuperHeavyBallActive: false, // Deactivate super heavy when toggling heavy
+    }));
+  }, []);
+
+  const handleSuperHeavyBallClick = useCallback(() => {
+    setPowerUps(prev => ({
+      ...prev,
+      isSuperHeavyBallActive: !prev.isSuperHeavyBallActive,
+      isHeavyBallActive: false, // Deactivate heavy when toggling super heavy
     }));
   }, []);
 
@@ -171,26 +183,42 @@ export default function Home() {
                 width: CIRCLE_CONFIG[nextTier].radius * 2,
                 height: CIRCLE_CONFIG[nextTier].radius * 2,
                 backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                border: powerUps.isHeavyBallActive 
-                  ? `${HEAVY_BALL_CONFIG.strokeWidth}px solid ${HEAVY_BALL_CONFIG.strokeColor}`
-                  : `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                boxShadow: powerUps.isHeavyBallActive
-                  ? `0 0 15px ${HEAVY_BALL_CONFIG.glowColor}`
-                  : `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+                border: powerUps.isSuperHeavyBallActive 
+                  ? `${SUPER_HEAVY_BALL_CONFIG.strokeWidth}px solid ${SUPER_HEAVY_BALL_CONFIG.strokeColor}`
+                  : powerUps.isHeavyBallActive 
+                    ? `${HEAVY_BALL_CONFIG.strokeWidth}px solid ${HEAVY_BALL_CONFIG.strokeColor}`
+                    : `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                boxShadow: powerUps.isSuperHeavyBallActive
+                  ? `0 0 15px ${SUPER_HEAVY_BALL_CONFIG.glowColor}`
+                  : powerUps.isHeavyBallActive
+                    ? `0 0 15px ${HEAVY_BALL_CONFIG.glowColor}`
+                    : `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
                 transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
               }}
             />
           </div>
-          <button
-            onClick={handleHeavyBallClick}
-            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${
-              powerUps.isHeavyBallActive 
-                ? 'bg-white text-zinc-900' 
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-            }`}
-          >
-            ⚓
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleHeavyBallClick}
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${
+                powerUps.isHeavyBallActive 
+                  ? 'bg-white text-zinc-900' 
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              }`}
+            >
+              <AnvilIcon className="w-6 h-6" />
+            </button>
+            <button
+              onClick={handleSuperHeavyBallClick}
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${
+                powerUps.isSuperHeavyBallActive 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              }`}
+            >
+              <SuperAnvilIcon className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col items-end">
