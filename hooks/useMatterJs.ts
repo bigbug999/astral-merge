@@ -521,31 +521,21 @@ export const useMatterJs = (
       });
     });
 
-    // Create the beforeUpdate handler with the correct number of arguments
-    const beforeUpdateHandler = () => {
-      if (runnerRef.current) {
-        // Add the time parameter (using the runner's delta)
-        Matter.Runner.tick(runnerRef.current, engineRef.current, runnerRef.current.delta);
-      }
-    };
-
-    // Add the event listener with the stored handler
-    Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
-
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
 
     return () => {
       collisionQueue = [];
-      // Clean up event listeners
+      // Clean up both event listeners
       Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
       Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
-      Matter.Events.off(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
       Matter.Render.stop(render);
       Matter.Runner.stop(runner);
       Matter.Engine.clear(engineRef.current);
       render.canvas.remove();
       runnerRef.current = null;
+      // Add to cleanup
+      Matter.Events.off(engineRef.current, 'beforeUpdate');
     };
   }, [containerRef, createCircle, mergeBodies]);
 
