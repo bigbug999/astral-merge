@@ -153,7 +153,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 p-4">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
@@ -205,7 +205,7 @@ export default function Home() {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
+        className="relative w-full max-w-sm h-[60dvh] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800"
       />
     </div>
   );
