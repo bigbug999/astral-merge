@@ -218,7 +218,7 @@ export const useMatterJs = (
     powerUps.isSuperHeavyBallActive = false;
     powerUps.isNegativeBallActive = false;
     
-    const newCircle = createCircle(newTier, midX, midY, false);
+    const newCircle = createCircle(newTier, midX, midY);
     
     // Restore original power-up states from the game state
     powerUps.isHeavyBallActive = powerUps.heavyBallUses > 0 && powerUps.isHeavyBallActive;
