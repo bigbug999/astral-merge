@@ -77,3 +77,19 @@ export const CIRCLE_CONFIG = {
     radius: 102 
   }
 } as const; 
+
+// Add PowerUp types
+export interface PowerUpState {
+  isHeavyBallActive: boolean;
+}
+
+// Add heavy ball configuration
+export const HEAVY_BALL_CONFIG = {
+  density: 0.025,         // Increased from 0.015 to 0.025 for faster dropping
+  friction: 0.001,        // Very low friction (slippery)
+  frictionAir: 0.0001,    // Reduced air friction for faster falling
+  restitution: 0.2,       // Slightly less bouncy
+  strokeColor: '#ffffff',
+  strokeWidth: 4,
+  glowColor: 'rgba(255, 255, 255, 0.3)',
+} as const; 

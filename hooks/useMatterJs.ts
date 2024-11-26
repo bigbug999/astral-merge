@@ -1,19 +1,46 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
-import { CIRCLE_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG } from '@/types/game';
+
+const OBJECT_POOL_SIZE = 50;
+
+interface ObjectPool {
+  active: Set<CircleBody>;
+  inactive: CircleBody[];
+}
+
+const createObjectPool = (engine: Matter.Engine): ObjectPool => {
+  return {
+    active: new Set(),
+    inactive: []
+  };
+};
+
+interface CircleBody extends Matter.Body {
+  isMerging?: boolean;
+  tier?: number;
+  hasBeenDropped?: boolean;
+  composite?: Matter.Composite;
+  isHeavyBall?: boolean;
+}
 
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
   onNewTier: (tier: number) => void,
-  nextTier: number
+  nextTier: number,
+  powerUps: PowerUpState
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.5 },
-    positionIterations: 16,
-    velocityIterations: 12,
-    constraintIterations: 6,
-    enableSleeping: false
+    positionIterations: 6,
+    velocityIterations: 4,
+    constraintIterations: 2,
+    enableSleeping: true,
+    timing: {
+      timeScale: 1.0,
+      timestamp: 0,
+    }
   }));
   const renderRef = useRef<Matter.Render | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
@@ -25,14 +52,10 @@ export const useMatterJs = (
   const animationStartTimeRef = useRef<number | null>(null);
   const ANIMATION_DURATION = 200; // Reduced from 300ms to 200ms for initial drop
   const MERGE_ANIMATION_DURATION = 150; // Reduced from 200ms to 150ms for merging
-
-  // Extend the Matter.Body type to include our custom properties
-  type CircleBody = Matter.Body & {
-    isMerging?: boolean;
-    tier?: number;
-    composite?: Matter.Composite;
-    hasBeenDropped?: boolean;
-  };
+  const objectPoolRef = useRef<ObjectPool | null>(null);
+  const frameRateLimiterRef = useRef<number>(0);
+  const TARGET_FPS = 60;
+  const FRAME_TIME = 1000 / TARGET_FPS;
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
@@ -70,15 +93,19 @@ export const useMatterJs = (
     if (!renderRef.current || !engineRef.current) return null;
 
     const config = CIRCLE_CONFIG[tier];
-    const baseDensity = 0.001;
     
-    // Calculate density multiplier based on tier
-    let densityMultiplier;
-    if (tier <= 4) {
-      densityMultiplier = Math.pow(0.85, tier - 1);
-    } else {
-      densityMultiplier = Math.pow(0.85, 3) * Math.pow(0.6, tier - 4);
-    }
+    // Configure physics properties based on power-up state
+    const physicsConfig = powerUps.isHeavyBallActive ? {
+      density: HEAVY_BALL_CONFIG.density,
+      friction: HEAVY_BALL_CONFIG.friction,
+      frictionAir: HEAVY_BALL_CONFIG.frictionAir,
+      restitution: HEAVY_BALL_CONFIG.restitution
+    } : {
+      density: 0.001,
+      friction: 0.02,
+      frictionAir: 0.001,
+      restitution: 0.3
+    };
     
     const collisionRadius = config.radius;
     const visualRadius = collisionRadius - 1;
@@ -86,18 +113,16 @@ export const useMatterJs = (
     // Create circle texture with glow
     const texture = createCircleTexture(
       config.color,
-      config.strokeColor,
-      config.color.replace('0.1', '0.3'),
+      powerUps.isHeavyBallActive ? HEAVY_BALL_CONFIG.strokeColor : config.strokeColor,
+      powerUps.isHeavyBallActive ? HEAVY_BALL_CONFIG.glowColor : config.glowColor,
       visualRadius * 2
     );
     
     const circle = Matter.Bodies.circle(x, y, collisionRadius, {
-      restitution: 0.5,
-      friction: 0.01,
-      density: baseDensity * densityMultiplier,
-      frictionAir: 0.0005,
-      frictionStatic: 0.05,
+      ...physicsConfig,
+      frictionStatic: powerUps.isHeavyBallActive ? 0.01 : 0.2,
       slop: 0.05,
+      sleepThreshold: Infinity,
       collisionFilter: {
         group: 0,
         category: 0x0001,
@@ -116,6 +141,7 @@ export const useMatterJs = (
     circle.isMerging = false;
     circle.tier = tier;
     circle.hasBeenDropped = false;
+    circle.isHeavyBall = powerUps.isHeavyBallActive;
 
     Matter.Body.setStatic(circle, false);
     Matter.Body.set(circle, {
@@ -126,7 +152,7 @@ export const useMatterJs = (
 
     Matter.Composite.add(engineRef.current.world, circle);
     return circle;
-  }, []);
+  }, [powerUps.isHeavyBallActive]);
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
@@ -138,105 +164,104 @@ export const useMatterJs = (
     bodyA.isMerging = true;
     bodyB.isMerging = true;
 
+    // Optimize by pre-calculating positions and using RAF timestamp
     const startPosA = { x: bodyA.position.x, y: bodyA.position.y };
     const startPosB = { x: bodyB.position.x, y: bodyB.position.y };
     const midX = (startPosA.x + startPosB.x) / 2;
     const midY = (startPosA.y + startPosB.y) / 2;
 
+    // Cache scale values
+    const originalScale = 1;
+    const targetScale = 1.15;
+    const scaleDiff = targetScale - originalScale;
+
     // Make both circles static during animation
     Matter.Body.setStatic(bodyA, true);
     Matter.Body.setStatic(bodyB, true);
 
-    // Store original scales
-    const originalScale = 1;
-    const targetScale = 1.15; // Slightly reduced from 1.2 for snappier feel
-
+    let animationFrameId: number;
     const startTime = performance.now();
 
     const animateMerge = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / MERGE_ANIMATION_DURATION, 1);
 
-      // Easing function for smooth animation
-      const easeInOutQuad = (t: number) => 
-        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      
-      const easedProgress = easeInOutQuad(progress);
+      // Use a simpler easing function
+      const easeProgress = progress < 0.5 
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
       // First half of animation: move circles together and scale up
       if (progress <= 0.5) {
-        const halfProgress = easedProgress * 2;
+        const halfProgress = easeProgress * 2;
         
-        // Move circles towards center
-        Matter.Body.setPosition(bodyA, {
-          x: startPosA.x + (midX - startPosA.x) * halfProgress,
-          y: startPosA.y + (midY - startPosA.y) * halfProgress
-        });
+        // Optimize position calculations
+        const newX_A = startPosA.x + (midX - startPosA.x) * halfProgress;
+        const newY_A = startPosA.y + (midY - startPosA.y) * halfProgress;
+        const newX_B = startPosB.x + (midX - startPosB.x) * halfProgress;
+        const newY_B = startPosB.y + (midY - startPosB.y) * halfProgress;
         
-        Matter.Body.setPosition(bodyB, {
-          x: startPosB.x + (midX - startPosB.x) * halfProgress,
-          y: startPosB.y + (midY - startPosB.y) * halfProgress
-        });
+        Matter.Body.setPosition(bodyA, { x: newX_A, y: newY_A });
+        Matter.Body.setPosition(bodyB, { x: newX_B, y: newY_B });
 
-        // Scale up
-        const scale = originalScale + (targetScale - originalScale) * halfProgress;
+        // Optimize scale calculations
+        const scale = originalScale + scaleDiff * halfProgress;
         if (bodyA.render.sprite) bodyA.render.sprite.xScale = bodyA.render.sprite.yScale = scale;
         if (bodyB.render.sprite) bodyB.render.sprite.xScale = bodyB.render.sprite.yScale = scale;
       }
 
       if (progress < 1) {
-        requestAnimationFrame(animateMerge);
+        animationFrameId = requestAnimationFrame(animateMerge);
       } else {
-        // Animation complete - create new merged circle
-        Matter.Composite.remove(engineRef.current.world, bodyA);
-        Matter.Composite.remove(engineRef.current.world, bodyB);
+        // Cleanup and create new merged circle
+        cancelAnimationFrame(animationFrameId);
+        Matter.Composite.remove(engineRef.current.world, [bodyA, bodyB]);
 
         const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+        
+        // Temporarily disable heavy ball power-up for the new merged ball
+        const currentPowerUpState = powerUps.isHeavyBallActive;
+        powerUps.isHeavyBallActive = false;
         const newCircle = createCircle(newTier, midX, midY);
+        powerUps.isHeavyBallActive = currentPowerUpState;
         
         if (newCircle) {
-          // Set the new circle as dropped immediately
           (newCircle as CircleBody).hasBeenDropped = true;
           
-          // Start with larger scale and animate down
           if (newCircle.render.sprite) {
             newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = targetScale;
           }
 
-          // Animate the new circle scaling down to normal size
+          // Optimize scale down animation
           const scaleDownStart = performance.now();
-          const scaleDownDuration = 100; // Reduced from 150ms to 100ms
+          const scaleDownDuration = 100;
+          const scaleRange = targetScale - 1;
 
-          const animateScaleDown = (currentTime: number) => {
-            const scaleProgress = Math.min((currentTime - scaleDownStart) / scaleDownDuration, 1);
-            const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
-            const easedScaleProgress = easeOutQuad(scaleProgress);
+          const animateScaleDown = (timestamp: number) => {
+            const scaleProgress = Math.min((timestamp - scaleDownStart) / scaleDownDuration, 1);
+            // Simplified easing
+            const easedScale = 1 + scaleRange * (1 - scaleProgress * scaleProgress);
             
             if (newCircle.render.sprite) {
-              const scale = targetScale + (1 - targetScale) * easedScaleProgress;
-              newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = scale;
+              newCircle.render.sprite.xScale = newCircle.render.sprite.yScale = easedScale;
             }
 
             if (scaleProgress < 1) {
               requestAnimationFrame(animateScaleDown);
             } else {
-              // Give a small upward boost after scaling down
-              Matter.Body.setVelocity(newCircle, {
-                x: 0,
-                y: -2.5 // Slightly increased from -2 for snappier bounce
-              });
+              Matter.Body.setVelocity(newCircle, { x: 0, y: -2.5 });
             }
           };
 
           requestAnimationFrame(animateScaleDown);
         }
-        
+
         onNewTier(newTier);
       }
     };
 
     requestAnimationFrame(animateMerge);
-  }, [createCircle, onNewTier]);
+  }, [createCircle, onNewTier, powerUps]);
 
   const createDangerZone = (width: number) => {
     const dangerZoneHeight = 120;
@@ -331,35 +356,45 @@ export const useMatterJs = (
       label: 'danger-zone'
     });
 
-    const walls = [
+    // Optimize engine settings for better performance
+    engineRef.current.world.gravity.scale = 0.001;
+    engineRef.current.timing.timeScale = 1.0;
+    
+    // Reduce solver iterations while maintaining stability
+    engineRef.current.positionIterations = 6;
+    engineRef.current.velocityIterations = 4;
+    engineRef.current.constraintIterations = 2;
+
+    // Add performance optimizations for the physics bodies
+    const createOptimizedWalls = () => [
       dangerZone,
       Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
-        slop: 0.01,
+        slop: 0.05,           // Increased slop for better performance
         chamfer: { radius: 2 },
         render: { 
           fillStyle: '#27272a'
         }
       }),
-      // Left wall - moved slightly left and taller
+      // Left wall
       Matter.Bodies.rectangle(-25, height / 2, 50, height + 60, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
-        slop: 0.01,
+        slop: 0.05,
         chamfer: { radius: 2 },
         render: { 
           fillStyle: '#27272a'
         }
       }),
-      // Right wall - moved slightly right and taller
+      // Right wall
       Matter.Bodies.rectangle(width + 25, height / 2, 50, height + 60, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
-        slop: 0.01,
+        slop: 0.05,
         chamfer: { radius: 2 },
         render: { 
           fillStyle: '#27272a'
@@ -367,32 +402,36 @@ export const useMatterJs = (
       })
     ];
 
+    const walls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, walls);
 
-    // Update engine settings
-    engineRef.current.world.gravity.scale = 0.001;
-    engineRef.current.timing.timeScale = 1.0;
-    
-    // Increase solver iterations for better physics
-    engineRef.current.positionIterations = 12;
-    engineRef.current.velocityIterations = 8;
-    engineRef.current.constraintIterations = 4;
+    // Add performance optimization for collision handling
+    let collisionQueue: Array<[CircleBody, CircleBody]> = [];
+    let isProcessingCollisions = false;
 
-    Matter.Runner.run(runner, engineRef.current);
-    Matter.Render.run(render);
+    const processCollisionQueue = () => {
+      if (isProcessingCollisions || collisionQueue.length === 0) return;
+      
+      isProcessingCollisions = true;
+      const [bodyA, bodyB] = collisionQueue.shift()!;
+      
+      mergeBodies(bodyA, bodyB);
+      
+      isProcessingCollisions = false;
+      if (collisionQueue.length > 0) {
+        requestAnimationFrame(processCollisionQueue);
+      }
+    };
 
-    // Collision handling
     const collisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
       event.pairs.forEach((pair) => {
         const bodyA = pair.bodyA as CircleBody;
         const bodyB = pair.bodyB as CircleBody;
         
-        // Only process collisions between circles
         if (!bodyA.label?.startsWith('circle-') || !bodyB.label?.startsWith('circle-')) {
           return;
         }
 
-        // Only merge if both circles have been dropped and aren't already merging
         if (bodyA.hasBeenDropped && 
             bodyB.hasBeenDropped && 
             !bodyA.isMerging && 
@@ -401,12 +440,10 @@ export const useMatterJs = (
           const tierA = bodyA.tier;
           const tierB = bodyB.tier;
 
-          // Check if tiers match and are valid for merging
           if (tierA === tierB && tierA !== undefined && tierA < 12) {
-            // Use requestAnimationFrame to handle the merge on the next frame
-            requestAnimationFrame(() => {
-              mergeBodies(bodyA, bodyB);
-            });
+            // Add to collision queue instead of processing immediately
+            collisionQueue.push([bodyA, bodyB]);
+            requestAnimationFrame(processCollisionQueue);
           }
         }
       });
@@ -435,7 +472,60 @@ export const useMatterJs = (
       });
     });
 
+    // Add before update event handler to check for and wake up falling sleeping bodies
+    Matter.Events.on(engineRef.current, 'beforeUpdate', () => {
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      
+      bodies.forEach((body) => {
+        const circle = body as CircleBody;
+        
+        // Only check circles that are sleeping and have been dropped
+        if (circle.label?.startsWith('circle-') && 
+            circle.isSleeping && 
+            circle.hasBeenDropped) {
+          
+          // Check if there's any support below this circle
+          const position = circle.position;
+          const radius = circle.circleRadius || 0;
+          
+          // Create a small rectangle below the circle to check for collisions
+          const detector = Matter.Bodies.rectangle(
+            position.x,
+            position.y + radius + 1, // Just below the circle
+            radius * 0.5, // Narrow detector
+            2, // Very thin
+            { isSensor: true }
+          );
+
+          // Check for collisions with the detector
+          const collisions = Matter.Query.collides(detector, bodies);
+          
+          // If no collisions (except with self) or only colliding with other sleeping bodies
+          const hasSupport = collisions.some(collision => {
+            const other = collision.bodyA === detector ? collision.bodyB : collision.bodyA;
+            return other !== circle && 
+                   !other.isSleeping && 
+                   !other.label?.startsWith('danger-zone');
+          });
+
+          // Wake up the circle if it has no support
+          if (!hasSupport) {
+            Matter.Sleeping.set(circle, false);
+            // Add a small downward velocity to ensure it starts moving
+            Matter.Body.setVelocity(circle, {
+              x: circle.velocity.x,
+              y: Math.max(circle.velocity.y, 0.1)
+            });
+          }
+        }
+      });
+    });
+
+    Matter.Runner.run(runner, engineRef.current);
+    Matter.Render.run(render);
+
     return () => {
+      collisionQueue = [];
       // Clean up both event listeners
       Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
       Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
@@ -444,6 +534,8 @@ export const useMatterJs = (
       Matter.Engine.clear(engineRef.current);
       render.canvas.remove();
       runnerRef.current = null;
+      // Add to cleanup
+      Matter.Events.off(engineRef.current, 'beforeUpdate');
     };
   }, [containerRef, createCircle, mergeBodies]);
 
@@ -577,7 +669,6 @@ export const useMatterJs = (
   }, []);
 
   const endDrag = useCallback((mouseX?: number) => {
-    // Only process endDrag if we're actually dragging and not animating
     if (!isDraggingRef.current || isAnimatingRef.current) return;
     
     if (!currentCircleRef.current) return;
@@ -585,22 +676,47 @@ export const useMatterJs = (
     const circle = currentCircleRef.current as CircleBody;
     circle.hasBeenDropped = true;
     
-    // Calculate the initial drop velocity based on the gravity and animation
-    const initialDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
+    Matter.Sleeping.set(circle, false);
     
-    // Set initial velocity to match animation
+    Matter.Body.set(circle, {
+      sleepThreshold: 60,
+      timeScale: 1.0
+    });
+    
+    // Calculate initial drop velocity with a boost for heavy balls
+    const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
+    const initialDropVelocity = powerUps.isHeavyBallActive 
+      ? baseDropVelocity * 2  // Double the initial velocity for heavy balls
+      : baseDropVelocity;
+    
     Matter.Body.setVelocity(circle, {
       x: 0,
       y: initialDropVelocity
     });
     
+    // Ensure the body is not static and has proper physics properties
     circle.isStatic = false;
+    Matter.Body.set(circle, {
+      isSleeping: false,
+      motion: 1, // Set motion above sleep threshold
+      speed: Math.abs(initialDropVelocity) // Ensure speed is non-zero
+    });
+    
     isDraggingRef.current = false;
     currentCircleRef.current = null;
     
+    // Add a small timeout to ensure the body stays awake during initial fall
+    setTimeout(() => {
+      if (circle && !circle.isSleeping) {
+        Matter.Body.set(circle, {
+          motion: circle.speed // Update motion based on current speed
+        });
+      }
+    }, 50);
+    
     onDrop();
     prepareNextSpawn(mouseX);
-  }, [onDrop, prepareNextSpawn]);
+  }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive]);
 
   return {
     engine: engineRef.current,

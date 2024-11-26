@@ -8,7 +8,7 @@ declare global {
 
 import { useRef, useState, useCallback } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
-import { CIRCLE_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG } from '@/types/game';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -56,6 +56,9 @@ export default function Home() {
   const [combo, setCombo] = useState(0);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
+  const [powerUps, setPowerUps] = useState<PowerUpState>({
+    isHeavyBallActive: false,
+  });
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
@@ -90,7 +93,8 @@ export default function Home() {
     containerRef, 
     handleDrop, 
     handleNewTier,
-    nextTier
+    nextTier,
+    powerUps
   );
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
@@ -141,21 +145,44 @@ export default function Home() {
     return config.color;
   };
 
+  const handleHeavyBallClick = useCallback(() => {
+    setPowerUps(prev => ({
+      ...prev,
+      isHeavyBallActive: !prev.isHeavyBallActive
+    }));
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div className="w-full max-w-sm mb-4 flex items-center justify-between">
-        <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
-          <div 
-            className="rounded-full"
-            style={{
-              width: CIRCLE_CONFIG[nextTier].radius * 2,
-              height: CIRCLE_CONFIG[nextTier].radius * 2,
-              backgroundColor: CIRCLE_CONFIG[nextTier].color,
-              border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-              boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-              transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-            }}
-          />
+        <div className="flex items-center gap-2">
+          <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
+            <div 
+              className="rounded-full"
+              style={{
+                width: CIRCLE_CONFIG[nextTier].radius * 2,
+                height: CIRCLE_CONFIG[nextTier].radius * 2,
+                backgroundColor: CIRCLE_CONFIG[nextTier].color,
+                border: powerUps.isHeavyBallActive 
+                  ? `${HEAVY_BALL_CONFIG.strokeWidth}px solid ${HEAVY_BALL_CONFIG.strokeColor}`
+                  : `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                boxShadow: powerUps.isHeavyBallActive
+                  ? `0 0 15px ${HEAVY_BALL_CONFIG.glowColor}`
+                  : `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+                transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
+              }}
+            />
+          </div>
+          <button
+            onClick={handleHeavyBallClick}
+            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${
+              powerUps.isHeavyBallActive 
+                ? 'bg-white text-zinc-900' 
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            ⚓
+          </button>
         </div>
 
         <div className="flex flex-col items-end">
