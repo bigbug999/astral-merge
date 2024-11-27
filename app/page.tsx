@@ -68,6 +68,7 @@ export default function Home() {
     superHeavyBallUses: POWER_UP_USES.SUPER_HEAVY_BALL,
     negativeBallUses: POWER_UP_USES.NEGATIVE_BALL,
   });
+  const [isGameOver, setIsGameOver] = useState(false);
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
@@ -125,13 +126,19 @@ export default function Home() {
     });
   }, []);
 
-  const { startDrag, updateDrag, endDrag } = useMatterJs(
+  const handleGameOver = useCallback(() => {
+    setIsGameOver(true);
+    // Add any additional game over logic here
+  }, []);
+
+  const { startDrag, updateDrag, endDrag, spawnStressTestBalls } = useMatterJs(
     containerRef, 
     handleDrop, 
     handleNewTier,
     nextTier,
     powerUps,
-    handlePowerUpUse
+    handlePowerUpUse,
+    handleGameOver
   );
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
@@ -210,19 +217,19 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-2 sm:p-4">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
       <div 
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-2 sm:mb-4"
+        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-4"
       />
 
       <div className="w-full max-w-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           {/* Preview Circle */}
-          <div className="w-10 h-10 sm:w-16 sm:h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
+          <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
             <div 
               className="rounded-full"
               style={{
@@ -237,13 +244,13 @@ export default function Home() {
           </div>
 
           {/* Power-up Buttons */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2">
             {/* Heavy Ball Button */}
             <button
               onClick={handleHeavyBallClick}
               disabled={powerUps.heavyBallUses <= 0}
               className={cn(
-                "w-9 h-9 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-colors relative",
+                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
                 powerUps.isHeavyBallActive 
                   ? "bg-zinc-700 text-white" 
                   : powerUps.heavyBallUses <= 0
@@ -251,8 +258,8 @@ export default function Home() {
                     : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
               )}
             >
-              <AnvilIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="absolute -top-1 -right-1 text-[10px] sm:text-xs bg-zinc-700 px-1 rounded-full">
+              <AnvilIcon className="w-6 h-6" />
+              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
                 {powerUps.heavyBallUses}
               </span>
             </button>
@@ -262,7 +269,7 @@ export default function Home() {
               onClick={handleSuperHeavyBallClick}
               disabled={powerUps.superHeavyBallUses <= 0}
               className={cn(
-                "w-9 h-9 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-colors relative",
+                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
                 powerUps.isSuperHeavyBallActive 
                   ? "bg-zinc-700 text-white" 
                   : powerUps.superHeavyBallUses <= 0
@@ -270,8 +277,8 @@ export default function Home() {
                     : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
               )}
             >
-              <SuperAnvilIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="absolute -top-1 -right-1 text-[10px] sm:text-xs bg-zinc-700 px-1 rounded-full">
+              <SuperAnvilIcon className="w-6 h-6" />
+              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
                 {powerUps.superHeavyBallUses}
               </span>
             </button>
@@ -281,7 +288,7 @@ export default function Home() {
               onClick={handleNegativeBallClick}
               disabled={powerUps.negativeBallUses <= 0}
               className={cn(
-                "w-9 h-9 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center transition-colors relative",
+                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
                 powerUps.isNegativeBallActive 
                   ? "bg-zinc-700 text-white" 
                   : powerUps.negativeBallUses <= 0
@@ -289,8 +296,8 @@ export default function Home() {
                     : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
               )}
             >
-              <NegativeBallIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="absolute -top-1 -right-1 text-[10px] sm:text-xs bg-zinc-700 px-1 rounded-full">
+              <NegativeBallIcon className="w-6 h-6" />
+              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
                 {powerUps.negativeBallUses}
               </span>
             </button>
@@ -299,11 +306,11 @@ export default function Home() {
 
         {/* Score Section */}
         <div className="flex flex-col items-end">
-          <div className="text-sm sm:text-xl font-bold text-zinc-100">
+          <div className="text-xl font-bold text-zinc-100">
             Score: {score}
           </div>
           <div 
-            className={`text-[10px] sm:text-sm transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
+            className={`text-sm transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
             style={{
               color: combo > 0 ? getComboColor(combo) : '#a1a1aa'
             }}
@@ -311,6 +318,32 @@ export default function Home() {
             Combo x{(1 + (combo * 0.5)).toFixed(1)}
           </div>
         </div>
+      </div>
+
+      {/* Game Over Overlay */}
+      {isGameOver && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4 transform scale-100 animate-in fade-in duration-200">
+            <h2 className="text-2xl font-bold text-white mb-4 text-center">Game Over!</h2>
+            <p className="text-zinc-300 mb-6 text-center text-lg">Final Score: {score}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+            >
+              Play Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stress Test Button */}
+      <div className="w-full max-w-sm mt-4">
+        <button 
+          className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+          onClick={() => spawnStressTestBalls(50)}
+        >
+          Stress Test (Spawn 50 Balls)
+        </button>
       </div>
     </div>
   );

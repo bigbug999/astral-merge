@@ -25,6 +25,17 @@ interface CircleBody extends Matter.Body {
   isNegativeBall?: boolean;
   deletionsRemaining?: number;
   powerUpDropTime?: number;
+  inDangerZone?: boolean;
+  dangerZoneStartTime?: number;
+  spawnTime?: number;
+}
+
+interface DangerZone extends Matter.Body {
+  isActive: boolean;
+  timeRemaining: number;
+  render: Matter.IBodyRender & {
+    visualTimer?: number;
+  };
 }
 
 export const useMatterJs = (
@@ -33,7 +44,8 @@ export const useMatterJs = (
   onNewTier: (tier: number) => void,
   nextTier: number,
   powerUps: PowerUpState,
-  onPowerUpUse: () => void
+  onPowerUpUse: () => void,
+  onGameOver: () => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.5 },
@@ -61,6 +73,10 @@ export const useMatterJs = (
   const TARGET_FPS = 60;
   const FRAME_TIME = 1000 / TARGET_FPS;
   const isCreatingDropBallRef = useRef(false);
+  const DANGER_ZONE_HEIGHT = 100; // Height of danger zone from top
+  const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
+  const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
+  const dangerZoneRef = useRef<DangerZone | null>(null);
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
@@ -183,6 +199,9 @@ export const useMatterJs = (
     });
 
     Matter.Composite.add(engineRef.current.world, circle);
+    circle.spawnTime = Date.now();
+    circle.inDangerZone = false;
+    
     return circle;
   }, []);
 
@@ -240,53 +259,6 @@ export const useMatterJs = (
     onNewTier(newTier);
   }, [createCircle, onNewTier, powerUps]);
 
-  const createDangerZone = (width: number) => {
-    const dangerZoneHeight = 120;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = dangerZoneHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) return '';
-
-    // Create thinner stripes
-    const stripeHeight = 2; // Reduced to 2px lines
-    const stripeGap = 2;    // Reduced to 2px gaps
-    const stripeAngle = -45;
-    
-    ctx.save();
-    
-    // Rotate context for angled stripes
-    ctx.translate(0, 0);
-    ctx.rotate((stripeAngle * Math.PI) / 180);
-    
-    // Calculate dimensions for rotated stripes
-    const hypotenuse = Math.sqrt(Math.pow(width, 2) + Math.pow(dangerZoneHeight, 2));
-    const numStripes = Math.ceil(hypotenuse / (stripeHeight + stripeGap));
-    
-    // Draw more frequent stripes
-    for (let i = -numStripes; i < numStripes * 2; i++) {
-      const y = i * (stripeHeight + stripeGap);
-      // Using slightly darker grey for better visibility of thin lines
-      if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(75, 75, 75, 0.15)'; // Increased opacity slightly for thin lines
-        ctx.fillRect(-hypotenuse, y, hypotenuse * 2, stripeHeight);
-      }
-    }
-    
-    ctx.restore();
-
-    // Add bottom stroke
-    ctx.beginPath();
-    ctx.moveTo(0, dangerZoneHeight - 1);
-    ctx.lineTo(width, dangerZoneHeight - 1);
-    ctx.strokeStyle = 'rgba(75, 75, 75, 0.4)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    return canvas.toDataURL();
-  };
-
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -314,24 +286,10 @@ export const useMatterJs = (
 
     // Update engine settings with slightly reduced speed
     engineRef.current.world.gravity.scale = 0.001;  // Reduced from 0.002
-    engineRef.current.timing.timeScale = 1.0;        // Reduced from 1.5
+    engineRef.current.timing.timeScale = 1.0;       // Reduced from 1.5
     
     // Force an initial engine update
     Matter.Engine.update(engineRef.current, runner.delta);
-
-    // Update the danger zone and walls to use zIndex instead of layer
-    const dangerZone = Matter.Bodies.rectangle(width / 2, 60, width, 120, {
-      isStatic: true,
-      isSensor: true,
-      render: {
-        sprite: {
-          texture: createDangerZone(width),
-          xScale: 1,
-          yScale: 1
-        }
-      },
-      label: 'danger-zone'
-    });
 
     // Optimize engine settings for better performance
     engineRef.current.world.gravity.scale = 0.001;
@@ -344,7 +302,7 @@ export const useMatterJs = (
 
     // Add performance optimizations for the physics bodies
     const createOptimizedWalls = () => [
-      dangerZone,
+      // Bottom wall
       Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
         isStatic: true,
         friction: 0.01,
@@ -470,25 +428,6 @@ export const useMatterJs = (
     Matter.Events.on(engineRef.current, 'collisionStart', collisionHandler);
     Matter.Events.on(engineRef.current, 'collisionActive', collisionHandler);
 
-    // Add collision detection for danger zone
-    Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
-      event.pairs.forEach((pair) => {
-        const bodyA = pair.bodyA as CircleBody;
-        const bodyB = pair.bodyB as CircleBody;
-        
-        // Check if either body is the danger zone
-        if (bodyA.label === 'danger-zone' || bodyB.label === 'danger-zone') {
-          const circle = bodyA.label.startsWith('circle-') ? bodyA : 
-                        bodyB.label.startsWith('circle-') ? bodyB : null;
-                          
-          if (circle && circle.hasBeenDropped) {
-            // TODO: Handle game over condition
-            console.log('Game Over - Circle touched danger zone!');
-          }
-        }
-      });
-    });
-
     // Add before update event handler to check for and wake up falling sleeping bodies
     const beforeUpdateHandler = () => {
       if (engineRef.current && containerRef.current) {
@@ -546,6 +485,7 @@ export const useMatterJs = (
 
     const POWER_UP_DURATION = 5000; // 5 seconds in milliseconds
 
+    // Update the force interval to handle super heavy balls more effectively
     const forceInterval = setInterval(() => {
       if (engineRef.current) {
         const bodies = Matter.Composite.allBodies(engineRef.current.world);
@@ -556,11 +496,11 @@ export const useMatterJs = (
           if (circle.label?.startsWith('circle-') && circle.hasBeenDropped) {
             
             // Check if power-up is active
-            if (circle.powerUpDropTime && circle.isHeavyBall) {
+            if (circle.powerUpDropTime) {
               const elapsedTime = currentTime - circle.powerUpDropTime;
               
               if (elapsedTime > POWER_UP_DURATION) {
-                // Immediately reset to normal physics properties
+                // Reset physics properties
                 Matter.Body.set(circle, {
                   density: 0.015,
                   friction: 0.1,
@@ -572,7 +512,7 @@ export const useMatterJs = (
                 circle.isHeavyBall = false;
                 circle.powerUpDropTime = undefined;
                 
-                // Update the circle's appearance
+                // Update appearance
                 if (circle.render.sprite) {
                   const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
                   circle.render.sprite.texture = createCircleTexture(
@@ -583,36 +523,30 @@ export const useMatterJs = (
                   );
                 }
               } 
-              // Apply forces while power-up is active
-              else {
-                if (powerUps.isSuperHeavyBallActive) {
-                  Matter.Body.applyForce(circle, 
-                    circle.position, 
-                    { x: 0, y: 0.01 }
-                  );
-                  
-                  if (circle.velocity.y < 0.2) {
+              // Apply continuous forces while power-up is active
+              else if (circle.isHeavyBall) {
+                if (circle.velocity.y < 15) { // Add velocity cap
+                  if (powerUps.isSuperHeavyBallActive) {
+                    // Stronger continuous downward force
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { 
-                        x: (Math.random() - 0.5) * 0.0002,
-                        y: 0
-                      }
+                      { x: 0, y: 0.015 } // Increased from 0.01
                     );
-                  }
-                } else if (powerUps.isHeavyBallActive) {
-                  Matter.Body.applyForce(circle, 
-                    circle.position, 
-                    { x: 0, y: 0.003 }
-                  );
-                  
-                  if (circle.velocity.y < 0.2) {
+                    
+                    // Add periodic sideways forces for more dynamic movement
+                    if (Math.random() < 0.1) { // 10% chance each frame
+                      Matter.Body.applyForce(circle,
+                        circle.position,
+                        { 
+                          x: (Math.random() - 0.5) * 0.005,
+                          y: 0
+                        }
+                      );
+                    }
+                  } else if (powerUps.isHeavyBallActive) {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { 
-                        x: (Math.random() - 0.5) * 0.0002,
-                        y: 0
-                      }
+                      { x: 0, y: 0.005 }
                     );
                   }
                 }
@@ -621,7 +555,7 @@ export const useMatterJs = (
           }
         });
       }
-    }, 16);
+    }, 16); // Run at ~60fps
 
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(render);
@@ -805,25 +739,21 @@ export const useMatterJs = (
       circle.deletionsRemaining = NEGATIVE_BALL_CONFIG.deletionLimit;
       onPowerUpUse();
     } else if (powerUps.isSuperHeavyBallActive) {
-      // Update physics
+      // Update physics with more extreme values
       Matter.Body.set(circle, {
-        ...SUPER_HEAVY_BALL_CONFIG,
+        density: 0.1,           // Increased from SUPER_HEAVY_BALL_CONFIG.density
+        friction: 0.001,
+        frictionAir: 0.0001,
+        restitution: 0.1,
         frictionStatic: 0.0001,
         slop: 1
       });
       
-      // Update visuals immediately
-      if (circle.render.sprite) {
-        circle.render.sprite.texture = createCircleTexture(
-          CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].color,
-          SUPER_HEAVY_BALL_CONFIG.strokeColor,
-          SUPER_HEAVY_BALL_CONFIG.glowColor,
-          (CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].radius - 1) * 2
-        );
-      }
-      
-      circle.isHeavyBall = true;
-      onPowerUpUse();
+      // Stronger initial force
+      Matter.Body.applyForce(circle, 
+        circle.position, 
+        { x: 0, y: 0.3 }        // Increased from 0.2
+      );
     } else if (powerUps.isHeavyBallActive) {
       // Update physics
       Matter.Body.set(circle, {
@@ -966,6 +896,181 @@ export const useMatterJs = (
   }, [onDrop, prepareNextSpawn, powerUps.isHeavyBallActive, powerUps.isSuperHeavyBallActive, 
       powerUps.isNegativeBallActive, onPowerUpUse, createCircleTexture]);
 
+  // Add new stress test function
+  const spawnStressTestBalls = useCallback((count: number = 50) => {
+    if (!renderRef.current || !engineRef.current) return;
+    
+    const { width, height } = renderRef.current.canvas;
+    const spawnHeight = height * 0.2; // Spawn in top 20% of container
+    
+    // Spawn balls with slight delay to prevent instant physics overload
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        // Random position and tier
+        const x = Math.random() * (width * 0.8) + (width * 0.1); // Keep away from walls
+        const y = Math.random() * spawnHeight;
+        const tier = (Math.floor(Math.random() * 3) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+        
+        const circle = createCircle(tier, x, y);
+        if (circle) {
+          circle.hasBeenDropped = true;
+          // Add random initial velocity
+          Matter.Body.setVelocity(circle, {
+            x: (Math.random() - 0.5) * 2,
+            y: Math.random() * 2
+          });
+        }
+      }, i * 50); // 50ms delay between spawns
+    }
+  }, [createCircle]);
+
+  // Add function to update danger zone appearance
+  const updateDangerZoneAppearance = useCallback((isActive: boolean, timeRemaining: number) => {
+    if (!dangerZoneRef.current || !renderRef.current) return;
+
+    const zone = dangerZoneRef.current;
+    zone.isActive = isActive;
+    zone.timeRemaining = timeRemaining;
+
+    // Update the danger zone's appearance
+    zone.render.fillStyle = isActive 
+      ? `rgba(255, 0, 0, ${0.1 + (0.2 * (1 - timeRemaining / DANGER_ZONE_TIMEOUT))})`
+      : 'rgba(75, 85, 99, 0.1)'; // grey when inactive
+    zone.render.strokeStyle = isActive
+      ? `rgba(255, 0, 0, ${0.3 + (0.4 * (1 - timeRemaining / DANGER_ZONE_TIMEOUT))})`
+      : 'rgba(75, 85, 99, 0.3)'; // grey when inactive
+  }, []);
+
+  // Modify the effect that creates the danger zone
+  useEffect(() => {
+    if (!containerRef.current || !renderRef.current || !engineRef.current) return;
+
+    const { width } = containerRef.current.getBoundingClientRect();
+    
+    // Create danger zone with custom render function
+    const dangerZone = Matter.Bodies.rectangle(
+      width / 2,
+      DANGER_ZONE_HEIGHT / 2,
+      width,
+      DANGER_ZONE_HEIGHT,
+      {
+        isStatic: true,
+        isSensor: true,
+        render: {
+          fillStyle: 'rgba(75, 85, 99, 0.1)', // Start with grey
+          strokeStyle: 'rgba(75, 85, 99, 0.3)',
+          lineWidth: 2,
+          // Custom render function for the timer
+          visualTimer: 0
+        },
+        label: 'danger-zone'
+      }
+    ) as DangerZone;
+
+    dangerZone.isActive = false;
+    dangerZone.timeRemaining = DANGER_ZONE_TIMEOUT;
+    dangerZoneRef.current = dangerZone;
+
+    // Add custom render function to draw the timer
+    const originalRender = renderRef.current.render;
+    renderRef.current.render = (engine: Matter.Engine) => {
+      originalRender(engine);
+      
+      // Draw timer if danger zone is active
+      if (dangerZone.isActive && dangerZone.timeRemaining > 0) {
+        const ctx = renderRef.current!.context as CanvasRenderingContext2D;
+        const timePercent = dangerZone.timeRemaining / DANGER_ZONE_TIMEOUT;
+        
+        // Draw timer background
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(10, 10, 60, 20);
+        
+        // Draw timer bar
+        ctx.fillStyle = dangerZone.isActive 
+          ? `rgba(255, ${Math.floor(255 * timePercent)}, 0, 0.8)`
+          : 'rgba(75, 85, 99, 0.8)';
+        ctx.fillRect(12, 12, 56 * timePercent, 16);
+        
+        // Draw timer text
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          `${(dangerZone.timeRemaining / 1000).toFixed(1)}s`,
+          40,
+          24
+        );
+        ctx.restore();
+      }
+    };
+
+    Matter.Composite.add(engineRef.current.world, dangerZone);
+
+    return () => {
+      if (engineRef.current && dangerZoneRef.current) {
+        Matter.Composite.remove(engineRef.current.world, dangerZoneRef.current);
+      }
+    };
+  }, []);
+
+  // Modify the danger zone collision detection
+  useEffect(() => {
+    if (!engineRef.current || !dangerZoneRef.current) return;
+
+    const checkDangerZone = () => {
+      const currentTime = Date.now();
+      const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+      let isAnyCircleInDanger = false;
+      let minTimeRemaining = DANGER_ZONE_TIMEOUT;
+      
+      bodies.forEach(body => {
+        const circle = body as CircleBody;
+        
+        if (!circle.label?.startsWith('circle-') || !circle.hasBeenDropped) return;
+        
+        // Check if circle has been in play long enough
+        if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
+
+        const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT;
+        
+        if (isInDangerZone && !circle.inDangerZone) {
+          circle.inDangerZone = true;
+          circle.dangerZoneStartTime = currentTime;
+        } else if (!isInDangerZone && circle.inDangerZone) {
+          circle.inDangerZone = false;
+          circle.dangerZoneStartTime = undefined;
+        } else if (isInDangerZone && circle.inDangerZone && circle.dangerZoneStartTime) {
+          const timeInZone = currentTime - circle.dangerZoneStartTime;
+          const timeRemaining = DANGER_ZONE_TIMEOUT - timeInZone;
+          
+          if (timeRemaining <= 0) {
+            onGameOver();
+            Matter.Events.off(engineRef.current!, 'beforeUpdate', checkDangerZone);
+            return;
+          }
+          
+          isAnyCircleInDanger = true;
+          minTimeRemaining = Math.min(minTimeRemaining, timeRemaining);
+        }
+      });
+
+      // Update danger zone appearance
+      updateDangerZoneAppearance(
+        isAnyCircleInDanger,
+        isAnyCircleInDanger ? minTimeRemaining : DANGER_ZONE_TIMEOUT
+      );
+    };
+
+    Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
+      }
+    };
+  }, [onGameOver, updateDangerZoneAppearance]);
+
   return {
     engine: engineRef.current,
     render: renderRef.current,
@@ -973,6 +1078,7 @@ export const useMatterJs = (
     updateDrag,
     endDrag,
     isDragging: isDraggingRef.current,
+    spawnStressTestBalls, // Add to returned object
   };
 }; 
 
