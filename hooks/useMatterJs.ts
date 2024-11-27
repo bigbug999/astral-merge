@@ -33,8 +33,8 @@ interface CircleBody extends Matter.Body {
 interface DangerZone extends Matter.Body {
   isActive: boolean;
   timeRemaining: number;
-  render: Matter.IBodyRender & {
-    visualTimer?: number;
+  render: Matter.IBodyRenderOptions & {
+    context?: CanvasRenderingContext2D;
   };
 }
 
@@ -924,30 +924,13 @@ export const useMatterJs = (
     }
   }, [createCircle]);
 
-  // Add function to update danger zone appearance
-  const updateDangerZoneAppearance = useCallback((isActive: boolean, timeRemaining: number) => {
-    if (!dangerZoneRef.current || !renderRef.current) return;
-
-    const zone = dangerZoneRef.current;
-    zone.isActive = isActive;
-    zone.timeRemaining = timeRemaining;
-
-    // Update the danger zone's appearance
-    zone.render.fillStyle = isActive 
-      ? `rgba(255, 0, 0, ${0.1 + (0.2 * (1 - timeRemaining / DANGER_ZONE_TIMEOUT))})`
-      : 'rgba(75, 85, 99, 0.1)'; // grey when inactive
-    zone.render.strokeStyle = isActive
-      ? `rgba(255, 0, 0, ${0.3 + (0.4 * (1 - timeRemaining / DANGER_ZONE_TIMEOUT))})`
-      : 'rgba(75, 85, 99, 0.3)'; // grey when inactive
-  }, []);
-
   // Modify the effect that creates the danger zone
   useEffect(() => {
     if (!containerRef.current || !renderRef.current || !engineRef.current) return;
 
     const { width } = containerRef.current.getBoundingClientRect();
     
-    // Create danger zone with custom render function
+    // Create danger zone
     const dangerZone = Matter.Bodies.rectangle(
       width / 2,
       DANGER_ZONE_HEIGHT / 2,
@@ -959,9 +942,7 @@ export const useMatterJs = (
         render: {
           fillStyle: 'rgba(75, 85, 99, 0.1)', // Start with grey
           strokeStyle: 'rgba(75, 85, 99, 0.3)',
-          lineWidth: 2,
-          // Custom render function for the timer
-          visualTimer: 0
+          lineWidth: 2
         },
         label: 'danger-zone'
       }
@@ -971,44 +952,50 @@ export const useMatterJs = (
     dangerZone.timeRemaining = DANGER_ZONE_TIMEOUT;
     dangerZoneRef.current = dangerZone;
 
-    // Add custom render function to draw the timer
-    const originalRender = renderRef.current.render;
-    renderRef.current.render = (engine: Matter.Engine) => {
-      originalRender(engine);
+    // Custom render function for the timer
+    const renderTimer = () => {
+      if (!renderRef.current || !dangerZoneRef.current) return;
       
-      // Draw timer if danger zone is active
-      if (dangerZone.isActive && dangerZone.timeRemaining > 0) {
-        const ctx = renderRef.current!.context as CanvasRenderingContext2D;
-        const timePercent = dangerZone.timeRemaining / DANGER_ZONE_TIMEOUT;
-        
-        // Draw timer background
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(10, 10, 60, 20);
-        
-        // Draw timer bar
-        ctx.fillStyle = dangerZone.isActive 
-          ? `rgba(255, ${Math.floor(255 * timePercent)}, 0, 0.8)`
-          : 'rgba(75, 85, 99, 0.8)';
-        ctx.fillRect(12, 12, 56 * timePercent, 16);
-        
-        // Draw timer text
-        ctx.fillStyle = 'white';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-          `${(dangerZone.timeRemaining / 1000).toFixed(1)}s`,
-          40,
-          24
-        );
-        ctx.restore();
-      }
+      const zone = dangerZoneRef.current;
+      if (!zone.isActive || zone.timeRemaining <= 0) return;
+
+      const canvas = renderRef.current.canvas;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const timePercent = zone.timeRemaining / DANGER_ZONE_TIMEOUT;
+      
+      // Draw timer background
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(10, 10, 60, 20);
+      
+      // Draw timer bar
+      ctx.fillStyle = zone.isActive 
+        ? `rgba(255, ${Math.floor(255 * timePercent)}, 0, 0.8)`
+        : 'rgba(75, 85, 99, 0.8)';
+      ctx.fillRect(12, 12, 56 * timePercent, 16);
+      
+      // Draw timer text
+      ctx.fillStyle = 'white';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        `${(zone.timeRemaining / 1000).toFixed(1)}s`,
+        40,
+        24
+      );
+      ctx.restore();
     };
+
+    // Add afterRender event to draw the timer
+    Matter.Events.on(renderRef.current, 'afterRender', renderTimer);
 
     Matter.Composite.add(engineRef.current.world, dangerZone);
 
     return () => {
       if (engineRef.current && dangerZoneRef.current) {
+        Matter.Events.off(renderRef.current!, 'afterRender', renderTimer);
         Matter.Composite.remove(engineRef.current.world, dangerZoneRef.current);
       }
     };
