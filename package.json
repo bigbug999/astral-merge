@@ -19,7 +19,8 @@
     "react-dom": "^18.2.0",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "lucide-react": "^0.344.0"
   },
   "devDependencies": {
     "@types/matter-js": "^0.19.7",

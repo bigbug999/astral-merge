@@ -13,6 +13,7 @@ import { AnvilIcon } from '@/components/icons/AnvilIcon';
 import { SuperAnvilIcon } from '@/components/icons/SuperAnvilIcon';
 import { NegativeBallIcon } from '@/components/icons/NegativeBallIcon';
 import { cn } from '@/lib/utils';
+import { ColorLegend } from '@/components/ColorLegend';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -344,6 +345,11 @@ export default function Home() {
         >
           Stress Test (Spawn 50 Balls)
         </button>
+      </div>
+
+      {/* Color legend now uses full width */}
+      <div className="w-full max-w-sm">
+        <ColorLegend />
       </div>
     </div>
   );
