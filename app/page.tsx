@@ -106,21 +106,21 @@ export default function Home() {
         return {
           ...prev,
           heavyBallUses: prev.heavyBallUses - 1,
-          isHeavyBallActive: false, // Immediately deactivate
+          isHeavyBallActive: false,
         };
       }
       if (prev.isSuperHeavyBallActive) {
         return {
           ...prev,
           superHeavyBallUses: prev.superHeavyBallUses - 1,
-          isSuperHeavyBallActive: false, // Immediately deactivate
+          isSuperHeavyBallActive: false,
         };
       }
       if (prev.isNegativeBallActive) {
         return {
           ...prev,
           negativeBallUses: prev.negativeBallUses - 1,
-          isNegativeBallActive: false, // Immediately deactivate
+          isNegativeBallActive: false,
         };
       }
       return prev;

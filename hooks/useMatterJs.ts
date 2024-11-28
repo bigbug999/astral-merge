@@ -301,7 +301,7 @@ export const useMatterJs = (
     // Add performance optimizations for the physics bodies
     const createOptimizedWalls = () => [
       // Bottom wall
-      Matter.Bodies.rectangle(width / 2, height + 25, width + 60, 50, {
+      Matter.Bodies.rectangle(width / 2, height + 25, width + 20, 50, {
         isStatic: true,
         friction: 0.01,
         frictionStatic: 0.01,
@@ -313,7 +313,7 @@ export const useMatterJs = (
         }
       }),
       // Left wall
-      Matter.Bodies.rectangle(-25, height / 2, 50, height + 60, {
+      Matter.Bodies.rectangle(-10, height / 2, 20, height + 20, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
@@ -324,7 +324,7 @@ export const useMatterJs = (
         }
       }),
       // Right wall
-      Matter.Bodies.rectangle(width + 25, height / 2, 50, height + 60, {
+      Matter.Bodies.rectangle(width + 10, height / 2, 20, height + 20, {
         isStatic: true,
         friction: 0.05,
         restitution: 0.4,
@@ -581,7 +581,7 @@ export const useMatterJs = (
     const { width } = renderRef.current.canvas;
     
     const circleRadius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
-    const padding = circleRadius + 5;
+    const padding = circleRadius + 0.5;
     
     nextSpawnXRef.current = mouseX !== undefined ? 
       Math.max(padding, Math.min(width - padding, mouseX)) : 
@@ -668,7 +668,7 @@ export const useMatterJs = (
     } else if (currentCircleRef.current) {
       // Update position only if not animating
       const radius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
-      const padding = radius + 5;
+      const padding = radius + 0.5;
       const constrainedX = Math.max(padding, Math.min(width - padding, x));
       nextSpawnXRef.current = constrainedX;
       
@@ -687,7 +687,7 @@ export const useMatterJs = (
     if (!circle) return;
     
     const radius = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG || 1].radius;
-    const padding = radius + 5;
+    const padding = radius + 0.5;
     
     // Update X position even during animation
     const constrainedX = Math.max(
@@ -739,7 +739,7 @@ export const useMatterJs = (
     } else if (powerUps.isSuperHeavyBallActive) {
       // Update physics with more extreme values
       Matter.Body.set(circle, {
-        density: 0.1,           // Increased from SUPER_HEAVY_BALL_CONFIG.density
+        density: 0.1,           
         friction: 0.001,
         frictionAir: 0.0001,
         restitution: 0.1,
@@ -747,11 +747,26 @@ export const useMatterJs = (
         slop: 1
       });
       
+      // Update visuals immediately
+      if (circle.render.sprite) {
+        circle.render.sprite.texture = createCircleTexture(
+          CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].color,
+          SUPER_HEAVY_BALL_CONFIG.strokeColor,
+          SUPER_HEAVY_BALL_CONFIG.glowColor,
+          (CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG].radius - 1) * 2
+        );
+      }
+      
       // Stronger initial force
       Matter.Body.applyForce(circle, 
         circle.position, 
-        { x: 0, y: 0.3 }        // Increased from 0.2
+        { x: 0, y: 0.3 }
       );
+      
+      // Set power-up properties and trigger use
+      circle.isHeavyBall = true;
+      circle.powerUpDropTime = Date.now();
+      onPowerUpUse(); // This will trigger the countdown
     } else if (powerUps.isHeavyBallActive) {
       // Update physics
       Matter.Body.set(circle, {
