@@ -1,27 +1,20 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
-import { PowerUpState, POWER_UPS } from '@/types/powerups';
+import type { PowerUp, PowerUpState } from '@/types/powerups';
+import { POWER_UPS } from '@/types/powerups';
 
 const OBJECT_POOL_SIZE = 50;
 
 interface ObjectPool {
-  active: Set<CircleBody>;
-  inactive: CircleBody[];
+  circles: CircleBody[];
+  maxSize: number;
 }
 
-const createObjectPool = (engine: Matter.Engine): ObjectPool => {
-  return {
-    active: new Set(),
-    inactive: []
-  };
-};
-
 interface CircleBody extends Matter.Body {
-  isMerging?: boolean;
-  tier?: number;
+  tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   hasBeenDropped?: boolean;
-  composite?: Matter.Composite;
+  isMerging?: boolean;
   isHeavyBall?: boolean;
   isNegativeBall?: boolean;
   deletionsRemaining?: number;
@@ -40,7 +33,6 @@ interface CircleBody extends Matter.Body {
 interface DangerZone extends Matter.Body {
   isActive: boolean;
   timeRemaining: number;
-  render: Matter.IBodyRenderOptions;
 }
 
 export const useMatterJs = (
