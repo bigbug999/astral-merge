@@ -692,8 +692,16 @@ export const useMatterJs = (
       // Clean up both event listeners
       Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
       Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
-      Matter.Render.stop(renderRef.current);
-      Matter.Runner.stop(runner);
+      
+      // Add null check before stopping the renderer
+      if (renderRef.current) {
+        Matter.Render.stop(renderRef.current);
+      }
+      
+      if (runnerRef.current) {
+        Matter.Runner.stop(runnerRef.current);
+      }
+      
       Matter.Engine.clear(engineRef.current);
       renderRef.current?.canvas.remove();
       runnerRef.current = null;
