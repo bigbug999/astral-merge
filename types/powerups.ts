@@ -1,10 +1,96 @@
+// Configuration constants for power-ups
+export const POWER_UP_CONFIG = {
+  GRAVITY: {
+    HEAVY: {
+      FORCE_MULTIPLIER: 30,
+      DURATION: 5000,
+      CONSTANT_FORCE: 0.04,
+      DENSITY: 0.04,
+      FRICTION: 0.001,
+      FRICTION_AIR: 0.0001,
+      RESTITUTION: 0.2,
+      FRICTION_STATIC: 0.0001,
+    },
+    SUPER: {
+      FORCE_MULTIPLIER: 50,
+      DURATION: 6000,
+      CONSTANT_FORCE: 0.06,
+      DENSITY: 0.08,
+      FRICTION: 0.0005,
+      FRICTION_AIR: 0.00005,
+      RESTITUTION: 0.08,
+      FRICTION_STATIC: 0.00005,
+    },
+    ULTRA: {
+      FORCE_MULTIPLIER: 100,
+      DURATION: 6000,
+      CONSTANT_FORCE: 0.12,
+      DENSITY: 0.24,
+      FRICTION: 0,
+      FRICTION_AIR: 0.00003,
+      RESTITUTION: 0.04,
+      FRICTION_STATIC: 0.0006,
+    }
+  },
+  VOID: {
+    BASIC: {
+      DELETIONS: 2,
+      BOUNCE_FORCE: 0.015,
+      INITIAL_SPEED: 5,
+      DENSITY: 0.004,
+      FRICTION: 0.00002,
+      FRICTION_AIR: 0.000002,
+      RESTITUTION: 0.8,
+      FRICTION_STATIC: 0.00002,
+      BOUNCE_INTERVAL: 300,
+      BOUNCE_DURATION: 10000,
+      EDGE_BUFFER: 1.5,
+      HORIZONTAL_FORCE: 0.02,
+      VELOCITY_DAMPING: 0.8,
+      MIN_BOUNCE_Y: -8
+    },
+    SUPER: {
+      DELETIONS: 3,
+      BOUNCE_FORCE: 0,
+      INITIAL_SPEED: 4,
+      DENSITY: 0.01,
+      FRICTION: 0.00001,
+      FRICTION_AIR: 0.000001,
+      RESTITUTION: 0,
+      FRICTION_STATIC: 0.00001,
+      BOUNCE_INTERVAL: 0,
+      BOUNCE_DURATION: 0,
+      EDGE_BUFFER: 1.2,
+      HORIZONTAL_FORCE: 0,
+      VELOCITY_DAMPING: 1,
+      MIN_BOUNCE_Y: 0
+    },
+    ULTRA: {
+      DELETIONS: 10,
+      BOUNCE_FORCE: 0,
+      INITIAL_SPEED: 4,
+      DENSITY: 0.01,
+      FRICTION: 0.00001,
+      FRICTION_AIR: 0.000001,
+      RESTITUTION: 0,
+      FRICTION_STATIC: 0.00001,
+      BOUNCE_INTERVAL: 0,
+      BOUNCE_DURATION: 0,
+      EDGE_BUFFER: 1.2,
+      HORIZONTAL_FORCE: 0,
+      VELOCITY_DAMPING: 1,
+      MIN_BOUNCE_Y: 0
+    }
+  }
+};
+
 // Define base power-up interface
 export interface PowerUp {
   id: string;
   name: string;
   description: string;
   maxUses: number;
-  icon: string; // Component name to be used
+  icon: string;
   group: 'GRAVITY' | 'VOID';
   level: 1 | 2 | 3;
   physics: {
@@ -40,20 +126,20 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'GRAVITY',
     level: 1,
     physics: {
-      density: 0.025,
-      friction: 0.001,
-      frictionAir: 0.0001,
-      restitution: 0.2,
-      frictionStatic: 0.0001,
+      density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
+      friction: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION,
+      frictionAir: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC,
     },
     visual: {
       strokeColor: '#ffffff',
       glowColor: 'rgba(255, 255, 255, 0.3)',
     },
     effects: {
-      forceMultiplier: 20,
-      duration: 5000,
-      constantForce: 0.02
+      forceMultiplier: POWER_UP_CONFIG.GRAVITY.HEAVY.FORCE_MULTIPLIER,
+      duration: POWER_UP_CONFIG.GRAVITY.HEAVY.DURATION,
+      constantForce: POWER_UP_CONFIG.GRAVITY.HEAVY.CONSTANT_FORCE
     }
   },
   SUPER_HEAVY_BALL: {
@@ -65,20 +151,20 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'GRAVITY',
     level: 2,
     physics: {
-      density: 0.075,
-      friction: 0.0005,
-      frictionAir: 0.00005,
-      restitution: 0.1,
-      frictionStatic: 0.00005,
+      density: POWER_UP_CONFIG.GRAVITY.SUPER.DENSITY,
+      friction: POWER_UP_CONFIG.GRAVITY.SUPER.FRICTION,
+      frictionAir: POWER_UP_CONFIG.GRAVITY.SUPER.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.GRAVITY.SUPER.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.GRAVITY.SUPER.FRICTION_STATIC,
     },
     visual: {
       strokeColor: '#ff0000',
       glowColor: 'rgba(255, 0, 0, 0.3)',
     },
     effects: {
-      forceMultiplier: 50,
-      duration: 7000,
-      constantForce: 0.06
+      forceMultiplier: POWER_UP_CONFIG.GRAVITY.SUPER.FORCE_MULTIPLIER,
+      duration: POWER_UP_CONFIG.GRAVITY.SUPER.DURATION,
+      constantForce: POWER_UP_CONFIG.GRAVITY.SUPER.CONSTANT_FORCE
     }
   },
   ULTRA_HEAVY_BALL: {
@@ -90,20 +176,20 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'GRAVITY',
     level: 3,
     physics: {
-      density: 0.225,
-      friction: 0.00025,
-      frictionAir: 0.000025,
-      restitution: 0.05,
-      frictionStatic: 0.000025,
+      density: POWER_UP_CONFIG.GRAVITY.ULTRA.DENSITY,
+      friction: POWER_UP_CONFIG.GRAVITY.ULTRA.FRICTION,
+      frictionAir: POWER_UP_CONFIG.GRAVITY.ULTRA.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.GRAVITY.ULTRA.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.GRAVITY.ULTRA.FRICTION_STATIC,
     },
     visual: {
       strokeColor: '#ff00ff',
       glowColor: 'rgba(255, 0, 255, 0.4)',
     },
     effects: {
-      forceMultiplier: 100,
-      duration: 10000,
-      constantForce: 0.18
+      forceMultiplier: POWER_UP_CONFIG.GRAVITY.ULTRA.FORCE_MULTIPLIER,
+      duration: POWER_UP_CONFIG.GRAVITY.ULTRA.DURATION,
+      constantForce: POWER_UP_CONFIG.GRAVITY.ULTRA.CONSTANT_FORCE
     }
   },
 
@@ -117,35 +203,72 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'VOID',
     level: 1,
     physics: {
-      density: 0.005,
-      friction: 0.00001,
-      frictionAir: 0.000001,
-      restitution: 0.98,
-      frictionStatic: 0.00001,
+      density: POWER_UP_CONFIG.VOID.BASIC.DENSITY,
+      friction: POWER_UP_CONFIG.VOID.BASIC.FRICTION,
+      frictionAir: POWER_UP_CONFIG.VOID.BASIC.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.VOID.BASIC.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.VOID.BASIC.FRICTION_STATIC,
     },
     visual: {
       strokeColor: '#FF1493',
       glowColor: 'rgba(255, 20, 147, 0.5)',
     },
     effects: {
-      deletionsRemaining: 2,
-      bounceForce: 0.03,
-      initialSpeed: 8,
+      deletionsRemaining: POWER_UP_CONFIG.VOID.BASIC.DELETIONS,
+      bounceForce: POWER_UP_CONFIG.VOID.BASIC.BOUNCE_FORCE,
+      initialSpeed: POWER_UP_CONFIG.VOID.BASIC.INITIAL_SPEED,
     }
   },
-  // Placeholder for future void power-ups
-  /*
   SUPER_VOID_BALL: {
     id: 'SUPER_VOID_BALL',
+    name: 'Super Void Ball',
+    description: 'Creates a heavy void ball that falls straight down, removing balls in its path',
+    maxUses: 2,
+    icon: 'SuperNegativeBallIcon',
+    group: 'VOID',
     level: 2,
-    // Will have increased deletion limit and stronger effects
+    physics: {
+      density: POWER_UP_CONFIG.VOID.SUPER.DENSITY,
+      friction: POWER_UP_CONFIG.VOID.SUPER.FRICTION,
+      frictionAir: POWER_UP_CONFIG.VOID.SUPER.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.VOID.SUPER.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.VOID.SUPER.FRICTION_STATIC,
+    },
+    visual: {
+      strokeColor: '#9400D3',
+      glowColor: 'rgba(148, 0, 211, 0.6)',
+    },
+    effects: {
+      deletionsRemaining: POWER_UP_CONFIG.VOID.SUPER.DELETIONS,
+      bounceForce: POWER_UP_CONFIG.VOID.SUPER.BOUNCE_FORCE,
+      initialSpeed: POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED,
+    }
   },
   ULTRA_VOID_BALL: {
     id: 'ULTRA_VOID_BALL',
+    name: 'Ultra Void Ball',
+    description: 'Creates an unstoppable void ball that can remove up to 10 balls in its path',
+    maxUses: 1,
+    icon: 'UltraNegativeBallIcon',
+    group: 'VOID',
     level: 3,
-    // Will have maximum deletion capabilities
+    physics: {
+      density: POWER_UP_CONFIG.VOID.ULTRA.DENSITY,
+      friction: POWER_UP_CONFIG.VOID.ULTRA.FRICTION,
+      frictionAir: POWER_UP_CONFIG.VOID.ULTRA.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.VOID.ULTRA.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.VOID.ULTRA.FRICTION_STATIC,
+    },
+    visual: {
+      strokeColor: '#4B0082',
+      glowColor: 'rgba(75, 0, 130, 0.7)',
+    },
+    effects: {
+      deletionsRemaining: POWER_UP_CONFIG.VOID.ULTRA.DELETIONS,
+      bounceForce: POWER_UP_CONFIG.VOID.ULTRA.BOUNCE_FORCE,
+      initialSpeed: POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED,
+    }
   }
-  */
 };
 
 // Helper function to get power-ups by group

@@ -4,12 +4,16 @@ import { AnvilIcon } from './icons/AnvilIcon';
 import { SuperAnvilIcon } from './icons/SuperAnvilIcon';
 import { UltraAnvilIcon } from './icons/UltraAnvilIcon';
 import { NegativeBallIcon } from './icons/NegativeBallIcon';
+import { SuperNegativeBallIcon } from './icons/SuperNegativeBallIcon';
+import { UltraNegativeBallIcon } from './icons/UltraNegativeBallIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   AnvilIcon,
   SuperAnvilIcon,
   UltraAnvilIcon,
   NegativeBallIcon,
+  SuperNegativeBallIcon,
+  UltraNegativeBallIcon,
 };
 
 interface PowerUpButtonProps {

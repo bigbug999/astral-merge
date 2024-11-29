@@ -82,6 +82,23 @@ Players combine matching circles to create larger ones, score points, and strate
 
 ## Technical Requirements
 
+### Power-Up System
+- Centralized configuration in `types/powerups.ts`
+- Two main power-up groups:
+  1. GRAVITY
+     - Heavy Ball: Basic increased weight and impact
+     - Super Heavy Ball: Enhanced weight and devastating impact
+     - Ultra Heavy Ball: Maximum weight and force
+  2. VOID
+     - Void Ball: Removes other balls on contact
+     - Future planned: Super Void and Ultra Void
+
+- Power-up Properties:
+  - Physics: density, friction, air resistance, restitution
+  - Effects: force multipliers, duration, special abilities
+  - Visual: custom colors and glow effects
+  - Usage: limited uses per power-up type
+
 ### Physics Implementation (Matter.js)
 - Gravity simulation with configurable parameters
   - Adjustable fall speed

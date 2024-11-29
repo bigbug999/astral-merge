@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
-import { POWER_UPS } from '@/types/powerups';
+import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 
 const OBJECT_POOL_SIZE = 50;
 
@@ -17,6 +17,7 @@ interface CircleBody extends Matter.Body {
   isMerging?: boolean;
   isHeavyBall?: boolean;
   isVoidBall?: boolean;
+  isSuperVoid?: boolean;
   deletionsRemaining?: number;
   powerUpDropTime?: number;
   inDangerZone?: boolean;
@@ -45,13 +46,13 @@ export const useMatterJs = (
   onGameOver: () => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 1.5 },
-    positionIterations: 6,
-    velocityIterations: 4,
-    constraintIterations: 2,
+    gravity: { y: 1.75 },
+    positionIterations: 8,
+    velocityIterations: 6,
+    constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: 1.0,
+      timeScale: 0.9,
       timestamp: 0,
     }
   }));
@@ -155,17 +156,19 @@ export const useMatterJs = (
 
     // Create with physics properties from power-up or defaults
     const circle = Matter.Bodies.circle(x, y, collisionRadius, {
-      density: activePowerUp?.physics.density || 0.015,
-      friction: activePowerUp?.physics.friction || 0.01,
-      frictionAir: activePowerUp?.physics.frictionAir || 0.0001,
-      restitution: activePowerUp?.physics.restitution || 0.5,
-      frictionStatic: activePowerUp?.physics.frictionStatic || 0.05,
-      slop: 0.05,
+      density: tier === 1 ? 0.025 : (activePowerUp?.physics.density || 0.02),
+      friction: activePowerUp?.physics.friction || 0.005,
+      frictionAir: activePowerUp?.physics.frictionAir || 0.0002,
+      restitution: activePowerUp?.physics.restitution || 0.3,
+      frictionStatic: activePowerUp?.physics.frictionStatic || 0.02,
+      slop: 0.02,
       sleepThreshold: Infinity,
       collisionFilter: {
         group: 0,
-        category: 0x0001,
-        mask: 0xFFFFFFFF
+        // Super and Ultra void balls only collide with walls
+        category: (activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') ? 0x0002 : 0x0001,
+        // Super and Ultra void balls only collide with walls (category 0x0004)
+        mask: (activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') ? 0x0004 : 0xFFFFFFFF
       },
       render: {
         sprite: {
@@ -228,8 +231,26 @@ export const useMatterJs = (
     
     if (newCircle) {
       (newCircle as CircleBody).hasBeenDropped = true;
-      // Give a small upward boost to the merged ball
-      Matter.Body.setVelocity(newCircle, { x: 0, y: -2.5 });
+      // Reduce the upward boost and add slight random horizontal movement
+      const randomHorizontal = (Math.random() - 0.5) * 0.5;
+      Matter.Body.setVelocity(newCircle, { 
+        x: randomHorizontal, 
+        y: -1.5  // Reduced from -2.5
+      });
+      
+      // Add a small delay before enabling collisions
+      setTimeout(() => {
+        if (newCircle && !newCircle.isMerging) {
+          Matter.Body.set(newCircle, {
+            isSleeping: false,
+            collisionFilter: {
+              group: 0,
+              category: 0x0001,
+              mask: 0xFFFFFFFF
+            }
+          });
+        }
+      }, 50);
     }
 
     onNewTier(newTier);
@@ -277,16 +298,16 @@ export const useMatterJs = (
               const activePowerUp = getActivePowerUp(powerUps);
               
               if (activePowerUp && activePowerUp.group === 'GRAVITY') {
-                const duration = activePowerUp.effects?.duration || 5000;
+                const duration = activePowerUp.effects?.duration || POWER_UP_CONFIG.GRAVITY.HEAVY.DURATION;
                 
                 if (elapsedTime > duration) {
-                  // Reset physics properties
+                  // Reset physics properties to defaults
                   Matter.Body.set(circle, {
-                    density: 0.015,
-                    friction: 0.1,
-                    frictionAir: 0.001,
-                    restitution: 0.5,
-                    frictionStatic: 0.05
+                    density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
+                    friction: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION,
+                    frictionAir: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_AIR,
+                    restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
+                    frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC
                   });
                   circle.isHeavyBall = false;
                   circle.powerUpDropTime = undefined;
@@ -294,7 +315,7 @@ export const useMatterJs = (
                 } else {
                   // Apply constant force if velocity is below cap
                   if (circle.velocity.y < 15) {
-                    const force = activePowerUp.effects?.constantForce || 0.005;
+                    const force = activePowerUp.effects?.constantForce || POWER_UP_CONFIG.GRAVITY.HEAVY.CONSTANT_FORCE;
                     Matter.Body.applyForce(circle, circle.position, { x: 0, y: force });
                   }
                   
@@ -315,24 +336,72 @@ export const useMatterJs = (
   }, [powerUps, getActivePowerUp]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !engineRef.current) return;
 
-    const container = containerRef.current;
-    const { width, height } = container.getBoundingClientRect();
+    const { width, height } = containerRef.current.getBoundingClientRect();
 
-    // Create the render
-    const render = Matter.Render.create({
-      element: container,
+    renderRef.current = Matter.Render.create({
+      element: containerRef.current,
       engine: engineRef.current,
       options: {
         width,
         height,
         wireframes: false,
-        background: 'transparent',
+        background: 'transparent'
       }
     });
-    renderRef.current = render;
-    
+
+    // Add collision handling for walls
+    Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
+      event.pairs.forEach((pair) => {
+        const bodyA = pair.bodyA as CircleBody;
+        const bodyB = pair.bodyB as CircleBody;
+        
+        // Check if either body is a super void ball
+        const superVoidBall = bodyA.isSuperVoid ? bodyA : (bodyB.isSuperVoid ? bodyB : null);
+        const wall = bodyA.isStatic ? bodyA : (bodyB.isStatic ? bodyB : null);
+        
+        if (superVoidBall && wall) {
+          // If it hits the bottom wall, remove it
+          if (wall.position.y > height - 100) {
+            if (engineRef.current) {
+              Matter.Composite.remove(engineRef.current.world, superVoidBall);
+            }
+          } else {
+            // For side walls, maintain vertical velocity and zero out horizontal
+            Matter.Body.setVelocity(superVoidBall, {
+              x: 0,
+              y: POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED
+            });
+          }
+        }
+      });
+    });
+
+    // Add continuous collision handling for walls
+    Matter.Events.on(engineRef.current, 'collisionActive', (event) => {
+      event.pairs.forEach((pair) => {
+        const bodyA = pair.bodyA as CircleBody;
+        const bodyB = pair.bodyB as CircleBody;
+        
+        // Check if either body is a super/ultra void ball
+        const voidBall = (bodyA.isVoidBall && bodyA.isSuperVoid) ? bodyA : 
+                         ((bodyB.isVoidBall && bodyB.isSuperVoid) ? bodyB : null);
+        const wall = bodyA.isStatic ? bodyA : (bodyB.isStatic ? bodyB : null);
+        
+        if (voidBall && wall) {
+          // Maintain vertical velocity during wall contact
+          const speed = voidBall.deletionsRemaining && voidBall.deletionsRemaining > 0 ? 
+            (voidBall.isSuperVoid ? POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED : POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED) : 0;
+          
+          Matter.Body.setVelocity(voidBall, {
+            x: 0,
+            y: speed
+          });
+        }
+      });
+    });
+
     const runner = Matter.Runner.create({
       isFixed: true,
       delta: 1000 / 120,
@@ -340,58 +409,47 @@ export const useMatterJs = (
     runnerRef.current = runner;
 
     // Update engine settings with slightly reduced speed
-    engineRef.current.world.gravity.scale = 0.001;  // Reduced from 0.002
-    engineRef.current.timing.timeScale = 1.0;       // Reduced from 1.5
+    engineRef.current.world.gravity.scale = 0.0009;  // Middle ground between 0.0008 and 0.001
+    engineRef.current.timing.timeScale = 0.9;        // Middle ground between 0.8 and 1.0
     
     // Force an initial engine update
     Matter.Engine.update(engineRef.current, runner.delta);
 
     // Optimize engine settings for better performance
-    engineRef.current.world.gravity.scale = 0.001;
-    engineRef.current.timing.timeScale = 1.0;
+    engineRef.current.world.gravity.scale = 0.0009;
+    engineRef.current.timing.timeScale = 0.9;
     
-    // Reduce solver iterations while maintaining stability
-    engineRef.current.positionIterations = 6;
-    engineRef.current.velocityIterations = 4;
-    engineRef.current.constraintIterations = 2;
+    // Optimize solver iterations for stability
+    engineRef.current.positionIterations = 8;
+    engineRef.current.velocityIterations = 6;
+    engineRef.current.constraintIterations = 3;
 
     // Add performance optimizations for the physics bodies
-    const createOptimizedWalls = () => [
-      // Bottom wall
-      Matter.Bodies.rectangle(width / 2, height + 25, width + 20, 50, {
+    const createOptimizedWalls = () => {
+      if (!renderRef.current) return [];
+
+      const { width, height } = renderRef.current.canvas;
+      const wallThickness = 60;
+      const wallOptions = {
         isStatic: true,
-        friction: 0.001,         // Reduced from 0.01 to 0.001
-        frictionStatic: 0.001,   // Reduced from 0.01 to 0.001
         restitution: 0.5,
-        slop: 0.05,
-        chamfer: { radius: 2 },
-        render: { 
-          fillStyle: '#27272a'
+        friction: 0.0,
+        frictionStatic: 0.0,
+        collisionFilter: {
+          category: 0x0004, // Wall category
+          mask: 0xFFFFFFFF  // Collide with everything
         }
-      }),
-      // Left wall
-      Matter.Bodies.rectangle(-10, height / 2, 20, height + 20, {
-        isStatic: true,
-        friction: 0.001,         // Reduced from 0.05 to 0.001
-        restitution: 0.4,
-        slop: 0.05,
-        chamfer: { radius: 2 },
-        render: { 
-          fillStyle: '#27272a'
-        }
-      }),
-      // Right wall
-      Matter.Bodies.rectangle(width + 10, height / 2, 20, height + 20, {
-        isStatic: true,
-        friction: 0.001,         // Reduced from 0.05 to 0.001
-        restitution: 0.4,
-        slop: 0.05,
-        chamfer: { radius: 2 },
-        render: { 
-          fillStyle: '#27272a'
-        }
-      })
-    ];
+      };
+
+      return [
+        // Bottom wall
+        Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, wallOptions),
+        // Left wall
+        Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, wallOptions),
+        // Right wall
+        Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, wallOptions),
+      ];
+    };
 
     const walls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, walls);
@@ -425,25 +483,32 @@ export const useMatterJs = (
 
         // Void ball collision handling
         if (bodyA.hasBeenDropped && bodyB.hasBeenDropped) {
+          // Check if either ball is a void ball
           const voidBall = bodyA.isVoidBall ? bodyA : (bodyB.isVoidBall ? bodyB : null);
           const targetBall = bodyA.isVoidBall ? bodyB : (bodyB.isVoidBall ? bodyA : null);
 
           if (voidBall && targetBall && !targetBall.isVoidBall) {
-            console.log('Void ball collision detected');
-            console.log('Void ball deletions remaining:', voidBall.deletionsRemaining);
-            
             if (typeof voidBall.deletionsRemaining === 'number' && voidBall.deletionsRemaining > 0) {
+              // Remove the target ball
               Matter.Composite.remove(engineRef.current.world, targetBall);
               voidBall.deletionsRemaining--;
-              console.log('Deletions remaining after collision:', voidBall.deletionsRemaining);
               
-              Matter.Body.setVelocity(voidBall, {
-                x: voidBall.velocity.x * 0.8,
-                y: Math.min(voidBall.velocity.y, -8)
-              });
+              // Only apply bounce and velocity changes for basic void balls
+              if (!voidBall.isSuperVoid) {
+                Matter.Body.setVelocity(voidBall, {
+                  x: voidBall.velocity.x * POWER_UP_CONFIG.VOID.BASIC.VELOCITY_DAMPING,
+                  y: Math.min(voidBall.velocity.y, POWER_UP_CONFIG.VOID.BASIC.MIN_BOUNCE_Y)
+                });
+              } else {
+                // For super and ultra void balls, maintain downward velocity
+                Matter.Body.setVelocity(voidBall, {
+                  x: 0,
+                  y: voidBall.isSuperVoid ? POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED : POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED
+                });
+              }
               
+              // Remove void ball if no deletions remaining
               if (voidBall.deletionsRemaining <= 0) {
-                console.log('Removing void ball - no deletions remaining');
                 setTimeout(() => {
                   if (engineRef.current) {
                     Matter.Composite.remove(engineRef.current.world, voidBall);
@@ -455,7 +520,7 @@ export const useMatterJs = (
           }
         }
 
-        // Normal merge logic
+        // Normal merge logic (only if neither ball is a void ball)
         if (!bodyA.isVoidBall && !bodyB.isVoidBall &&
             bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
             !bodyA.isMerging && !bodyB.isMerging) {
@@ -546,14 +611,14 @@ export const useMatterJs = (
               const elapsedTime = currentTime - circle.powerUpDropTime;
               
               if (elapsedTime > POWER_UP_DURATION) {
-                // Reset physics properties
+                // Reset physics properties to defaults from POWER_UP_CONFIG
                 Matter.Body.set(circle, {
-                  density: 0.015,
-                  friction: 0.1,
-                  frictionAir: 0.001,
-                  restitution: 0.5,
-                  frictionStatic: 0.2,
-                  slop: 0.05
+                  density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
+                  friction: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION,
+                  frictionAir: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_AIR,
+                  restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
+                  frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC,
+                  slop: 0.02
                 });
                 circle.isHeavyBall = false;
                 circle.powerUpDropTime = undefined;
@@ -620,17 +685,17 @@ export const useMatterJs = (
     }, 16); // Run at ~60fps
 
     Matter.Runner.run(runner, engineRef.current);
-    Matter.Render.run(render);
+    Matter.Render.run(renderRef.current);
 
     return () => {
       collisionQueue = [];
       // Clean up both event listeners
       Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
       Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
-      Matter.Render.stop(render);
+      Matter.Render.stop(renderRef.current);
       Matter.Runner.stop(runner);
       Matter.Engine.clear(engineRef.current);
-      render.canvas.remove();
+      renderRef.current?.canvas.remove();
       runnerRef.current = null;
       // Add to cleanup
       if (engineRef.current) {
@@ -781,10 +846,18 @@ export const useMatterJs = (
     if (activePowerUp) {
       if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
-      } else if (activePowerUp.id === 'VOID_BALL') {
-        // Apply void ball properties here instead of in createCircle
+      } else if (activePowerUp.id === 'VOID_BALL' || activePowerUp.id === 'SUPER_VOID_BALL' || activePowerUp.id === 'ULTRA_VOID_BALL') {
         circle.isVoidBall = true;
-        circle.deletionsRemaining = 3;
+        let config;
+        if (activePowerUp.id === 'SUPER_VOID_BALL') {
+          config = POWER_UP_CONFIG.VOID.SUPER;
+        } else if (activePowerUp.id === 'ULTRA_VOID_BALL') {
+          config = POWER_UP_CONFIG.VOID.ULTRA;
+        } else {
+          config = POWER_UP_CONFIG.VOID.BASIC;
+        }
+        circle.deletionsRemaining = config.DELETIONS;
+        circle.isSuperVoid = activePowerUp.id !== 'VOID_BALL';
         console.log('Applied void ball properties on drop:', circle.deletionsRemaining);
       }
       onPowerUpUse();
@@ -799,22 +872,26 @@ export const useMatterJs = (
     });
     
     // Calculate initial drop velocity
-    const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
-    const initialDropVelocity = activePowerUp?.id === 'ULTRA_HEAVY_BALL'
-      ? baseDropVelocity * 100
-      : activePowerUp?.id === 'SUPER_HEAVY_BALL'
-        ? baseDropVelocity * 50
-        : activePowerUp?.id === 'HEAVY_BALL'
-          ? baseDropVelocity * 20
-          : baseDropVelocity;
+    const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.65);
+    const initialDropVelocity = activePowerUp 
+      ? baseDropVelocity * (activePowerUp.effects?.forceMultiplier || 1)
+      : baseDropVelocity;
     
     // Set initial velocity based on power-up type
-    if (activePowerUp?.id === 'VOID_BALL') {
-      const horizontalVelocity = (Math.random() - 0.5) * 8;
-      const initialVelocity = activePowerUp.effects?.initialSpeed || 8;
+    if (activePowerUp?.id === 'VOID_BALL' || activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') {
+      let config;
+      if (activePowerUp.id === 'SUPER_VOID_BALL') {
+        config = POWER_UP_CONFIG.VOID.SUPER;
+      } else if (activePowerUp.id === 'ULTRA_VOID_BALL') {
+        config = POWER_UP_CONFIG.VOID.ULTRA;
+      } else {
+        config = POWER_UP_CONFIG.VOID.BASIC;
+      }
+      
+      const horizontalVelocity = (Math.random() - 0.5) * config.INITIAL_SPEED;
       Matter.Body.setVelocity(circle, {
-        x: horizontalVelocity,
-        y: initialVelocity
+        x: (activePowerUp.id === 'SUPER_VOID_BALL' || activePowerUp.id === 'ULTRA_VOID_BALL') ? 0 : horizontalVelocity,
+        y: config.INITIAL_SPEED
       });
     } else {
       Matter.Body.setVelocity(circle, {
@@ -865,16 +942,53 @@ export const useMatterJs = (
     prepareNextSpawn(mouseX);
 
     // Special handling for void ball bounce behavior
-    if (activePowerUp?.id === 'VOID_BALL') {
+    if (activePowerUp?.id === 'VOID_BALL' && !activePowerUp?.id.includes('SUPER') && !activePowerUp?.id.includes('ULTRA')) {
       const addBounceForce = () => {
         if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
+          // Get the canvas width for boundary checking
+          const { width } = renderRef.current!.canvas;
+          const radius = circle.circleRadius || 0;
+          
+          // Calculate horizontal force based on position
+          let horizontalForce = (Math.random() - 0.5) * POWER_UP_CONFIG.VOID.BASIC.HORIZONTAL_FORCE;
+          
+          // If near edges, apply force towards center
+          if (circle.position.x < width * 0.2) { // Left 20% of screen
+            horizontalForce = Math.abs(horizontalForce); // Force rightward
+          } else if (circle.position.x > width * 0.8) { // Right 20% of screen
+            horizontalForce = -Math.abs(horizontalForce); // Force leftward
+          }
+          
+          // Apply bounce force with edge correction
           Matter.Body.applyForce(circle, 
             circle.position, 
             { 
-              x: (Math.random() - 0.5) * 0.02,
-              y: -(activePowerUp.effects?.bounceForce || 0.03) - (Math.random() * 0.02)
+              x: horizontalForce,
+              y: -(POWER_UP_CONFIG.VOID.BASIC.BOUNCE_FORCE + (Math.random() * 0.02))
             }
           );
+
+          // If very close to edges, nudge back towards center
+          const edgeBuffer = radius * POWER_UP_CONFIG.VOID.BASIC.EDGE_BUFFER;
+          if (circle.position.x < edgeBuffer) {
+            Matter.Body.setPosition(circle, {
+              x: edgeBuffer,
+              y: circle.position.y
+            });
+            Matter.Body.setVelocity(circle, {
+              x: Math.abs(circle.velocity.x),
+              y: circle.velocity.y
+            });
+          } else if (circle.position.x > width - edgeBuffer) {
+            Matter.Body.setPosition(circle, {
+              x: width - edgeBuffer,
+              y: circle.position.y
+            });
+            Matter.Body.setVelocity(circle, {
+              x: -Math.abs(circle.velocity.x),
+              y: circle.velocity.y
+            });
+          }
         }
       };
 
@@ -884,9 +998,9 @@ export const useMatterJs = (
         } else {
           clearInterval(bounceInterval);
         }
-      }, 300);
+      }, POWER_UP_CONFIG.VOID.BASIC.BOUNCE_INTERVAL);
 
-      setTimeout(() => clearInterval(bounceInterval), 10000);
+      setTimeout(() => clearInterval(bounceInterval), POWER_UP_CONFIG.VOID.BASIC.BOUNCE_DURATION);
     }
   }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp]);
 
@@ -1026,6 +1140,12 @@ export const useMatterJs = (
         // Check if circle has been in play long enough
         if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
 
+        // Check if ball has exited from the top
+        if (circle.position.y < -50) { // Delete if ball is well above the container
+          Matter.Composite.remove(engineRef.current!.world, circle);
+          return;
+        }
+
         const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT;
         
         if (isInDangerZone && !circle.inDangerZone) {
@@ -1050,10 +1170,9 @@ export const useMatterJs = (
       });
 
       // Update danger zone appearance
-      updateDangerZoneAppearance(
-        isAnyCircleInDanger,
-        isAnyCircleInDanger ? minTimeRemaining : DANGER_ZONE_TIMEOUT
-      );
+      if (dangerZoneRef.current) {
+        updateDangerZoneAppearance(isAnyCircleInDanger, minTimeRemaining);
+      }
     };
 
     Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
@@ -1064,6 +1183,59 @@ export const useMatterJs = (
       }
     };
   }, [onGameOver, updateDangerZoneAppearance]);
+
+  // Update collision detection for super void balls
+  useEffect(() => {
+    const checkCollisions = () => {
+      if (!engineRef.current) return;
+      
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      const voidBalls = bodies.filter(body => {
+        const circle = body as CircleBody;
+        return circle.isVoidBall && circle.deletionsRemaining && circle.deletionsRemaining > 0;
+      }) as CircleBody[];
+      
+      voidBalls.forEach(voidBall => {
+        if (voidBall.isSuperVoid) {
+          // For super void balls, use a sensor to detect overlaps
+          const bounds = Matter.Bounds.create([
+            { x: voidBall.position.x - voidBall.circleRadius!, y: voidBall.position.y - voidBall.circleRadius! },
+            { x: voidBall.position.x + voidBall.circleRadius!, y: voidBall.position.y + voidBall.circleRadius! }
+          ]);
+          
+          const overlappingBodies = Matter.Query.region(bodies, bounds);
+          overlappingBodies.forEach(otherBody => {
+            const other = otherBody as CircleBody;
+            if (other !== voidBall && 
+                other.label?.startsWith('circle-') && 
+                !other.isVoidBall && 
+                !other.isMerging && 
+                Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
+              
+              Matter.Composite.remove(engineRef.current!.world, other);
+              voidBall.deletionsRemaining!--;
+              
+              if (voidBall.deletionsRemaining! <= 0) {
+                setTimeout(() => {
+                  if (engineRef.current) {
+                    Matter.Composite.remove(engineRef.current.world, voidBall);
+                  }
+                }, 100);
+              }
+            }
+          });
+        }
+      });
+    };
+
+    Matter.Events.on(engineRef.current!, 'beforeUpdate', checkCollisions);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', checkCollisions);
+      }
+    };
+  }, []);
 
   return {
     engine: engineRef.current,
