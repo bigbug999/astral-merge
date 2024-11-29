@@ -1,19 +1,27 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
-import { PowerUp, PowerUpState, POWER_UPS } from '@/types/powerups';
+import { PowerUpState, POWER_UPS } from '@/types/powerups';
 
 const OBJECT_POOL_SIZE = 50;
 
 interface ObjectPool {
-  circles: CircleBody[];
-  maxSize: number;
+  active: Set<CircleBody>;
+  inactive: CircleBody[];
 }
 
+const createObjectPool = (engine: Matter.Engine): ObjectPool => {
+  return {
+    active: new Set(),
+    inactive: []
+  };
+};
+
 interface CircleBody extends Matter.Body {
-  tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-  hasBeenDropped?: boolean;
   isMerging?: boolean;
+  tier?: number;
+  hasBeenDropped?: boolean;
+  composite?: Matter.Composite;
   isHeavyBall?: boolean;
   isNegativeBall?: boolean;
   deletionsRemaining?: number;
@@ -32,6 +40,7 @@ interface CircleBody extends Matter.Body {
 interface DangerZone extends Matter.Body {
   isActive: boolean;
   timeRemaining: number;
+  render: Matter.IBodyRenderOptions;
 }
 
 export const useMatterJs = (
@@ -589,11 +598,11 @@ export const useMatterJs = (
               // Apply continuous forces while power-up is active
               else if (circle.isHeavyBall) {
                 if (circle.velocity.y < 15) { // Add velocity cap
-                  if (powerUps.isSuperHeavyBallActive) {
-                    // Stronger continuous downward force
+                  const activePowerUp = getActivePowerUp(powerUps);
+                  if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.015 } // Increased from 0.01
+                      { x: 0, y: 0.18 }
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -601,15 +610,31 @@ export const useMatterJs = (
                       Matter.Body.applyForce(circle,
                         circle.position,
                         { 
-                          x: (Math.random() - 0.5) * 0.005,
+                          x: (Math.random() - 0.5) * 0.02,
                           y: 0
                         }
                       );
                     }
-                  } else if (powerUps.isHeavyBallActive) {
+                  } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.005 }
+                      { x: 0, y: 0.06 }
+                    );
+                    
+                    // Add periodic sideways forces for more dynamic movement
+                    if (Math.random() < 0.1) { // 10% chance each frame
+                      Matter.Body.applyForce(circle,
+                        circle.position,
+                        { 
+                          x: (Math.random() - 0.5) * 0.01,
+                          y: 0
+                        }
+                      );
+                    }
+                  } else if (activePowerUp?.id === 'HEAVY_BALL') {
+                    Matter.Body.applyForce(circle, 
+                      circle.position, 
+                      { x: 0, y: 0.02 }
                     );
                   }
                 }
