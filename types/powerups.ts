@@ -51,9 +51,9 @@ export const POWER_UPS: Record<string, PowerUp> = {
       glowColor: 'rgba(255, 255, 255, 0.3)',
     },
     effects: {
-      forceMultiplier: 8, // Base drop velocity multiplier
-      duration: 5000, // 5 seconds
-      constantForce: 0.02 // Increased from 0.005
+      forceMultiplier: 20,
+      duration: 5000,
+      constantForce: 0.02
     }
   },
   SUPER_HEAVY_BALL: {
@@ -65,10 +65,10 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'GRAVITY',
     level: 2,
     physics: {
-      density: 0.075, // 3x level 1
-      friction: 0.0005, // Half of level 1
-      frictionAir: 0.00005, // Half of level 1
-      restitution: 0.1, // Half of level 1
+      density: 0.075,
+      friction: 0.0005,
+      frictionAir: 0.00005,
+      restitution: 0.1,
       frictionStatic: 0.00005,
     },
     visual: {
@@ -76,9 +76,9 @@ export const POWER_UPS: Record<string, PowerUp> = {
       glowColor: 'rgba(255, 0, 0, 0.3)',
     },
     effects: {
-      forceMultiplier: 20, // 2.5x level 1
-      duration: 7000, // 7 seconds
-      constantForce: 0.06 // Increased from 0.015
+      forceMultiplier: 50,
+      duration: 7000,
+      constantForce: 0.06
     }
   },
   ULTRA_HEAVY_BALL: {
@@ -90,10 +90,10 @@ export const POWER_UPS: Record<string, PowerUp> = {
     group: 'GRAVITY',
     level: 3,
     physics: {
-      density: 0.225, // 3x level 2
-      friction: 0.00025, // Half of level 2
-      frictionAir: 0.000025, // Half of level 2
-      restitution: 0.05, // Half of level 2
+      density: 0.225,
+      friction: 0.00025,
+      frictionAir: 0.000025,
+      restitution: 0.05,
       frictionStatic: 0.000025,
     },
     visual: {
@@ -101,9 +101,9 @@ export const POWER_UPS: Record<string, PowerUp> = {
       glowColor: 'rgba(255, 0, 255, 0.4)',
     },
     effects: {
-      forceMultiplier: 50, // 2.5x level 2
-      duration: 10000, // 10 seconds
-      constantForce: 0.18 // Increased from 0.045
+      forceMultiplier: 100,
+      duration: 10000,
+      constantForce: 0.18
     }
   },
 

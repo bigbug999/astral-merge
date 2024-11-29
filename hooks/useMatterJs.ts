@@ -817,11 +817,11 @@ export const useMatterJs = (
     // Calculate initial drop velocity
     const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.5);
     const initialDropVelocity = activePowerUp?.id === 'ULTRA_HEAVY_BALL'
-      ? baseDropVelocity * 50
+      ? baseDropVelocity * 100
       : activePowerUp?.id === 'SUPER_HEAVY_BALL'
-        ? baseDropVelocity * 20
+        ? baseDropVelocity * 50
         : activePowerUp?.id === 'HEAVY_BALL'
-          ? baseDropVelocity * 8
+          ? baseDropVelocity * 20
           : baseDropVelocity;
     
     Matter.Body.setVelocity(circle, {
