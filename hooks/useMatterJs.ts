@@ -656,7 +656,7 @@ export const useMatterJs = (
       }
       clearInterval(forceInterval);
     };
-  }, [containerRef, createCircle, mergeBodies, powerUps.isSuperHeavyBallActive]);
+  }, [containerRef, createCircle, mergeBodies, powerUps]);
 
   const prepareNextSpawn = useCallback((mouseX?: number) => {
     if (!renderRef.current) return;
