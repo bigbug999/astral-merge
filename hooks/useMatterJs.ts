@@ -790,7 +790,8 @@ export const useMatterJs = (
   }, []);
 
   const endDrag = useCallback((mouseX?: number) => {
-    if (!currentCircleRef.current || !engineRef.current || !renderRef.current) return;
+    // Don't allow dropping while animating
+    if (isAnimatingRef.current || !currentCircleRef.current || !engineRef.current || !renderRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
     const activePowerUp = getActivePowerUp(powerUps);
