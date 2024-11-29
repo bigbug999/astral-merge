@@ -53,7 +53,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     effects: {
       forceMultiplier: 8, // Base drop velocity multiplier
       duration: 5000, // 5 seconds
-      constantForce: 0.005 // Constant downward force
+      constantForce: 0.02 // Increased from 0.005
     }
   },
   SUPER_HEAVY_BALL: {
@@ -78,7 +78,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     effects: {
       forceMultiplier: 20, // 2.5x level 1
       duration: 7000, // 7 seconds
-      constantForce: 0.015 // 3x level 1
+      constantForce: 0.06 // Increased from 0.015
     }
   },
   ULTRA_HEAVY_BALL: {
@@ -103,7 +103,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     effects: {
       forceMultiplier: 50, // 2.5x level 2
       duration: 10000, // 10 seconds
-      constantForce: 0.045 // 3x level 2
+      constantForce: 0.18 // Increased from 0.045
     }
   },
 
