@@ -8,12 +8,12 @@ declare global {
 
 import { useRef, useState, useCallback } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
-import { CIRCLE_CONFIG, PowerUpState, HEAVY_BALL_CONFIG, SUPER_HEAVY_BALL_CONFIG, NEGATIVE_BALL_CONFIG, POWER_UP_USES } from '@/types/game';
-import { AnvilIcon } from '@/components/icons/AnvilIcon';
-import { SuperAnvilIcon } from '@/components/icons/SuperAnvilIcon';
-import { NegativeBallIcon } from '@/components/icons/NegativeBallIcon';
+import { CIRCLE_CONFIG } from '@/types/game';
+import { PowerUpState, POWER_UPS, createInitialPowerUpState, getPowerUpsByGroup } from '@/types/powerups';
+import { PowerUpButton } from '@/components/PowerUpButton';
 import { cn } from '@/lib/utils';
 import { ColorLegend } from '@/components/ColorLegend';
+import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -61,14 +61,7 @@ export default function Home() {
   const [combo, setCombo] = useState(0);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
-  const [powerUps, setPowerUps] = useState<PowerUpState>({
-    isHeavyBallActive: false,
-    isSuperHeavyBallActive: false,
-    isNegativeBallActive: false,
-    heavyBallUses: POWER_UP_USES.HEAVY_BALL,
-    superHeavyBallUses: POWER_UP_USES.SUPER_HEAVY_BALL,
-    negativeBallUses: POWER_UP_USES.NEGATIVE_BALL,
-  });
+  const [powerUps, setPowerUps] = useState<PowerUpState>(createInitialPowerUpState());
   const [isGameOver, setIsGameOver] = useState(false);
 
   const handleNewTier = useCallback((tier: number) => {
@@ -102,25 +95,14 @@ export default function Home() {
 
   const handlePowerUpUse = useCallback(() => {
     setPowerUps(prev => {
-      if (prev.isHeavyBallActive) {
+      if (prev.activePowerUpId) {
         return {
           ...prev,
-          heavyBallUses: prev.heavyBallUses - 1,
-          isHeavyBallActive: false,
-        };
-      }
-      if (prev.isSuperHeavyBallActive) {
-        return {
-          ...prev,
-          superHeavyBallUses: prev.superHeavyBallUses - 1,
-          isSuperHeavyBallActive: false,
-        };
-      }
-      if (prev.isNegativeBallActive) {
-        return {
-          ...prev,
-          negativeBallUses: prev.negativeBallUses - 1,
-          isNegativeBallActive: false,
+          powerUps: {
+            ...prev.powerUps,
+            [prev.activePowerUpId]: prev.powerUps[prev.activePowerUpId] - 1
+          },
+          activePowerUpId: null
         };
       }
       return prev;
@@ -132,7 +114,14 @@ export default function Home() {
     // Add any additional game over logic here
   }, []);
 
-  const { startDrag, updateDrag, endDrag, spawnStressTestBalls } = useMatterJs(
+  const { 
+    startDrag, 
+    updateDrag, 
+    endDrag, 
+    spawnStressTestBalls, 
+    engine,
+    currentBall 
+  } = useMatterJs(
     containerRef, 
     handleDrop, 
     handleNewTier,
@@ -190,119 +179,23 @@ export default function Home() {
     return config.color;
   };
 
-  const handleHeavyBallClick = useCallback(() => {
-    setPowerUps(prev => ({
-      ...prev,
-      isHeavyBallActive: !prev.isHeavyBallActive && prev.heavyBallUses > 0,
-      isSuperHeavyBallActive: false,
-      isNegativeBallActive: false,
-    }));
-  }, []);
-
-  const handleSuperHeavyBallClick = useCallback(() => {
-    setPowerUps(prev => ({
-      ...prev,
-      isHeavyBallActive: false,
-      isSuperHeavyBallActive: !prev.isSuperHeavyBallActive && prev.superHeavyBallUses > 0,
-      isNegativeBallActive: false,
-    }));
-  }, []);
-
-  const handleNegativeBallClick = useCallback(() => {
-    setPowerUps(prev => ({
-      ...prev,
-      isHeavyBallActive: false,
-      isSuperHeavyBallActive: false,
-      isNegativeBallActive: !prev.isNegativeBallActive && prev.negativeBallUses > 0,
-    }));
-  }, []);
-
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
-      <div 
-        ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-4"
-      />
-
-      <div className="w-full max-w-sm flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Preview Circle */}
-          <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
-            <div 
-              className="rounded-full"
-              style={{
-                width: CIRCLE_CONFIG[nextTier].radius * 2,
-                height: CIRCLE_CONFIG[nextTier].radius * 2,
-                backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-                transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-              }}
-            />
-          </div>
-
-          {/* Power-up Buttons */}
-          <div className="flex items-center gap-2">
-            {/* Heavy Ball Button */}
-            <button
-              onClick={handleHeavyBallClick}
-              disabled={powerUps.heavyBallUses <= 0}
-              className={cn(
-                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
-                powerUps.isHeavyBallActive 
-                  ? "bg-zinc-700 text-white" 
-                  : powerUps.heavyBallUses <= 0
-                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
-              )}
-            >
-              <AnvilIcon className="w-6 h-6" />
-              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
-                {powerUps.heavyBallUses}
-              </span>
-            </button>
-
-            {/* Super Heavy Ball Button */}
-            <button
-              onClick={handleSuperHeavyBallClick}
-              disabled={powerUps.superHeavyBallUses <= 0}
-              className={cn(
-                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
-                powerUps.isSuperHeavyBallActive 
-                  ? "bg-zinc-700 text-white" 
-                  : powerUps.superHeavyBallUses <= 0
-                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
-              )}
-            >
-              <SuperAnvilIcon className="w-6 h-6" />
-              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
-                {powerUps.superHeavyBallUses}
-              </span>
-            </button>
-
-            {/* Negative Ball Button */}
-            <button
-              onClick={handleNegativeBallClick}
-              disabled={powerUps.negativeBallUses <= 0}
-              className={cn(
-                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
-                powerUps.isNegativeBallActive 
-                  ? "bg-zinc-700 text-white" 
-                  : powerUps.negativeBallUses <= 0
-                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    : "bg-zinc-800 text-zinc-400 hover:text-zinc-300"
-              )}
-            >
-              <NegativeBallIcon className="w-6 h-6" />
-              <span className="absolute -top-1 -right-1 text-xs bg-zinc-700 px-1 rounded-full">
-                {powerUps.negativeBallUses}
-              </span>
-            </button>
-          </div>
+      {/* Top Section: Preview and Score */}
+      <div className="w-full max-w-sm flex items-start justify-between mb-4">
+        {/* Preview Circle */}
+        <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
+          <div 
+            className="rounded-full"
+            style={{
+              width: CIRCLE_CONFIG[nextTier].radius * 2,
+              height: CIRCLE_CONFIG[nextTier].radius * 2,
+              backgroundColor: CIRCLE_CONFIG[nextTier].color,
+              border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+              boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+              transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
+            }}
+          />
         </div>
 
         {/* Score Section */}
@@ -321,6 +214,102 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Game Container */}
+      <div 
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-4"
+      />
+
+      {/* Bottom Controls Section */}
+      <div className="w-full max-w-sm flex flex-col gap-4">
+        {/* Power-up Section */}
+        <div className="flex gap-4">
+          {/* Power-up Groups */}
+          <div className="flex flex-col gap-2">
+            {/* Gravity Group */}
+            <div className="flex items-start gap-4">
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Gravity</div>
+              <div className="flex items-center gap-1">
+                {getPowerUpsByGroup('GRAVITY').map(powerUp => (
+                  <PowerUpButton
+                    key={powerUp.id}
+                    powerUp={powerUp}
+                    isActive={powerUps.activePowerUpId === powerUp.id}
+                    remainingUses={powerUps.powerUps[powerUp.id]}
+                    onClick={() => {
+                      setPowerUps(prev => ({
+                        ...prev,
+                        activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                          (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                      }));
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Void Group */}
+            <div className="flex items-start gap-4">
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Void</div>
+              <div className="flex items-center gap-1">
+                {getPowerUpsByGroup('VOID').map(powerUp => (
+                  <PowerUpButton
+                    key={powerUp.id}
+                    powerUp={powerUp}
+                    isActive={powerUps.activePowerUpId === powerUp.id}
+                    remainingUses={powerUps.powerUps[powerUp.id]}
+                    onClick={() => {
+                      setPowerUps(prev => ({
+                        ...prev,
+                        activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                          (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                      }));
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Mystery Group */}
+            <div className="flex items-start gap-4">
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">?????</div>
+              <div className="flex items-center gap-1">
+                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
+                  <span className="text-zinc-600">?</span>
+                </div>
+                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
+                  <span className="text-zinc-600">?</span>
+                </div>
+                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
+                  <span className="text-zinc-600">?</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Debug UI */}
+          <PowerUpDebugUI currentBall={currentBall} powerUps={powerUps} />
+        </div>
+
+        {/* Stress Test Button */}
+        <div className="w-full">
+          <button 
+            className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+            onClick={() => spawnStressTestBalls(50)}
+          >
+            Stress Test (Spawn 50 Balls)
+          </button>
+        </div>
+
+        {/* Color legend */}
+        <div className="w-full">
+          <ColorLegend />
+        </div>
+      </div>
+
       {/* Game Over Overlay */}
       {isGameOver && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -336,21 +325,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Stress Test Button */}
-      <div className="w-full max-w-sm mt-4">
-        <button 
-          className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
-          onClick={() => spawnStressTestBalls(50)}
-        >
-          Stress Test (Spawn 50 Balls)
-        </button>
-      </div>
-
-      {/* Color legend now uses full width */}
-      <div className="w-full max-w-sm">
-        <ColorLegend />
-      </div>
     </div>
   );
 }
