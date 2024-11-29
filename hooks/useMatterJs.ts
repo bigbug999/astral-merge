@@ -16,7 +16,7 @@ interface CircleBody extends Matter.Body {
   hasBeenDropped?: boolean;
   isMerging?: boolean;
   isHeavyBall?: boolean;
-  isNegativeBall?: boolean;
+  isVoidBall?: boolean;
   deletionsRemaining?: number;
   powerUpDropTime?: number;
   inDangerZone?: boolean;
@@ -182,9 +182,10 @@ export const useMatterJs = (
     circle.hasBeenDropped = false;
     
     // Apply power-up specific properties
-    if (activePowerUp?.id === 'NEGATIVE_BALL') {
-      circle.isNegativeBall = true;
-      circle.deletionsRemaining = activePowerUp.effects?.deletionsRemaining;
+    if (activePowerUp?.id === 'VOID_BALL') {
+      circle.isVoidBall = true;
+      circle.deletionsRemaining = activePowerUp.effects?.deletionsRemaining || 3;
+      console.log('Created void ball with deletions:', circle.deletionsRemaining); // Debug log
     }
 
     Matter.Body.setStatic(circle, false);
@@ -429,51 +430,35 @@ export const useMatterJs = (
           return;
         }
 
-        // Handle negative ball collisions with enhanced bounce
-        if ((bodyA.isNegativeBall || bodyB.isNegativeBall) &&
-            bodyA.hasBeenDropped && bodyB.hasBeenDropped) {
-          const negativeBall = bodyA.isNegativeBall ? bodyA : bodyB;
-          const targetBall = bodyA.isNegativeBall ? bodyB : bodyA;
+        // Void ball collision handling
+        if (bodyA.hasBeenDropped && bodyB.hasBeenDropped) {
+          const voidBall = bodyA.isVoidBall ? bodyA : (bodyB.isVoidBall ? bodyB : null);
+          const targetBall = bodyA.isVoidBall ? bodyB : (bodyB.isVoidBall ? bodyA : null);
 
-          // Only process if the target ball is not also a negative ball
-          if (!targetBall.isNegativeBall && 
-              negativeBall.deletionsRemaining && 
-              negativeBall.deletionsRemaining > 0) {
-            // Remove the target ball
-            Matter.Composite.remove(engineRef.current.world, targetBall);
-            negativeBall.deletionsRemaining--;
+          if (voidBall && targetBall && !targetBall.isVoidBall) {
+            console.log('Void ball collision. Deletions remaining:', voidBall.deletionsRemaining);
 
-            // Get the negative ball power-up config
-            const negativePowerUp = POWER_UPS.NEGATIVE_BALL;
-            const bounceForce = (negativePowerUp.effects?.bounceForce || 0.03) * 1.5;
+            if (typeof voidBall.deletionsRemaining === 'number' && voidBall.deletionsRemaining > 0) {
+              Matter.Composite.remove(engineRef.current.world, targetBall);
+              voidBall.deletionsRemaining--;
+              console.log('After deletion. Remaining:', voidBall.deletionsRemaining);
 
-            // Enhanced bounce effect after deletion
-            Matter.Body.setVelocity(negativeBall, {
-              x: negativeBall.velocity.x * 1.5, // Increased horizontal velocity boost
-              y: -Math.abs(negativeBall.velocity.y) - bounceForce // Stronger upward bounce
-            });
+              Matter.Body.setVelocity(voidBall, {
+                x: voidBall.velocity.x * 0.8,
+                y: -8
+              });
 
-            // If the negative ball has completed its deletions, remove it with a final effect
-            if (negativeBall.deletionsRemaining <= 0) {
-              // Add a final bounce before removal
-              Matter.Body.applyForce(negativeBall,
-                negativeBall.position,
-                { x: 0, y: -0.02 }
-              );
-              
-              // Remove after a short delay to show the final bounce
-              setTimeout(() => {
-                if (engineRef.current) {
-                  Matter.Composite.remove(engineRef.current.world, negativeBall);
-                }
-              }, 100);
+              if (voidBall.deletionsRemaining <= 0) {
+                console.log('Removing void ball - no deletions remaining');
+                Matter.Composite.remove(engineRef.current.world, voidBall);
+              }
             }
+            return;
           }
-          return; // Exit early for any collision involving negative balls
         }
 
-        // Normal merge logic - only process if neither ball is a negative ball
-        if (!bodyA.isNegativeBall && !bodyB.isNegativeBall &&
+        // Normal merge logic continues here...
+        if (!bodyA.isVoidBall && !bodyB.isVoidBall &&
             bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
             !bodyA.isMerging && !bodyB.isMerging) {
           
@@ -799,8 +784,8 @@ export const useMatterJs = (
     if (activePowerUp) {
       if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
-      } else if (activePowerUp.id === 'NEGATIVE_BALL') {
-        circle.isNegativeBall = true;
+      } else if (activePowerUp.id === 'VOID_BALL') {
+        circle.isVoidBall = true;
         circle.deletionsRemaining = activePowerUp.effects?.deletionsRemaining;
       }
       onPowerUpUse();
@@ -868,8 +853,8 @@ export const useMatterJs = (
     onDrop();
     prepareNextSpawn(mouseX);
 
-    // Special handling for negative balls
-    if (activePowerUp?.id === 'NEGATIVE_BALL') {
+    // Special handling for void balls
+    if (activePowerUp?.id === 'VOID_BALL') {
       const horizontalVelocity = (Math.random() - 0.5) * 8;
       const initialVelocity = activePowerUp.effects?.initialSpeed || 8;
       Matter.Body.setVelocity(circle, {
