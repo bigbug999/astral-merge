@@ -181,13 +181,6 @@ export const useMatterJs = (
     circle.tier = tier;
     circle.hasBeenDropped = false;
     
-    // Apply power-up specific properties
-    if (activePowerUp?.id === 'VOID_BALL') {
-      circle.isVoidBall = true;
-      circle.deletionsRemaining = activePowerUp.effects?.deletionsRemaining || 3;
-      console.log('Created void ball with deletions:', circle.deletionsRemaining); // Debug log
-    }
-
     Matter.Body.setStatic(circle, false);
     Matter.Body.set(circle, {
       torque: 0,
@@ -436,32 +429,36 @@ export const useMatterJs = (
           const targetBall = bodyA.isVoidBall ? bodyB : (bodyB.isVoidBall ? bodyA : null);
 
           if (voidBall && targetBall && !targetBall.isVoidBall) {
-            console.log('Void ball collision. Deletions remaining:', voidBall.deletionsRemaining);
-
+            console.log('Void ball collision detected');
+            console.log('Void ball deletions remaining:', voidBall.deletionsRemaining);
+            
             if (typeof voidBall.deletionsRemaining === 'number' && voidBall.deletionsRemaining > 0) {
               Matter.Composite.remove(engineRef.current.world, targetBall);
               voidBall.deletionsRemaining--;
-              console.log('After deletion. Remaining:', voidBall.deletionsRemaining);
-
+              console.log('Deletions remaining after collision:', voidBall.deletionsRemaining);
+              
               Matter.Body.setVelocity(voidBall, {
                 x: voidBall.velocity.x * 0.8,
-                y: -8
+                y: Math.min(voidBall.velocity.y, -8)
               });
-
+              
               if (voidBall.deletionsRemaining <= 0) {
                 console.log('Removing void ball - no deletions remaining');
-                Matter.Composite.remove(engineRef.current.world, voidBall);
+                setTimeout(() => {
+                  if (engineRef.current) {
+                    Matter.Composite.remove(engineRef.current.world, voidBall);
+                  }
+                }, 100);
               }
             }
             return;
           }
         }
 
-        // Normal merge logic continues here...
+        // Normal merge logic
         if (!bodyA.isVoidBall && !bodyB.isVoidBall &&
             bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
             !bodyA.isMerging && !bodyB.isMerging) {
-          
           const tierA = bodyA.tier;
           const tierB = bodyB.tier;
 
@@ -654,7 +651,7 @@ export const useMatterJs = (
       Math.max(padding, Math.min(width - padding, mouseX)) : 
       width / 2;
     
-    // Create the next ball without power-ups
+    // Create the next ball with current power-up state
     isCreatingDropBallRef.current = false;
     const circle = createCircle(
       nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
@@ -683,7 +680,6 @@ export const useMatterJs = (
         const elapsed = timestamp - animationStartTimeRef.current;
         const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
         
-        // Modified easing function for smoother transition to physics
         const easeOutQuad = (x: number): number => {
           return 1 - (1 - x) * (1 - x);
         };
@@ -781,12 +777,15 @@ export const useMatterJs = (
     const circle = currentCircleRef.current as CircleBody;
     const activePowerUp = getActivePowerUp(powerUps);
     
+    // Apply power-up properties here, before dropping
     if (activePowerUp) {
       if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
       } else if (activePowerUp.id === 'VOID_BALL') {
+        // Apply void ball properties here instead of in createCircle
         circle.isVoidBall = true;
-        circle.deletionsRemaining = activePowerUp.effects?.deletionsRemaining;
+        circle.deletionsRemaining = 3;
+        console.log('Applied void ball properties on drop:', circle.deletionsRemaining);
       }
       onPowerUpUse();
     }
@@ -809,10 +808,20 @@ export const useMatterJs = (
           ? baseDropVelocity * 20
           : baseDropVelocity;
     
-    Matter.Body.setVelocity(circle, {
-      x: 0,
-      y: initialDropVelocity
-    });
+    // Set initial velocity based on power-up type
+    if (activePowerUp?.id === 'VOID_BALL') {
+      const horizontalVelocity = (Math.random() - 0.5) * 8;
+      const initialVelocity = activePowerUp.effects?.initialSpeed || 8;
+      Matter.Body.setVelocity(circle, {
+        x: horizontalVelocity,
+        y: initialVelocity
+      });
+    } else {
+      Matter.Body.setVelocity(circle, {
+        x: 0,
+        y: initialDropVelocity
+      });
+    }
     
     // Add immediate force based on power-up
     if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
@@ -851,17 +860,12 @@ export const useMatterJs = (
     }, 50);
     
     onDrop();
+    
+    // Call prepareNextSpawn before bounce behavior
     prepareNextSpawn(mouseX);
 
-    // Special handling for void balls
+    // Special handling for void ball bounce behavior
     if (activePowerUp?.id === 'VOID_BALL') {
-      const horizontalVelocity = (Math.random() - 0.5) * 8;
-      const initialVelocity = activePowerUp.effects?.initialSpeed || 8;
-      Matter.Body.setVelocity(circle, {
-        x: horizontalVelocity,
-        y: initialVelocity
-      });
-      
       const addBounceForce = () => {
         if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
           Matter.Body.applyForce(circle, 
@@ -884,7 +888,7 @@ export const useMatterJs = (
 
       setTimeout(() => clearInterval(bounceInterval), 10000);
     }
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp]);
 
   // Add new stress test function
   const spawnStressTestBalls = useCallback((count: number = 50) => {
