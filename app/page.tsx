@@ -184,7 +184,7 @@ export default function Home() {
       {/* Top Section: Preview and Score */}
       <div className="w-full max-w-sm flex items-start justify-between mb-4">
         {/* Preview Circle */}
-        <div className="w-16 h-16 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
+        <div className="w-12 h-12 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
           <div 
             className="rounded-full"
             style={{
@@ -221,7 +221,10 @@ export default function Home() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-4"
-      />
+      >
+        {/* Ceiling */}
+        <div className="absolute top-0 left-0 right-0 h-1" />
+      </div>
 
       {/* Bottom Controls Section */}
       <div className="w-full max-w-sm flex flex-col gap-4">
