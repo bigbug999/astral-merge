@@ -90,13 +90,13 @@ export const useMatterJs = (
   onPowerUpEarned?: (level: 1 | 2 | 3) => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 1.75 },
+    gravity: { y: 3.5 }, // Doubled from 1.75
     positionIterations: 8,
     velocityIterations: 6,
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: 0.9,
+      timeScale: 1.8, // Doubled from 0.9
       timestamp: 0,
     }
   }));
@@ -284,11 +284,11 @@ export const useMatterJs = (
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
-      friction: activeFlask?.physics.friction ?? 0.005,
-      frictionAir: activeFlask?.physics.frictionAir ?? 0.0002,
+      friction: activeFlask?.physics.friction ?? 0.01, // Doubled from 0.005
+      frictionAir: activeFlask?.physics.frictionAir ?? 0.0004, // Doubled from 0.0002
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: 0.02,
-      slop: 0.02,
+      frictionStatic: 0.04, // Doubled from 0.02
+      slop: 0.04, // Doubled from 0.02
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
@@ -761,7 +761,7 @@ export const useMatterJs = (
                   circle.powerUpStats = undefined;
                 } else {
                   // Apply constant force if velocity is below cap
-                  if (circle.velocity.y < 15) {
+                  if (circle.velocity.y < 30) { // Increased velocity cap
                     const force = activePowerUp.effects?.constantForce || POWER_UP_CONFIG.GRAVITY.HEAVY.CONSTANT_FORCE;
                     Matter.Body.applyForce(circle, circle.position, { x: 0, y: force });
                   }
@@ -777,7 +777,7 @@ export const useMatterJs = (
           }
         });
       }
-    }, 16); // Run at ~60fps
+    }, 16); // Keep at 60fps
 
     return () => clearInterval(forceInterval);
   }, [powerUps, getActivePowerUp]);
@@ -1057,12 +1057,12 @@ export const useMatterJs = (
               } 
               // Apply continuous forces while power-up is active
               else if (circle.isHeavyBall) {
-                if (circle.velocity.y < 15) { // Add velocity cap
+                if (circle.velocity.y < 30) { // Increased velocity cap
                   const activePowerUp = getActivePowerUp(powerUps);
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.18 }
+                      { x: 0, y: 0.36 } // Doubled from 0.18
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1078,7 +1078,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.06 }
+                      { x: 0, y: 0.12 } // Doubled from 0.06
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1094,7 +1094,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.02 }
+                      { x: 0, y: 0.04 } // Doubled from 0.02
                     );
                   }
                 }
