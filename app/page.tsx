@@ -181,60 +181,62 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
-      {/* Top Section: Preview and Score */}
-      <div className="w-full max-w-sm flex items-start justify-between mb-4">
-        {/* Preview Circle */}
-        <div className="w-12 h-12 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800">
-          <div 
-            className="rounded-full"
-            style={{
-              width: CIRCLE_CONFIG[nextTier].radius * 2,
-              height: CIRCLE_CONFIG[nextTier].radius * 2,
-              backgroundColor: CIRCLE_CONFIG[nextTier].color,
-              border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-              boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-              transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-            }}
-          />
-        </div>
-
-        {/* Score Section */}
-        <div className="flex flex-col items-end">
-          <div className="text-xl font-bold text-zinc-100">
-            Score: {score}
-          </div>
-          <div 
-            className={`text-sm transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
-            style={{
-              color: combo > 0 ? getComboColor(combo) : '#a1a1aa'
-            }}
-          >
-            Combo x{(1 + (combo * 0.5)).toFixed(1)}
-          </div>
-        </div>
-      </div>
-
-      {/* Game Container */}
-      <div 
-        ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        className="relative w-full max-w-sm aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-4"
-      >
-        {/* Ceiling */}
-        <div className="absolute top-0 left-0 right-0 h-1" />
-      </div>
-
-      {/* Bottom Controls Section */}
+      {/* Bottom Controls Section - Now includes score and preview */}
       <div className="w-full max-w-sm flex flex-col gap-4">
-        {/* Power-up Section */}
+        {/* Game Container */}
+        <div 
+          ref={containerRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          className="relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-1"
+        >
+          {/* Ceiling */}
+          <div className="absolute top-0 left-0 right-0 h-1" />
+        </div>
+
+        {/* Power-up Section with Score and Preview */}
         <div className="flex gap-4">
           {/* Power-up Groups */}
           <div className="flex flex-col gap-2">
+            {/* Score and Preview Row */}
+            <div className="flex items-start gap-4">
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Status</div>
+              <div className="flex items-center gap-2 flex-1">
+                {/* Preview Circle */}
+                <div className="w-12 h-12 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800 shrink-0">
+                  <div 
+                    className="rounded-full"
+                    style={{
+                      width: CIRCLE_CONFIG[nextTier].radius * 2,
+                      height: CIRCLE_CONFIG[nextTier].radius * 2,
+                      backgroundColor: CIRCLE_CONFIG[nextTier].color,
+                      border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                      boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+                      transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
+                    }}
+                  />
+                </div>
+                {/* Score Display */}
+                <div className="h-12 px-3 rounded-lg border-2 border-zinc-700 bg-zinc-800 flex flex-col justify-center flex-1">
+                  <div className="text-sm font-bold text-zinc-100">
+                    {score}
+                  </div>
+                  <div 
+                    className={`text-xs transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
+                    style={{
+                      color: combo > 0 ? getComboColor(combo) : '#a1a1aa'
+                    }}
+                  >
+                    Combo x{(1 + (combo * 0.5)).toFixed(1)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Gravity Group */}
             <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Gravity</div>
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Gravity</div>
               <div className="flex items-center gap-2">
                 {getPowerUpsByGroup('GRAVITY').map(powerUp => (
                   <PowerUpButton
@@ -256,7 +258,7 @@ export default function Home() {
 
             {/* Void Group */}
             <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Void</div>
+              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Void</div>
               <div className="flex items-center gap-2">
                 {getPowerUpsByGroup('VOID').map(powerUp => (
                   <PowerUpButton
@@ -273,22 +275,6 @@ export default function Home() {
                     }}
                   />
                 ))}
-              </div>
-            </div>
-
-            {/* Mystery Group */}
-            <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">?????</div>
-              <div className="flex items-center gap-2">
-                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
-                  <span className="text-zinc-600">?</span>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
-                  <span className="text-zinc-600">?</span>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
-                  <span className="text-zinc-600">?</span>
-                </div>
               </div>
             </div>
           </div>
