@@ -43,10 +43,12 @@ interface ExtendedBodyDefinition extends Matter.IBodyDefinition {
   };
 }
 
-interface CollisionPair extends Matter.IPair {
+interface CollisionPair extends Matter.Pair {
   isActive: boolean;
   restitution: number;
   friction: number;
+  bodyA: CircleBody;
+  bodyB: CircleBody;
 }
 
 export const useMatterJs = (
@@ -1446,8 +1448,7 @@ export const useMatterJs = (
       
       // Process only active collision pairs
       pairs.forEach((pair: CollisionPair) => {
-        const bodyA = pair.bodyA as CircleBody;
-        const bodyB = pair.bodyB as CircleBody;
+        const { bodyA, bodyB } = pair;
 
         // Skip collision processing for sleeping or static bodies
         if ((bodyA.isSleeping && bodyB.isSleeping) || 
