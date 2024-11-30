@@ -37,6 +37,18 @@ interface DangerZone extends Matter.Body {
   timeRemaining: number;
 }
 
+interface ExtendedBodyDefinition extends Matter.IBodyDefinition {
+  chamfer?: {
+    radius: number;
+  };
+}
+
+interface CollisionPair extends Matter.IPair {
+  isActive: boolean;
+  restitution: number;
+  friction: number;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -237,7 +249,7 @@ export const useMatterJs = (
     );
 
     // Set up options including performance optimizations for larger circles
-    const circleOptions: Matter.IBodyDefinition = {
+    const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
       friction: 0.005,
       frictionAir: 0.0002,
@@ -1430,10 +1442,10 @@ export const useMatterJs = (
     if (!engineRef.current) return;
 
     const optimizeCollisions = () => {
-      const pairs = engineRef.current!.pairs.list;
+      const pairs = engineRef.current!.pairs.list as CollisionPair[];
       
       // Process only active collision pairs
-      pairs.forEach(pair => {
+      pairs.forEach((pair: CollisionPair) => {
         const bodyA = pair.bodyA as CircleBody;
         const bodyB = pair.bodyB as CircleBody;
 
