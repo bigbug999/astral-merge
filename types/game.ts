@@ -1,8 +1,10 @@
 import { PowerUpState } from './powerups';
 
+export type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+
 export interface CircleProps {
   size: number;
-  tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+  tier: TierType;
 }
 
 // Color Legend for Circle Tiers
@@ -78,7 +80,7 @@ export const WARM_COLORS = {
   },
 };
 
-export const CIRCLE_CONFIG = {
+export const CIRCLE_CONFIG: Record<TierType, any> = {
   1: { 
     color: MYSTICAL_COLORS.MEDIUM_PURPLE.color,
     strokeColor: MYSTICAL_COLORS.MEDIUM_PURPLE.strokeColor,
