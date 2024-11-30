@@ -14,6 +14,8 @@ import { PowerUpButton } from '@/components/PowerUpButton';
 import { cn } from '@/lib/utils';
 import { ColorLegend } from '@/components/ColorLegend';
 import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
+import { FlaskButton } from '@/components/FlaskButton';
+import { FlaskState, FLASKS, createInitialFlaskState } from '@/types/flasks';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -63,6 +65,7 @@ export default function Home() {
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
   const [powerUps, setPowerUps] = useState<PowerUpState>(createInitialPowerUpState());
   const [isGameOver, setIsGameOver] = useState(false);
+  const [flaskState, setFlaskState] = useState<FlaskState>(createInitialFlaskState());
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
@@ -129,7 +132,8 @@ export default function Home() {
     nextTier,
     powerUps,
     handlePowerUpUse,
-    handleGameOver
+    handleGameOver,
+    flaskState
   );
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
@@ -269,6 +273,27 @@ export default function Home() {
                       ...prev,
                       activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
                         (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                    }));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Add Flask Section */}
+          <div className="flex items-center gap-1 w-full p-1">
+            <div className="text-xs text-zinc-500 px-2">Flasks</div>
+            <div className="h-5 w-px bg-zinc-700" />
+            <div className="flex items-center gap-1 flex-1">
+              {Object.values(FLASKS).map(flask => (
+                <FlaskButton
+                  key={flask.id}
+                  flask={flask}
+                  isActive={flaskState.activeFlaskId === flask.id}
+                  size="xs"
+                  onClick={() => {
+                    setFlaskState(prev => ({
+                      activeFlaskId: prev.activeFlaskId === flask.id ? null : flask.id
                     }));
                   }}
                 />

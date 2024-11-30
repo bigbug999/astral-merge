@@ -4,6 +4,8 @@ import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
+import type { FlaskState } from '@/types/flasks';
+import { FLASKS } from '@/types/flasks';
 
 const OBJECT_POOL_SIZE = 50;
 
@@ -84,6 +86,7 @@ export const useMatterJs = (
   powerUps: PowerUpState,
   onPowerUpUse: () => void,
   onGameOver: () => void,
+  flaskState: FlaskState,
   onPowerUpEarned?: (level: 1 | 2 | 3) => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
@@ -255,7 +258,7 @@ export const useMatterJs = (
     });
   }, []);
 
-  // Update createCircle to use default visuals
+  // Update createCircle to apply flask physics
   const createCircle = useCallback((
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
@@ -275,12 +278,15 @@ export const useMatterJs = (
       visualRadius * 2
     );
 
-    // Set up options including performance optimizations for larger circles
+    // Get active flask and its physics properties
+    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    
+    // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
-      friction: 0.005,
-      frictionAir: 0.0002,
-      restitution: 0.3,
+      friction: activeFlask?.physics.friction ?? 0.005,
+      frictionAir: activeFlask?.physics.frictionAir ?? 0.0002,
+      restitution: activeFlask?.physics.restitution ?? 0.3,
       frictionStatic: 0.02,
       slop: 0.02,
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
@@ -333,7 +339,7 @@ export const useMatterJs = (
     Matter.Composite.add(engineRef.current.world, circle);
     
     return circle;
-  }, []);
+  }, [flaskState.activeFlaskId]);
 
   // Add a ref to track wall bodies
   const wallBodiesRef = useRef<Matter.Body[]>([]);
@@ -1857,6 +1863,103 @@ export const useMatterJs = (
 
     return () => clearInterval(monitorInterval);
   }, []);
+
+  // Update the flask physics effect
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    
+    // Reset to default physics
+    engineRef.current.gravity.y = 1.75;
+    engineRef.current.timing.timeScale = 0.9;
+
+    // Apply flask physics if active
+    if (flask?.physics) {
+      if (flask.physics.gravity !== undefined) {
+        engineRef.current.gravity.y = flask.physics.gravity;
+        
+        // For low gravity, add some special handling
+        if (flask.id === 'LOW_GRAVITY') {
+          // Apply to all existing bodies
+          const bodies = Matter.Composite.allBodies(engineRef.current.world);
+          bodies.forEach(body => {
+            if (!body.isStatic && body.label?.startsWith('circle-')) {
+              // Just reduce vertical velocity
+              Matter.Body.setVelocity(body, {
+                x: body.velocity.x,
+                y: body.velocity.y * 0.3
+              });
+            }
+          });
+
+          // Add continuous force monitoring for low gravity
+          const lowGravityInterval = setInterval(() => {
+            if (engineRef.current && flaskState.activeFlaskId === 'LOW_GRAVITY') {
+              const bodies = Matter.Composite.allBodies(engineRef.current.world);
+              
+              // Find the bottom wall position more accurately
+              const bottomWall = bodies.find(body => body.label === 'wall-bottom');
+              if (!bottomWall) return;
+              
+              // Use the top edge of the bottom wall as the floor
+              const floorY = bottomWall.bounds.min.y;
+
+              bodies.forEach(body => {
+                if (!body.isStatic && body.label?.startsWith('circle-')) {
+                  // Higher speed cap for more dramatic bounces
+                  if (body.velocity.y > 3) {
+                    Matter.Body.setVelocity(body, {
+                      x: body.velocity.x,
+                      y: 3
+                    });
+                  }
+                  
+                  // Add bounce boost when hitting the ground
+                  if (body.velocity.y > 0 && body.position.y > floorY) {
+                    Matter.Body.setVelocity(body, {
+                      x: body.velocity.x,
+                      y: body.velocity.y * -0.98
+                    });
+                  }
+                }
+              });
+            }
+          }, 16);
+
+          return () => clearInterval(lowGravityInterval);
+        }
+      }
+
+      if (flask.physics.timeScale !== undefined) {
+        engineRef.current.timing.timeScale = flask.physics.timeScale;
+      }
+
+      // Apply to all existing bodies
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      bodies.forEach(body => {
+        if (!body.isStatic && body.label?.startsWith('circle-')) {
+          Matter.Body.set(body, {
+            friction: flask.physics.friction ?? body.friction,
+            frictionAir: flask.physics.frictionAir ?? body.frictionAir,
+            restitution: flask.physics.restitution ?? body.restitution
+          });
+        }
+      });
+    } else {
+      // Reset all balls to default physics when no flask is active
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      bodies.forEach(body => {
+        if (!body.isStatic && body.label?.startsWith('circle-')) {
+          Matter.Body.set(body, {
+            friction: 0.005,
+            frictionAir: 0.0002,
+            restitution: 0.3
+          });
+        }
+      });
+    }
+  }, [flaskState.activeFlaskId]);
 
   return {
     engine: engineRef.current,
