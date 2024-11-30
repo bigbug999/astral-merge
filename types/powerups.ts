@@ -50,7 +50,7 @@ export const POWER_UP_CONFIG = {
       MIN_BOUNCE_Y: -8
     },
     SUPER: {
-      DELETIONS: 3,
+      DELETIONS: 2,
       BOUNCE_FORCE: 0,
       INITIAL_SPEED: 4,
       DENSITY: 0.01,
@@ -68,12 +68,12 @@ export const POWER_UP_CONFIG = {
     ULTRA: {
       DELETIONS: 10,
       BOUNCE_FORCE: 0,
-      INITIAL_SPEED: 4,
-      DENSITY: 0.01,
-      FRICTION: 0.00001,
-      FRICTION_AIR: 0.000001,
+      INITIAL_SPEED: 6,
+      DENSITY: 0.015,
+      FRICTION: 0,
+      FRICTION_AIR: 0,
       RESTITUTION: 0,
-      FRICTION_STATIC: 0.00001,
+      FRICTION_STATIC: 0,
       BOUNCE_INTERVAL: 0,
       BOUNCE_DURATION: 0,
       EDGE_BUFFER: 1.2,
@@ -81,7 +81,8 @@ export const POWER_UP_CONFIG = {
       VELOCITY_DAMPING: 1,
       MIN_BOUNCE_Y: 0
     }
-  }
+  },
+  SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
 };
 
 // Define base power-up interface

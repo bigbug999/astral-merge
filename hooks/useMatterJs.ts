@@ -134,7 +134,35 @@ export const useMatterJs = (
     updateCurrentBallAppearance();
   }, [powerUps.activePowerUpId, updateCurrentBallAppearance]);
 
-  // Update createCircle to use normal visuals
+  // Add helper function to apply void power-up properties
+  const applyVoidPowerUp = useCallback((circle: CircleBody, powerUp: PowerUp) => {
+    if (!circle) return;
+    
+    circle.isVoidBall = true;
+    circle.isSuperVoid = powerUp.level > 1;
+    
+    let config;
+    if (powerUp.id === 'SUPER_VOID_BALL') {
+      config = POWER_UP_CONFIG.VOID.SUPER;
+    } else if (powerUp.id === 'ULTRA_VOID_BALL') {
+      config = POWER_UP_CONFIG.VOID.ULTRA;
+    } else {
+      config = POWER_UP_CONFIG.VOID.BASIC;
+    }
+    
+    circle.deletionsRemaining = config.DELETIONS;
+    
+    // Apply physics properties
+    Matter.Body.set(circle, {
+      density: powerUp.physics.density || circle.density,
+      friction: powerUp.physics.friction || circle.friction,
+      frictionAir: powerUp.physics.frictionAir || circle.frictionAir,
+      restitution: powerUp.physics.restitution || circle.restitution,
+      frictionStatic: powerUp.physics.frictionStatic || circle.frictionStatic
+    });
+  }, []);
+
+  // Update createCircle to use default visuals
   const createCircle = useCallback((
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
@@ -145,30 +173,28 @@ export const useMatterJs = (
     const visualConfig = CIRCLE_CONFIG[tier];
     const collisionRadius = visualConfig.radius;
     const visualRadius = collisionRadius - 1;
-    const activePowerUp = getActivePowerUp(powerUps);
     
+    // Create texture with default visuals (no power-up effects)
     const texture = createCircleTexture(
       visualConfig.color,
-      activePowerUp?.visual.strokeColor || visualConfig.strokeColor,
-      activePowerUp?.visual.glowColor || visualConfig.glowColor,
+      visualConfig.strokeColor,
+      visualConfig.glowColor,
       visualRadius * 2
     );
 
-    // Create with physics properties from power-up or defaults
+    // Create with default physics properties
     const circle = Matter.Bodies.circle(x, y, collisionRadius, {
-      density: tier === 1 ? 0.025 : (activePowerUp?.physics.density || 0.02),
-      friction: activePowerUp?.physics.friction || 0.005,
-      frictionAir: activePowerUp?.physics.frictionAir || 0.0002,
-      restitution: activePowerUp?.physics.restitution || 0.3,
-      frictionStatic: activePowerUp?.physics.frictionStatic || 0.02,
+      density: tier === 1 ? 0.025 : 0.02,
+      friction: 0.005,
+      frictionAir: 0.0002,
+      restitution: 0.3,
+      frictionStatic: 0.02,
       slop: 0.02,
       sleepThreshold: Infinity,
       collisionFilter: {
         group: 0,
-        // Super and Ultra void balls only collide with walls
-        category: (activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') ? 0x0002 : 0x0001,
-        // Super and Ultra void balls only collide with walls (category 0x0004)
-        mask: (activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') ? 0x0004 : 0xFFFFFFFF
+        category: 0x0001,
+        mask: 0xFFFFFFFF
       },
       render: {
         sprite: {
@@ -180,9 +206,12 @@ export const useMatterJs = (
       label: `circle-${tier}`
     }) as CircleBody;
 
+    // Set basic circle properties
     circle.isMerging = false;
     circle.tier = tier;
     circle.hasBeenDropped = false;
+    circle.spawnTime = Date.now();
+    circle.inDangerZone = false;
     
     Matter.Body.setStatic(circle, false);
     Matter.Body.set(circle, {
@@ -192,11 +221,9 @@ export const useMatterJs = (
     });
 
     Matter.Composite.add(engineRef.current.world, circle);
-    circle.spawnTime = Date.now();
-    circle.inDangerZone = false;
     
     return circle;
-  }, [powerUps, getActivePowerUp]);
+  }, []);
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
@@ -843,41 +870,39 @@ export const useMatterJs = (
     }
   }, []);
 
+  // Update endDrag to apply both visuals and physics when dropping
   const endDrag = useCallback((mouseX?: number) => {
-    // Don't allow dropping while animating
-    if (isAnimatingRef.current || !currentCircleRef.current || !engineRef.current || !renderRef.current) return;
+    if (isAnimatingRef.current || !currentCircleRef.current || !engineRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
     const activePowerUp = getActivePowerUp(powerUps);
     
-    // Apply power-up properties here, before dropping
+    // Apply power-up properties and visuals only when dropping
     if (activePowerUp) {
+      // Apply visuals
+      const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+      const visualRadius = (visualConfig.radius - 1);
+      
+      if (circle.render.sprite) {
+        circle.render.sprite.texture = createCircleTexture(
+          visualConfig.color,
+          activePowerUp.visual.strokeColor,
+          activePowerUp.visual.glowColor,
+          visualRadius * 2
+        );
+      }
+
+      // Apply physics properties
       if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
-      } else if (activePowerUp.id === 'VOID_BALL' || activePowerUp.id === 'SUPER_VOID_BALL' || activePowerUp.id === 'ULTRA_VOID_BALL') {
-        circle.isVoidBall = true;
-        let config;
-        if (activePowerUp.id === 'SUPER_VOID_BALL') {
-          config = POWER_UP_CONFIG.VOID.SUPER;
-        } else if (activePowerUp.id === 'ULTRA_VOID_BALL') {
-          config = POWER_UP_CONFIG.VOID.ULTRA;
-        } else {
-          config = POWER_UP_CONFIG.VOID.BASIC;
-        }
-        circle.deletionsRemaining = config.DELETIONS;
-        circle.isSuperVoid = activePowerUp.id !== 'VOID_BALL';
-        console.log('Applied void ball properties on drop:', circle.deletionsRemaining);
+      } else if (activePowerUp.group === 'VOID') {
+        applyVoidPowerUp(circle, activePowerUp);
       }
       onPowerUpUse();
     }
 
     circle.hasBeenDropped = true;
     Matter.Sleeping.set(circle, false);
-    
-    Matter.Body.set(circle, {
-      sleepThreshold: 60,
-      timeScale: 1.0
-    });
     
     // Calculate initial drop velocity
     const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.65);
@@ -946,8 +971,14 @@ export const useMatterJs = (
     
     onDrop();
     
-    // Call prepareNextSpawn before bounce behavior
-    prepareNextSpawn(mouseX);
+    // Important: Reset current circle and prepare next spawn after power-up has been used
+    currentCircleRef.current = null;
+    isDraggingRef.current = false;
+    
+    // Call prepareNextSpawn after power-up effects have been cleared
+    setTimeout(() => {
+      prepareNextSpawn(mouseX);
+    }, 0);
 
     // Special handling for void ball bounce behavior
     if (activePowerUp?.id === 'VOID_BALL' && !activePowerUp?.id.includes('SUPER') && !activePowerUp?.id.includes('ULTRA')) {
@@ -1010,7 +1041,7 @@ export const useMatterJs = (
 
       setTimeout(() => clearInterval(bounceInterval), POWER_UP_CONFIG.VOID.BASIC.BOUNCE_DURATION);
     }
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp]);
 
   // Add new stress test function
   const spawnStressTestBalls = useCallback((count: number = 50) => {
@@ -1205,7 +1236,6 @@ export const useMatterJs = (
       
       voidBalls.forEach(voidBall => {
         if (voidBall.isSuperVoid) {
-          // For super void balls, use a sensor to detect overlaps
           const bounds = Matter.Bounds.create([
             { x: voidBall.position.x - voidBall.circleRadius!, y: voidBall.position.y - voidBall.circleRadius! },
             { x: voidBall.position.x + voidBall.circleRadius!, y: voidBall.position.y + voidBall.circleRadius! }
@@ -1214,10 +1244,17 @@ export const useMatterJs = (
           const overlappingBodies = Matter.Query.region(bodies, bounds);
           overlappingBodies.forEach(otherBody => {
             const other = otherBody as CircleBody;
+            const currentTime = Date.now();
+            
+            // Add spawn protection check
+            const isProtected = other.spawnTime && 
+              (currentTime - other.spawnTime < POWER_UP_CONFIG.SPAWN_PROTECTION_TIME);
+
             if (other !== voidBall && 
                 other.label?.startsWith('circle-') && 
                 !other.isVoidBall && 
-                !other.isMerging && 
+                !other.isMerging &&
+                !isProtected && // Add spawn protection check
                 Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
               
               Matter.Composite.remove(engineRef.current!.world, other);
