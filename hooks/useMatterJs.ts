@@ -1870,57 +1870,66 @@ export const useMatterJs = (
 
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
-    // Reset to default physics
-    engineRef.current.gravity.y = 1.75;
-    engineRef.current.timing.timeScale = 0.9;
+    // Reset to default physics (now doubled for mobile)
+    engineRef.current.gravity.y = 3.5;
+    engineRef.current.timing.timeScale = 1.8;
 
     // Apply flask physics if active
     if (flask?.physics) {
       if (flask.physics.gravity !== undefined) {
         engineRef.current.gravity.y = flask.physics.gravity;
         
-        // For low gravity, add some special handling
+        // For low gravity, add some special handling with faster physics
         if (flask.id === 'LOW_GRAVITY') {
-          // Apply to all existing bodies
+          // Apply to all existing bodies with faster initial velocities
           const bodies = Matter.Composite.allBodies(engineRef.current.world);
           bodies.forEach(body => {
             if (!body.isStatic && body.label?.startsWith('circle-')) {
-              // Just reduce vertical velocity
+              // Reduce vertical velocity less aggressively
               Matter.Body.setVelocity(body, {
                 x: body.velocity.x,
-                y: body.velocity.y * 0.3
+                y: body.velocity.y * 0.6 // Changed from 0.3 to 0.6
               });
             }
           });
 
-          // Add continuous force monitoring for low gravity
+          // Add continuous force monitoring for low gravity with faster physics
           const lowGravityInterval = setInterval(() => {
             if (engineRef.current && flaskState.activeFlaskId === 'LOW_GRAVITY') {
               const bodies = Matter.Composite.allBodies(engineRef.current.world);
               
-              // Find the bottom wall position more accurately
               const bottomWall = bodies.find(body => body.label === 'wall-bottom');
               if (!bottomWall) return;
               
-              // Use the top edge of the bottom wall as the floor
               const floorY = bottomWall.bounds.min.y;
 
               bodies.forEach(body => {
                 if (!body.isStatic && body.label?.startsWith('circle-')) {
-                  // Higher speed cap for more dramatic bounces
-                  if (body.velocity.y > 3) {
+                  // Increased speed cap for faster movement
+                  if (body.velocity.y > 6) { // Increased from 3 to 6
                     Matter.Body.setVelocity(body, {
                       x: body.velocity.x,
-                      y: 3
+                      y: 6
                     });
                   }
                   
-                  // Add bounce boost when hitting the ground
+                  // Add stronger bounce boost when hitting the ground
                   if (body.velocity.y > 0 && body.position.y > floorY) {
                     Matter.Body.setVelocity(body, {
-                      x: body.velocity.x,
-                      y: body.velocity.y * -0.98
+                      x: body.velocity.x * 0.95, // Slight horizontal damping
+                      y: body.velocity.y * -1.2 // Increased bounce from -0.98 to -1.2
                     });
+                  }
+                  
+                  // Add slight random horizontal movement for more dynamic behavior
+                  if (Math.random() < 0.1) { // 10% chance each frame
+                    Matter.Body.applyForce(body, 
+                      body.position, 
+                      { 
+                        x: (Math.random() - 0.5) * 0.0002,
+                        y: 0
+                      }
+                    );
                   }
                 }
               });
