@@ -21,9 +21,10 @@ interface PowerUpButtonProps {
   isActive: boolean;
   remainingUses: number;
   onClick: () => void;
+  size?: 'xs' | 'sm' | 'md';
 }
 
-export function PowerUpButton({ powerUp, isActive, remainingUses, onClick }: PowerUpButtonProps) {
+export function PowerUpButton({ powerUp, isActive, remainingUses, onClick, size = 'md' }: PowerUpButtonProps) {
   const IconComponent = ICON_COMPONENTS[powerUp.icon];
 
   // Get color based on power-up level
@@ -57,20 +58,33 @@ export function PowerUpButton({ powerUp, isActive, remainingUses, onClick }: Pow
   const textColor = getLevelColor(powerUp.level, isActive, isDisabled);
   const bgColor = getLevelBgColor(powerUp.level, isActive, isDisabled);
 
+  const sizeClasses = {
+    xs: "w-9 h-9",
+    sm: "w-10 h-10",
+    md: "w-12 h-12"
+  };
+
+  const iconSizeClasses = {
+    xs: "w-4 h-4",
+    sm: "w-5 h-5",
+    md: "w-6 h-6"
+  };
+
   return (
     <button
       onClick={onClick}
       disabled={isDisabled}
       title={`${powerUp.name} (${powerUp.group} Level ${powerUp.level}): ${powerUp.description}`}
       className={cn(
-        "w-12 h-12 rounded-lg flex items-center justify-center transition-colors relative",
+        "rounded-lg flex items-center justify-center transition-colors relative",
+        sizeClasses[size],
         bgColor,
         textColor
       )}
     >
-      {IconComponent && <IconComponent className="w-6 h-6" />}
+      {IconComponent && <IconComponent className={iconSizeClasses[size]} />}
       <span className={cn(
-        "absolute -top-1 -right-1 text-xs px-1 rounded-full",
+        "absolute -top-1 -right-1 text-[9px] min-w-[14px] h-3.5 flex items-center justify-center px-0.5 rounded-full",
         isActive ? "bg-white text-black" : "bg-zinc-700"
       )}>
         {remainingUses}

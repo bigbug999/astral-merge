@@ -58,38 +58,45 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
   }, [currentBall, powerUps]);
 
   return (
-    <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-2 text-xs w-[140px] ml-auto">
-      <h3 className="text-zinc-400 font-medium mb-1">Ball Modifiers</h3>
-      <div className="space-y-1">
-        <div className="flex justify-between mb-2 border-b border-zinc-700 pb-1">
-          <span className="text-zinc-500">FPS:</span>
+    <div className="flex items-start gap-2">
+      <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-2 text-xs w-[384px]">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-zinc-400 font-medium">Ball Modifiers</h3>
           <span className={`text-zinc-300 font-mono ${(debug?.fps || 0) < 45 ? 'text-red-400' : ''}`}>
-            {debug?.fps || '--'}
+            {debug?.fps || '--'} FPS
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Density:</span>
-          <span className="text-zinc-300 font-mono">×{(stats.density / DEFAULT_STATS.density).toFixed(1)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Friction:</span>
-          <span className="text-zinc-300 font-mono">×{(stats.friction / DEFAULT_STATS.friction).toFixed(1)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Air Fric:</span>
-          <span className="text-zinc-300 font-mono">×{(stats.frictionAir / DEFAULT_STATS.frictionAir).toFixed(1)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Bounce:</span>
-          <span className="text-zinc-300 font-mono">×{(stats.restitution / DEFAULT_STATS.restitution).toFixed(1)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Force:</span>
-          <span className="text-zinc-300 font-mono">×{stats.forceMultiplier.toFixed(1)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-zinc-500">Pull:</span>
-          <span className="text-zinc-300 font-mono">+{stats.constantForce.toFixed(3)}</span>
+        <div className="flex gap-4">
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Density:</span>
+              <span className="text-zinc-300 font-mono">×{(stats.density / DEFAULT_STATS.density).toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Friction:</span>
+              <span className="text-zinc-300 font-mono">×{(stats.friction / DEFAULT_STATS.friction).toFixed(1)}</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Air Fric:</span>
+              <span className="text-zinc-300 font-mono">×{(stats.frictionAir / DEFAULT_STATS.frictionAir).toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Bounce:</span>
+              <span className="text-zinc-300 font-mono">×{(stats.restitution / DEFAULT_STATS.restitution).toFixed(1)}</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Force:</span>
+              <span className="text-zinc-300 font-mono">×{stats.forceMultiplier.toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-500">Pull:</span>
+              <span className="text-zinc-300 font-mono">+{stats.constantForce.toFixed(3)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

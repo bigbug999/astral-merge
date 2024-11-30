@@ -197,86 +197,82 @@ export default function Home() {
         </div>
 
         {/* Power-up Section with Score and Preview */}
-        <div className="flex gap-4">
-          {/* Power-up Groups */}
-          <div className="flex flex-col gap-2">
-            {/* Score and Preview Row */}
-            <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Status</div>
-              <div className="flex items-center gap-2 flex-1">
-                {/* Preview Circle */}
-                <div className="w-12 h-12 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800 shrink-0">
-                  <div 
-                    className="rounded-full"
-                    style={{
-                      width: CIRCLE_CONFIG[nextTier].radius * 2,
-                      height: CIRCLE_CONFIG[nextTier].radius * 2,
-                      backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                      border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                      boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-                      transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-                    }}
-                  />
-                </div>
-                {/* Score Display */}
-                <div className="h-12 px-3 rounded-lg border-2 border-zinc-700 bg-zinc-800 flex flex-col justify-center flex-1">
-                  <div className="text-sm font-bold text-zinc-100">
-                    {score}
-                  </div>
-                  <div 
-                    className={`text-xs transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
-                    style={{
-                      color: combo > 0 ? getComboColor(combo) : '#a1a1aa'
-                    }}
-                  >
-                    Combo x{(1 + (combo * 0.5)).toFixed(1)}
-                  </div>
-                </div>
+        <div className="flex flex-col gap-4">
+          {/* Combined Score, Preview, and Power-ups Row */}
+          <div className="flex items-center gap-1 w-full">
+            {/* Preview Circle */}
+            <div className="w-9 h-9 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800 shrink-0">
+              <div 
+                className="rounded-full"
+                style={{
+                  width: CIRCLE_CONFIG[nextTier].radius * 2,
+                  height: CIRCLE_CONFIG[nextTier].radius * 2,
+                  backgroundColor: CIRCLE_CONFIG[nextTier].color,
+                  border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                  boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
+                  transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
+                }}
+              />
+            </div>
+
+            {/* Score Display */}
+            <div className="h-9 px-1.5 rounded-lg border-2 border-zinc-700 bg-zinc-800 flex flex-col justify-center flex-1">
+              <div className="text-sm font-bold text-zinc-100">
+                {score}
+              </div>
+              <div 
+                className={`text-[10px] transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
+                style={{
+                  color: combo > 0 ? getComboColor(combo) : '#f4f4f5'
+                }}
+              >
+                ×{(1 + (combo * 0.5)).toFixed(1)}
               </div>
             </div>
 
-            {/* Gravity Group */}
-            <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Gravity</div>
-              <div className="flex items-center gap-2">
-                {getPowerUpsByGroup('GRAVITY').map(powerUp => (
-                  <PowerUpButton
-                    key={powerUp.id}
-                    powerUp={powerUp}
-                    isActive={powerUps.activePowerUpId === powerUp.id}
-                    remainingUses={powerUps.powerUps[powerUp.id]}
-                    onClick={() => {
-                      setPowerUps(prev => ({
-                        ...prev,
-                        activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                          (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                      }));
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Divider */}
+            <div className="h-5 w-px bg-zinc-700 mx-0.5" />
 
-            {/* Void Group */}
-            <div className="flex items-start gap-4">
-              <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider flex items-center">Void</div>
-              <div className="flex items-center gap-2">
-                {getPowerUpsByGroup('VOID').map(powerUp => (
-                  <PowerUpButton
-                    key={powerUp.id}
-                    powerUp={powerUp}
-                    isActive={powerUps.activePowerUpId === powerUp.id}
-                    remainingUses={powerUps.powerUps[powerUp.id]}
-                    onClick={() => {
-                      setPowerUps(prev => ({
-                        ...prev,
-                        activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                          (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                      }));
-                    }}
-                  />
-                ))}
-              </div>
+            {/* All Power-ups in one row */}
+            <div className="flex items-center gap-1 flex-1 justify-end">
+              {/* Gravity Power-ups */}
+              {getPowerUpsByGroup('GRAVITY').map(powerUp => (
+                <PowerUpButton
+                  key={powerUp.id}
+                  powerUp={powerUp}
+                  isActive={powerUps.activePowerUpId === powerUp.id}
+                  remainingUses={powerUps.powerUps[powerUp.id]}
+                  size="xs"
+                  onClick={() => {
+                    setPowerUps(prev => ({
+                      ...prev,
+                      activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                        (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                    }));
+                  }}
+                />
+              ))}
+
+              {/* Divider between power-up groups */}
+              <div className="h-5 w-px bg-zinc-700 mx-0.5" />
+
+              {/* Void Power-ups */}
+              {getPowerUpsByGroup('VOID').map(powerUp => (
+                <PowerUpButton
+                  key={powerUp.id}
+                  powerUp={powerUp}
+                  isActive={powerUps.activePowerUpId === powerUp.id}
+                  remainingUses={powerUps.powerUps[powerUp.id]}
+                  size="xs"
+                  onClick={() => {
+                    setPowerUps(prev => ({
+                      ...prev,
+                      activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                        (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                    }));
+                  }}
+                />
+              ))}
             </div>
           </div>
 
