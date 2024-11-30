@@ -12,7 +12,13 @@ interface ObjectPool {
   maxSize: number;
 }
 
-interface CircleBody extends Matter.Body {
+interface MatterBody extends Matter.Body {
+  events?: Record<string, any>;
+  constraints?: Matter.Constraint[];
+  parts: Matter.Body[];
+}
+
+interface CircleBody extends MatterBody {
   tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   hasBeenDropped?: boolean;
   isMerging?: boolean;
@@ -50,6 +56,25 @@ interface CollisionPair extends Matter.Pair {
   bodyA: CircleBody;
   bodyB: CircleBody;
 }
+
+// Add this debug helper at the top of the file
+const logWorldState = (engine: Matter.Engine, context: string) => {
+  const bodies = Matter.Composite.allBodies(engine.world);
+  const activeCircles = bodies.filter(b => b.label?.startsWith('circle-'));
+  const staticBodies = bodies.filter(b => b.isStatic);
+  const otherBodies = bodies.filter(b => !b.label?.startsWith('circle-') && !b.isStatic);
+  
+  console.log(`=== World State (${context}) ===`);
+  console.log(`Total bodies: ${bodies.length}`);
+  console.log(`Active circles: ${activeCircles.length}`);
+  console.log(`Static bodies: ${staticBodies.length}`);
+  console.log(`Other bodies: ${otherBodies.length}`);
+  console.log(`Constraints: ${engine.world.constraints.length}`);
+  console.log(`Composites: ${engine.world.composites.length}`);
+  if (otherBodies.length > 0) {
+    console.log('Other bodies labels:', otherBodies.map(b => b.label));
+  }
+};
 
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
@@ -310,99 +335,382 @@ export const useMatterJs = (
     return circle;
   }, []);
 
+  // Add a ref to track wall bodies
+  const wallBodiesRef = useRef<Matter.Body[]>([]);
+
+  // Define cleanupBody first
+  const cleanupBody = useCallback((body: CircleBody | Matter.Body) => {
+    if (!engineRef.current) return;
+    
+    // Never clean up the danger zone
+    if (body.label === 'danger-zone') {
+      console.log('Skipping cleanup of danger zone');
+      return;
+    }
+    
+    // Skip if body is already removed
+    if (!Matter.Composite.get(engineRef.current.world, body.id, body.type)) {
+      console.log('Body already removed:', body.label);
+      return;
+    }
+    
+    console.log(`Cleaning up body: ${body.label}`);
+    logWorldState(engineRef.current, 'Before cleanup');
+    
+    // Remove from any composites first
+    engineRef.current.world.composites.forEach(composite => {
+      Matter.Composite.remove(composite, body);
+    });
+    
+    // Remove from world
+    Matter.World.remove(engineRef.current.world, body, true); // true forces immediate removal
+    
+    // Only clean up circle-specific properties if it's a circle
+    if (body.label?.startsWith('circle-')) {
+      const circleBody = body as CircleBody;
+      // Store reference to sprite texture before nullifying
+      const spriteTexture = circleBody.render.sprite?.texture;
+      
+      // Clear all properties first
+      Object.keys(circleBody).forEach(key => {
+        (circleBody as any)[key] = null;
+      });
+      
+      // Then clean up texture if it exists
+      if (spriteTexture) {
+        URL.revokeObjectURL(spriteTexture);
+      }
+    }
+    
+    // For static bodies (walls)
+    if (body.isStatic) {
+      // Remove from wallBodiesRef if it's there
+      if (wallBodiesRef.current) {
+        const index = wallBodiesRef.current.indexOf(body);
+        if (index > -1) {
+          wallBodiesRef.current.splice(index, 1);
+        }
+      }
+    }
+    
+    logWorldState(engineRef.current, 'After cleanup');
+  }, []);
+
+  // Then define createOptimizedWalls
+  const createOptimizedWalls = useCallback(() => {
+    if (!renderRef.current || !engineRef.current) return [];
+
+    // Store danger zone reference before cleanup
+    const dangerZone = Matter.Composite.allBodies(engineRef.current.world)
+      .find(body => body.label === 'danger-zone');
+
+    // Remove static bodies except danger zone
+    const allBodies = Matter.Composite.allBodies(engineRef.current.world);
+    const staticBodies = allBodies.filter(body => 
+      body.isStatic && body.label !== 'danger-zone'
+    );
+    console.log(`Found ${staticBodies.length} static bodies to clean up`);
+    
+    staticBodies.forEach(body => {
+      Matter.Composite.remove(engineRef.current!.world, body);
+    });
+    
+    // Clear the wall reference array
+    wallBodiesRef.current = [];
+
+    const { width, height } = renderRef.current.canvas;
+    const wallThickness = 60;
+    const wallOptions = {
+      isStatic: true,
+      restitution: 0.5,
+      friction: 0.0,
+      frictionStatic: 0.0,
+      collisionFilter: {
+        category: 0x0004,
+        mask: 0xFFFFFFFF
+      },
+      render: {
+        visible: false
+      },
+      label: 'wall'
+    };
+
+    const walls = [
+      Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
+        ...wallOptions,
+        label: 'wall-bottom'
+      }),
+      Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
+        ...wallOptions,
+        label: 'wall-left'
+      }),
+      Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
+        ...wallOptions,
+        label: 'wall-right'
+      }),
+    ];
+
+    // Store new walls reference
+    wallBodiesRef.current = walls;
+    
+    console.log('Created new walls:', walls.map(w => w.label));
+    return walls;
+  }, []);
+
+  // Add cleanup for walls in component unmount
+  useEffect(() => {
+    return () => {
+      if (engineRef.current) {
+        console.log('Starting cleanup...');
+        
+        // Clean up all circle bodies
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        bodies.forEach(body => {
+          cleanupBody(body);
+        });
+
+        // Clean up walls specifically
+        if (wallBodiesRef.current) {
+          wallBodiesRef.current.forEach(wall => {
+            Matter.Composite.remove(engineRef.current!.world, wall);
+          });
+          wallBodiesRef.current = [];
+        }
+
+        // Clean up danger zone
+        if (dangerZoneRef.current) {
+          Matter.Composite.remove(engineRef.current.world, dangerZoneRef.current);
+          dangerZoneRef.current = null;
+        }
+
+        console.log('Clearing engine...');
+        Matter.Engine.clear(engineRef.current);
+        
+        // Clear all refs
+        renderRef.current = null;
+        runnerRef.current = null;
+        currentCircleRef.current = null;
+        objectPoolRef.current = null;
+        
+        console.log('Cleanup complete');
+        logWorldState(engineRef.current, 'After complete cleanup');
+      }
+    };
+  }, [cleanupBody]);
+
+  // Add periodic garbage collection
+  useEffect(() => {
+    const gcInterval = setInterval(() => {
+      if (engineRef.current) {
+        logWorldState(engineRef.current, 'Before GC');
+        
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        const canvas = renderRef.current?.canvas;
+        
+        bodies.forEach(body => {
+          const circle = body as CircleBody;
+          // Clean up bodies that are far off screen
+          if (canvas && (
+            circle.position.y > canvas.height + 200 || // Too far below
+            circle.position.y < -200 || // Too far above
+            circle.position.x < -200 || // Too far left
+            circle.position.x > canvas.width + 200 // Too far right
+          )) {
+            cleanupBody(circle);
+          }
+        });
+        
+        logWorldState(engineRef.current, 'After GC');
+      }
+    }, 5000); // Run every 5 seconds
+
+    return () => clearInterval(gcInterval);
+  }, [cleanupBody]);
+
+  // Add collision queue management
+  const collisionQueueRef = useRef<Array<[CircleBody, CircleBody]>>([]);
+  const isProcessingCollisionRef = useRef(false);
+
+  // Update mergeBodies with additional safety checks
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
 
+    // Additional safety checks
+    if (!bodyA?.position || !bodyB?.position) {
+      console.log('Invalid bodies for merge:', { bodyA, bodyB });
+      return;
+    }
+
+    // Verify bodies still exist in the world
+    const bodies = Matter.Composite.allBodies(engineRef.current.world);
+    if (!bodies.includes(bodyA) || !bodies.includes(bodyB)) {
+      console.log('Bodies no longer in world');
+      return;
+    }
+
+    console.log(`Merging bodies - A: Tier ${bodyA.tier}, B: Tier ${bodyB.tier}`);
+    logWorldState(engineRef.current, 'Before merge');
+
     // Prevent merging if either body is already merging
-    if (bodyA.isMerging || bodyB.isMerging) return;
+    if (bodyA.isMerging || bodyB.isMerging) {
+      console.log('Bodies already merging');
+      return;
+    }
+
+    // Calculate midpoint BEFORE cleaning up bodies
+    const midX = (bodyA.position.x + bodyB.position.x) / 2;
+    const midY = (bodyA.position.y + bodyB.position.y) / 2;
+    const newTier = Math.min((bodyA.tier || 1) + 1, 12) as TierType;
     
-    // Mark both bodies as merging to prevent multiple merges
+    // Mark as merging to prevent multiple merges
     bodyA.isMerging = true;
     bodyB.isMerging = true;
 
-    // Calculate midpoint for new circle spawn
-    const midX = (bodyA.position.x + bodyB.position.x) / 2;
-    const midY = (bodyA.position.y + bodyB.position.y) / 2;
-
-    // Remove old circles immediately
-    Matter.Composite.remove(engineRef.current.world, [bodyA, bodyB]);
-
-    // Create new merged circle
-    const newTier = Math.min((bodyA.tier || 1) + 1, 12) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-    
     // Store current power-up state
     const currentPowerUpId = powerUps.activePowerUpId;
     
     // Temporarily clear active power-up to prevent it from being applied to merged ball
     powerUps.activePowerUpId = null;
     
+    // Clean up old bodies AFTER calculating new position
+    cleanupBody(bodyA);
+    cleanupBody(bodyB);
+    
+    // Create new merged circle
     const newCircle = createCircle(newTier, midX, midY);
     
     // Restore original power-up state
     powerUps.activePowerUpId = currentPowerUpId;
     
     if (newCircle) {
-        (newCircle as CircleBody).hasBeenDropped = true;
-        // Reduce the upward boost and add slight random horizontal movement
-        const randomHorizontal = (Math.random() - 0.5) * 0.5;
-        Matter.Body.setVelocity(newCircle, { 
-            x: randomHorizontal, 
-            y: -1.5  // Reduced from -2.5
-        });
-        
-        // Add a small delay before enabling collisions
-        setTimeout(() => {
-            if (newCircle && !newCircle.isMerging) {
-                Matter.Body.set(newCircle, {
-                    isSleeping: false,
-                    collisionFilter: {
-                        group: 0,
-                        category: 0x0001,
-                        mask: 0xFFFFFFFF
-                    }
-                });
+      console.log(`Created new merged circle: Tier ${newTier}`);
+      (newCircle as CircleBody).hasBeenDropped = true;
+      
+      // Reduce the upward boost and add slight random horizontal movement
+      const randomHorizontal = (Math.random() - 0.5) * 0.5;
+      Matter.Body.setVelocity(newCircle, { 
+        x: randomHorizontal, 
+        y: -1.5  // Reduced from -2.5
+      });
+      
+      // Add a small delay before enabling collisions
+      setTimeout(() => {
+        if (newCircle && !newCircle.isMerging) {
+          Matter.Body.set(newCircle, {
+            isSleeping: false,
+            collisionFilter: {
+              group: 0,
+              category: 0x0001,
+              mask: 0xFFFFFFFF
             }
-        }, 50);
-
-        // Add power-up rewards based on tier
-        if (newTier === 5) {
-            // Reward basic power-ups (one of each in the basic tier)
-            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-                if (powerUp.level === 1) {
-                    powerUps.powerUps[id] = Math.min(
-                        (powerUps.powerUps[id] || 0) + 1,
-                        powerUp.maxUses
-                    );
-                }
-            });
-            onPowerUpEarned?.(1);  // Basic power-ups earned
-        } else if (newTier === 6) {
-            // Reward super power-ups
-            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-                if (powerUp.level === 2) {
-                    powerUps.powerUps[id] = Math.min(
-                        (powerUps.powerUps[id] || 0) + 1,
-                        powerUp.maxUses
-                    );
-                }
-            });
-            onPowerUpEarned?.(2);  // Super power-ups earned
-        } else if (newTier === 7) {
-            // Reward ultra power-ups
-            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-                if (powerUp.level === 3) {
-                    powerUps.powerUps[id] = Math.min(
-                        (powerUps.powerUps[id] || 0) + 1,
-                        powerUp.maxUses
-                    );
-                }
-            });
-            onPowerUpEarned?.(3);  // Ultra power-ups earned
+          });
         }
+      }, 50);
+
+      // Handle power-up rewards
+      if (newTier === 5) {
+        // Reward basic power-ups (one of each in the basic tier)
+        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+          if (powerUp.level === 1) {
+            powerUps.powerUps[id] = Math.min(
+              (powerUps.powerUps[id] || 0) + 1,
+              powerUp.maxUses
+            );
+          }
+        });
+        onPowerUpEarned?.(1);  // Basic power-ups earned
+      } else if (newTier === 6) {
+        // Reward super power-ups
+        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+          if (powerUp.level === 2) {
+            powerUps.powerUps[id] = Math.min(
+              (powerUps.powerUps[id] || 0) + 1,
+              powerUp.maxUses
+            );
+          }
+        });
+        onPowerUpEarned?.(2);  // Super power-ups earned
+      } else if (newTier === 7) {
+        // Reward ultra power-ups
+        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+          if (powerUp.level === 3) {
+            powerUps.powerUps[id] = Math.min(
+              (powerUps.powerUps[id] || 0) + 1,
+              powerUp.maxUses
+            );
+          }
+        });
+        onPowerUpEarned?.(3);  // Ultra power-ups earned
+      }
     }
 
     onNewTier(newTier);
-}, [createCircle, onNewTier, powerUps, onPowerUpEarned]);
+    logWorldState(engineRef.current, 'After merge');
+  }, [createCircle, onNewTier, powerUps, onPowerUpEarned, cleanupBody]);
+
+  // Update collision handling
+  const processCollisionQueue = useCallback(() => {
+    if (isProcessingCollisionRef.current || !collisionQueueRef.current.length) return;
+    
+    isProcessingCollisionRef.current = true;
+    
+    while (collisionQueueRef.current.length > 0) {
+      const [bodyA, bodyB] = collisionQueueRef.current[0];
+      
+      // Safety check that bodies still exist and are valid
+      if (bodyA?.position && bodyB?.position && 
+          !bodyA.isMerging && !bodyB.isMerging && 
+          engineRef.current) {
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        if (bodies.includes(bodyA) && bodies.includes(bodyB)) {
+          mergeBodies(bodyA, bodyB);
+        }
+      }
+      
+      collisionQueueRef.current.shift();
+    }
+    
+    isProcessingCollisionRef.current = false;
+  }, [mergeBodies]);
+
+  // Update collision handler
+  const collisionHandler = useCallback((event: Matter.IEventCollision<Matter.Engine>) => {
+    event.pairs.forEach((pair) => {
+      const bodyA = pair.bodyA as CircleBody;
+      const bodyB = pair.bodyB as CircleBody;
+      
+      if (!bodyA?.label?.startsWith('circle-') || !bodyB?.label?.startsWith('circle-')) {
+        return;
+      }
+
+      // Normal merge logic (only if neither ball is a void ball)
+      if (!bodyA.isVoidBall && !bodyB.isVoidBall &&
+          bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
+          !bodyA.isMerging && !bodyB.isMerging) {
+        const tierA = bodyA.tier;
+        const tierB = bodyB.tier;
+
+        if (tierA === tierB && tierA !== undefined && tierA < 12) {
+          // Add to queue instead of processing immediately
+          collisionQueueRef.current.push([bodyA, bodyB]);
+          requestAnimationFrame(processCollisionQueue);
+        }
+      }
+    });
+  }, [processCollisionQueue]);
+
+  // Update collision effect
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    Matter.Events.on(engineRef.current, 'collisionStart', collisionHandler);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
+      }
+    };
+  }, [collisionHandler]);
 
   // Add this before the useEffect that handles physics updates
   const applyGravityPowerUp = useCallback((circle: CircleBody, activePowerUp: PowerUp) => {
@@ -573,35 +881,6 @@ export const useMatterJs = (
     engineRef.current.constraintIterations = 3;
 
     // Add performance optimizations for the physics bodies
-    const createOptimizedWalls = () => {
-      if (!renderRef.current) return [];
-
-      const { width, height } = renderRef.current.canvas;
-      const wallThickness = 60;
-      const wallOptions = {
-        isStatic: true,
-        restitution: 0.5,
-        friction: 0.0,
-        frictionStatic: 0.0,
-        collisionFilter: {
-          category: 0x0004,
-          mask: 0xFFFFFFFF
-        },
-        render: {
-          visible: false
-        }
-      };
-
-      return [
-        // Bottom wall
-        Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, wallOptions),
-        // Left wall
-        Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, wallOptions),
-        // Right wall
-        Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, wallOptions),
-      ];
-    };
-
     const walls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, walls);
 
@@ -662,7 +941,7 @@ export const useMatterJs = (
               if (voidBall.deletionsRemaining <= 0) {
                 setTimeout(() => {
                   if (engineRef.current) {
-                    Matter.Composite.remove(engineRef.current.world, voidBall);
+                    cleanupBody(voidBall);
                   }
                 }, 100);
               }
@@ -1316,7 +1595,7 @@ export const useMatterJs = (
     };
   }, []);
 
-  // Modify the danger zone collision detection
+  // Update the danger zone effect to properly handle visual updates
   useEffect(() => {
     if (!engineRef.current || !dangerZoneRef.current) return;
 
@@ -1334,27 +1613,25 @@ export const useMatterJs = (
         // Check if circle has been in play long enough
         if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
 
-        // Check if ball has exited from the top
-        if (circle.position.y < -50) { // Delete if ball is well above the container
-          Matter.Composite.remove(engineRef.current!.world, circle);
-          return;
-        }
-
+        // Check if ball is in danger zone
         const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT;
         
         if (isInDangerZone && !circle.inDangerZone) {
+          // Ball just entered danger zone
           circle.inDangerZone = true;
           circle.dangerZoneStartTime = currentTime;
+          isAnyCircleInDanger = true;
         } else if (!isInDangerZone && circle.inDangerZone) {
+          // Ball left danger zone
           circle.inDangerZone = false;
           circle.dangerZoneStartTime = undefined;
         } else if (isInDangerZone && circle.inDangerZone && circle.dangerZoneStartTime) {
+          // Ball is still in danger zone
           const timeInZone = currentTime - circle.dangerZoneStartTime;
           const timeRemaining = DANGER_ZONE_TIMEOUT - timeInZone;
           
           if (timeRemaining <= 0) {
             onGameOver();
-            Matter.Events.off(engineRef.current!, 'beforeUpdate', checkDangerZone);
             return;
           }
           
@@ -1365,10 +1642,26 @@ export const useMatterJs = (
 
       // Update danger zone appearance
       if (dangerZoneRef.current) {
-        updateDangerZoneAppearance(isAnyCircleInDanger, minTimeRemaining);
+        dangerZoneRef.current.isActive = isAnyCircleInDanger;
+        dangerZoneRef.current.timeRemaining = minTimeRemaining;
+
+        // Update the danger zone's appearance
+        dangerZoneRef.current.render.fillStyle = isAnyCircleInDanger 
+          ? `rgba(255, 0, 0, ${0.1 + (0.2 * (1 - minTimeRemaining / DANGER_ZONE_TIMEOUT))})`
+          : 'rgba(75, 85, 99, 0.1)'; // grey when inactive
+
+        dangerZoneRef.current.render.strokeStyle = isAnyCircleInDanger
+          ? `rgba(255, 0, 0, ${0.3 + (0.4 * (1 - minTimeRemaining / DANGER_ZONE_TIMEOUT))})`
+          : 'rgba(75, 85, 99, 0.3)'; // grey when inactive
+
+        // Force render update
+        if (renderRef.current) {
+          Matter.Render.lookAt(renderRef.current, dangerZoneRef.current);
+        }
       }
     };
 
+    // Run check on every engine update
     Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
 
     return () => {
@@ -1376,7 +1669,7 @@ export const useMatterJs = (
         Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
       }
     };
-  }, [onGameOver, updateDangerZoneAppearance]);
+  }, [onGameOver]);
 
   // Update collision detection for super void balls
   useEffect(() => {
@@ -1384,11 +1677,17 @@ export const useMatterJs = (
       if (!engineRef.current) return;
       
       const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      console.log(`Total bodies in world: ${bodies.length}`);
+      
       const voidBalls = bodies.filter(body => {
         const circle = body as CircleBody;
         return circle.isVoidBall && circle.deletionsRemaining && circle.deletionsRemaining > 0;
       }) as CircleBody[];
       
+      if (voidBalls.length > 0) {
+        console.log(`Active void balls: ${voidBalls.length}`);
+      }
+
       voidBalls.forEach(voidBall => {
         // Check if ball is either Super or Ultra void ball
         if (voidBall.isSuperVoid) {
@@ -1416,14 +1715,14 @@ export const useMatterJs = (
                 !isProtected && 
                 Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
               
-              Matter.Composite.remove(engineRef.current!.world, other);
+              cleanupBody(other);
               voidBall.deletionsRemaining!--;
               
               // Only remove the void ball if it's not an Ultra void ball and has no deletions remaining
               if (voidBall.deletionsRemaining! <= 0 && !isUltraVoid) {
                 setTimeout(() => {
                   if (engineRef.current) {
-                    Matter.Composite.remove(engineRef.current.world, voidBall);
+                    cleanupBody(voidBall);
                   }
                 }, 100);
               }
@@ -1440,7 +1739,7 @@ export const useMatterJs = (
         Matter.Events.off(engineRef.current, 'beforeUpdate', checkCollisions);
       }
     };
-  }, []);
+  }, [cleanupBody]);
 
   // Add optimization for collision pairs
   useEffect(() => {
@@ -1474,6 +1773,100 @@ export const useMatterJs = (
         Matter.Events.off(engineRef.current, 'beforeUpdate', optimizeCollisions);
       }
     };
+  }, []);
+
+  // Add logging to component cleanup
+  useEffect(() => {
+    return () => {
+      if (engineRef.current) {
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        console.log(`Cleaning up ${bodies.length} bodies on unmount`);
+        bodies.forEach(body => {
+          cleanupBody(body);
+        });
+        console.log('Engine cleared');
+        Matter.Engine.clear(engineRef.current);
+      }
+    };
+  }, [cleanupBody]);
+
+  // Add resize handling to properly recreate walls
+  const handleResize = useCallback(() => {
+    if (!engineRef.current || !renderRef.current || !containerRef.current) return;
+    
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    
+    console.log('Handling resize - updating walls');
+    logWorldState(engineRef.current, 'Before resize');
+    
+    // Update render bounds
+    renderRef.current.bounds.max.x = width;
+    renderRef.current.bounds.max.y = height;
+    renderRef.current.options.width = width;
+    renderRef.current.options.height = height;
+    renderRef.current.canvas.width = width;
+    renderRef.current.canvas.height = height;
+    
+    // Recreate walls with new dimensions
+    const newWalls = createOptimizedWalls();
+    Matter.Composite.add(engineRef.current.world, newWalls);
+    
+    logWorldState(engineRef.current, 'After resize');
+  }, [createOptimizedWalls]);
+
+  // Update the monitoring effect to better handle the danger zone
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const monitorInterval = setInterval(() => {
+      if (!engineRef.current?.world) return;
+
+      try {
+        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        
+        // First, ensure danger zone exists
+        const dangerZoneExists = bodies.some(body => body.label === 'danger-zone');
+        if (!dangerZoneExists && dangerZoneRef.current) {
+          console.log('Restoring missing danger zone');
+          Matter.Composite.add(engineRef.current.world, dangerZoneRef.current);
+        }
+
+        // Then check for extra static bodies
+        const staticBodies = bodies.filter(body => {
+          // Only count non-essential static bodies
+          return body.isStatic && 
+                 !body.label?.includes('wall-') && // Not a wall
+                 body.label !== 'danger-zone' &&   // Not the danger zone
+                 body !== currentCircleRef.current; // Not the current ball
+        });
+        
+        if (staticBodies.length > 0) { // Any non-essential static bodies should be removed
+          console.warn('Extra static bodies detected:', 
+            staticBodies.length, 
+            'Static body labels:', 
+            staticBodies.map(b => b.label)
+          );
+          
+          // Clean up extra static bodies, preserving essential ones
+          staticBodies.forEach(body => {
+            if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
+              console.log('Removing extra static body:', body.label);
+              Matter.Composite.remove(engineRef.current!.world, body);
+            }
+          });
+
+          // Log remaining bodies for debugging
+          const remainingStatic = Matter.Composite.allBodies(engineRef.current.world)
+            .filter(body => body.isStatic)
+            .map(b => ({label: b.label, id: b.id}));
+          console.log('Remaining static bodies:', remainingStatic);
+        }
+      } catch (error) {
+        console.error('Error in static body monitoring:', error);
+      }
+    }, 1000);
+
+    return () => clearInterval(monitorInterval);
   }, []);
 
   return {
