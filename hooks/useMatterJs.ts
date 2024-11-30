@@ -5,22 +5,7 @@ import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
 
-// Add constants at the top of the file, after imports
-const GAME_WIDTH = 450;  // Fixed game width
-const VISIBLE_HEIGHT = 800; // Visible game height
-const WALL_THICKNESS = 60;  // Move this before GAME_HEIGHT
-const GAME_HEIGHT = VISIBLE_HEIGHT - WALL_THICKNESS; // Now WALL_THICKNESS is defined
-const DANGER_ZONE_HEIGHT = 100; // Height of danger zone from top
-const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
-const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
-
-// Rest of the existing constants
 const OBJECT_POOL_SIZE = 50;
-const TARGET_FPS = 60;
-const FRAME_TIME = 1000 / TARGET_FPS;
-const FPS_UPDATE_INTERVAL = 500;
-const ANIMATION_DURATION = 200;
-const MERGE_ANIMATION_DURATION = 150;
 
 interface ObjectPool {
   circles: CircleBody[];
@@ -120,15 +105,23 @@ export const useMatterJs = (
   const nextSpawnXRef = useRef<number | null>(null);
   const isAnimatingRef = useRef(false);
   const animationStartTimeRef = useRef<number | null>(null);
+  const ANIMATION_DURATION = 200; // Reduced from 300ms to 200ms for initial drop
+  const MERGE_ANIMATION_DURATION = 150; // Reduced from 200ms to 150ms for merging
   const objectPoolRef = useRef<ObjectPool | null>(null);
   const frameRateLimiterRef = useRef<number>(0);
+  const TARGET_FPS = 60;
+  const FRAME_TIME = 1000 / TARGET_FPS;
   const isCreatingDropBallRef = useRef(false);
+  const DANGER_ZONE_HEIGHT = 100; // Height of danger zone from top
+  const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
+  const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
   const dangerZoneRef = useRef<DangerZone | null>(null);
 
   // Add FPS tracking refs
   const fpsRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
+  const FPS_UPDATE_INTERVAL = 500; // Update FPS every 500ms
 
   // Add FPS calculation effect
   useEffect(() => {
@@ -349,12 +342,6 @@ export const useMatterJs = (
   const cleanupBody = useCallback((body: CircleBody | Matter.Body) => {
     if (!engineRef.current) return;
     
-    // Never clean up the danger zone
-    if (body.label === 'danger-zone') {
-      console.log('Skipping cleanup of danger zone');
-      return;
-    }
-    
     // Skip if body is already removed
     if (!Matter.Composite.get(engineRef.current.world, body.id, body.type)) {
       console.log('Body already removed:', body.label);
@@ -407,20 +394,20 @@ export const useMatterJs = (
   const createOptimizedWalls = useCallback(() => {
     if (!renderRef.current || !engineRef.current) return [];
 
-    // Store danger zone reference before cleanup
-    const dangerZone = Matter.Composite.allBodies(engineRef.current.world)
-      .find(body => body.label === 'danger-zone');
-
-    // Remove static bodies except danger zone
+    // Remove ALL static bodies from the world first
     const allBodies = Matter.Composite.allBodies(engineRef.current.world);
-    const staticBodies = allBodies.filter(body => 
-      body.isStatic && body.label !== 'danger-zone'
-    );
+    const staticBodies = allBodies.filter(body => body.isStatic);
+    console.log(`Found ${staticBodies.length} static bodies to clean up`);
     
     staticBodies.forEach(body => {
-      Matter.Composite.remove(engineRef.current!.world, body);
+      Matter.World.remove(engineRef.current!.world, body, true);
     });
+    
+    // Clear the wall reference array
+    wallBodiesRef.current = [];
 
+    const { width, height } = renderRef.current.canvas;
+    const wallThickness = 60;
     const wallOptions = {
       isStatic: true,
       restitution: 0.5,
@@ -431,41 +418,30 @@ export const useMatterJs = (
         mask: 0xFFFFFFFF
       },
       render: {
-        visible: true, // Make visible for debugging
-        fillStyle: '#2d2d2d', // Dark color for the walls
-        strokeStyle: '#3d3d3d'
-      }
+        visible: false
+      },
+      label: 'wall'
     };
 
-    // Create walls with fixed dimensions
     const walls = [
-      // Bottom wall - position at GAME_HEIGHT - WALL_THICKNESS/2 to be fully visible
-      Matter.Bodies.rectangle(
-        GAME_WIDTH / 2,
-        GAME_HEIGHT - WALL_THICKNESS/2,
-        GAME_WIDTH,
-        WALL_THICKNESS,
-        { ...wallOptions, label: 'wall-bottom' }
-      ),
-      // Left wall - adjust height to match new game height
-      Matter.Bodies.rectangle(
-        -WALL_THICKNESS / 2,
-        GAME_HEIGHT / 2,
-        WALL_THICKNESS,
-        GAME_HEIGHT,
-        { ...wallOptions, label: 'wall-left' }
-      ),
-      // Right wall - adjust height to match new game height
-      Matter.Bodies.rectangle(
-        GAME_WIDTH + (WALL_THICKNESS / 2),
-        GAME_HEIGHT / 2,
-        WALL_THICKNESS,
-        GAME_HEIGHT,
-        { ...wallOptions, label: 'wall-right' }
-      ),
+      Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
+        ...wallOptions,
+        label: 'wall-bottom'
+      }),
+      Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
+        ...wallOptions,
+        label: 'wall-left'
+      }),
+      Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
+        ...wallOptions,
+        label: 'wall-right'
+      }),
     ];
 
+    // Store new walls reference
     wallBodiesRef.current = walls;
+    
+    console.log('Created new walls:', walls.map(w => w.label));
     return walls;
   }, []);
 
@@ -806,24 +782,18 @@ export const useMatterJs = (
   useEffect(() => {
     if (!containerRef.current || !engineRef.current) return;
 
+    const { width, height } = containerRef.current.getBoundingClientRect();
+
     renderRef.current = Matter.Render.create({
       element: containerRef.current,
       engine: engineRef.current,
       options: {
-        width: GAME_WIDTH,
-        height: VISIBLE_HEIGHT, // Use VISIBLE_HEIGHT here
+        width,
+        height,
         wireframes: false,
-        background: 'transparent',
-        pixelRatio: 1
+        background: 'transparent'
       }
     });
-
-    // Add CSS to maintain aspect ratio and center the game
-    const canvas = renderRef.current.canvas;
-    canvas.style.width = '100%';
-    canvas.style.maxWidth = `${GAME_WIDTH}px`;
-    canvas.style.margin = '0 auto';
-    canvas.style.display = 'block';
 
     // Add collision handling for walls
     Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
@@ -837,7 +807,7 @@ export const useMatterJs = (
         
         if (superVoidBall && wall) {
           // If it hits the bottom wall, remove it
-          if (wall.position.y > GAME_HEIGHT - 100) {
+          if (wall.position.y > height - 100) {
             if (engineRef.current) {
               Matter.Composite.remove(engineRef.current.world, superVoidBall);
             }
@@ -1546,17 +1516,17 @@ export const useMatterJs = (
 
     const { width } = containerRef.current.getBoundingClientRect();
     
-    // Create danger zone with fixed width
+    // Create danger zone without visualTimer
     const dangerZone = Matter.Bodies.rectangle(
-      GAME_WIDTH / 2,
+      width / 2,
       DANGER_ZONE_HEIGHT / 2,
-      GAME_WIDTH,
+      width,
       DANGER_ZONE_HEIGHT,
       {
         isStatic: true,
         isSensor: true,
         render: {
-          fillStyle: 'rgba(75, 85, 99, 0.1)',
+          fillStyle: 'rgba(75, 85, 99, 0.1)', // Start with grey
           strokeStyle: 'rgba(75, 85, 99, 0.3)',
           lineWidth: 2
         },
@@ -1613,7 +1583,7 @@ export const useMatterJs = (
     };
   }, []);
 
-  // Update the danger zone effect to properly handle visual updates
+  // Modify the danger zone collision detection
   useEffect(() => {
     if (!engineRef.current || !dangerZoneRef.current) return;
 
@@ -1631,25 +1601,27 @@ export const useMatterJs = (
         // Check if circle has been in play long enough
         if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
 
-        // Check if ball is in danger zone
+        // Check if ball has exited from the top
+        if (circle.position.y < -50) { // Delete if ball is well above the container
+          Matter.Composite.remove(engineRef.current!.world, circle);
+          return;
+        }
+
         const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT;
         
         if (isInDangerZone && !circle.inDangerZone) {
-          // Ball just entered danger zone
           circle.inDangerZone = true;
           circle.dangerZoneStartTime = currentTime;
-          isAnyCircleInDanger = true;
         } else if (!isInDangerZone && circle.inDangerZone) {
-          // Ball left danger zone
           circle.inDangerZone = false;
           circle.dangerZoneStartTime = undefined;
         } else if (isInDangerZone && circle.inDangerZone && circle.dangerZoneStartTime) {
-          // Ball is still in danger zone
           const timeInZone = currentTime - circle.dangerZoneStartTime;
           const timeRemaining = DANGER_ZONE_TIMEOUT - timeInZone;
           
           if (timeRemaining <= 0) {
             onGameOver();
+            Matter.Events.off(engineRef.current!, 'beforeUpdate', checkDangerZone);
             return;
           }
           
@@ -1660,26 +1632,10 @@ export const useMatterJs = (
 
       // Update danger zone appearance
       if (dangerZoneRef.current) {
-        dangerZoneRef.current.isActive = isAnyCircleInDanger;
-        dangerZoneRef.current.timeRemaining = minTimeRemaining;
-
-        // Update the danger zone's appearance
-        dangerZoneRef.current.render.fillStyle = isAnyCircleInDanger 
-          ? `rgba(255, 0, 0, ${0.1 + (0.2 * (1 - minTimeRemaining / DANGER_ZONE_TIMEOUT))})`
-          : 'rgba(75, 85, 99, 0.1)'; // grey when inactive
-
-        dangerZoneRef.current.render.strokeStyle = isAnyCircleInDanger
-          ? `rgba(255, 0, 0, ${0.3 + (0.4 * (1 - minTimeRemaining / DANGER_ZONE_TIMEOUT))})`
-          : 'rgba(75, 85, 99, 0.3)'; // grey when inactive
-
-        // Force render update
-        if (renderRef.current) {
-          Matter.Render.lookAt(renderRef.current, dangerZoneRef.current);
-        }
+        updateDangerZoneAppearance(isAnyCircleInDanger, minTimeRemaining);
       }
     };
 
-    // Run check on every engine update
     Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
 
     return () => {
@@ -1687,7 +1643,7 @@ export const useMatterJs = (
         Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
       }
     };
-  }, [onGameOver]);
+  }, [onGameOver, updateDangerZoneAppearance]);
 
   // Update collision detection for super void balls
   useEffect(() => {
@@ -1832,7 +1788,7 @@ export const useMatterJs = (
     logWorldState(engineRef.current, 'After resize');
   }, [createOptimizedWalls]);
 
-  // Update the monitoring effect to better handle the danger zone
+  // Update the monitoring effect to handle special cases
   useEffect(() => {
     if (!engineRef.current) return;
 
@@ -1841,42 +1797,44 @@ export const useMatterJs = (
 
       try {
         const bodies = Matter.Composite.allBodies(engineRef.current.world);
-        
-        // First, ensure danger zone exists
-        const dangerZoneExists = bodies.some(body => body.label === 'danger-zone');
-        if (!dangerZoneExists && dangerZoneRef.current) {
-          console.log('Restoring missing danger zone');
-          Matter.Composite.add(engineRef.current.world, dangerZoneRef.current);
-        }
-
-        // Then check for extra static bodies
         const staticBodies = bodies.filter(body => {
-          // Only count non-essential static bodies
+          // Exclude danger zone and currently dragged ball from static body check
           return body.isStatic && 
-                 !body.label?.includes('wall-') && // Not a wall
-                 body.label !== 'danger-zone' &&   // Not the danger zone
-                 body !== currentCircleRef.current; // Not the current ball
+                 body.label !== 'danger-zone' && 
+                 body !== currentCircleRef.current;
         });
         
-        if (staticBodies.length > 0) { // Any non-essential static bodies should be removed
+        if (staticBodies.length > 3) { // We should only ever have 3 walls
           console.warn('Extra static bodies detected:', 
             staticBodies.length, 
             'Static body labels:', 
             staticBodies.map(b => b.label)
           );
           
-          // Clean up extra static bodies, preserving essential ones
+          // Clean up extra static bodies, but preserve special cases
           staticBodies.forEach(body => {
-            if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
+            // Only remove if it's not a wall and not a special case
+            if (!body.label?.includes('wall-') && 
+                body.label !== 'danger-zone' && 
+                body !== currentCircleRef.current && 
+                !body.label?.startsWith('circle-')) {
               console.log('Removing extra static body:', body.label);
-              Matter.Composite.remove(engineRef.current!.world, body);
+              
+              if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
+                Matter.Composite.remove(engineRef.current!.world, body);
+                
+                // Update wall references if needed
+                if (wallBodiesRef.current) {
+                  wallBodiesRef.current = wallBodiesRef.current.filter(w => w.id !== body.id);
+                }
+              }
             }
           });
 
           // Log remaining bodies for debugging
           const remainingStatic = Matter.Composite.allBodies(engineRef.current.world)
             .filter(body => body.isStatic)
-            .map(b => ({label: b.label, id: b.id}));
+            .map(b => b.label);
           console.log('Remaining static bodies:', remainingStatic);
         }
       } catch (error) {
