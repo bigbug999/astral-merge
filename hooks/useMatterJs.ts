@@ -1235,6 +1235,7 @@ export const useMatterJs = (
       }) as CircleBody[];
       
       voidBalls.forEach(voidBall => {
+        // Check if ball is either Super or Ultra void ball
         if (voidBall.isSuperVoid) {
           const bounds = Matter.Bounds.create([
             { x: voidBall.position.x - voidBall.circleRadius!, y: voidBall.position.y - voidBall.circleRadius! },
@@ -1250,17 +1251,21 @@ export const useMatterJs = (
             const isProtected = other.spawnTime && 
               (currentTime - other.spawnTime < POWER_UP_CONFIG.SPAWN_PROTECTION_TIME);
 
+            // Check if this is an Ultra void ball
+            const isUltraVoid = voidBall.deletionsRemaining === POWER_UP_CONFIG.VOID.ULTRA.DELETIONS;
+
             if (other !== voidBall && 
                 other.label?.startsWith('circle-') && 
                 !other.isVoidBall && 
                 !other.isMerging &&
-                !isProtected && // Add spawn protection check
+                !isProtected && 
                 Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
               
               Matter.Composite.remove(engineRef.current!.world, other);
               voidBall.deletionsRemaining!--;
               
-              if (voidBall.deletionsRemaining! <= 0) {
+              // Only remove the void ball if it's not an Ultra void ball and has no deletions remaining
+              if (voidBall.deletionsRemaining! <= 0 && !isUltraVoid) {
                 setTimeout(() => {
                   if (engineRef.current) {
                     Matter.Composite.remove(engineRef.current.world, voidBall);
