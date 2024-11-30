@@ -3,6 +3,7 @@ import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
+import type { TierType } from '@/types/game';
 
 const OBJECT_POOL_SIZE = 50;
 
@@ -76,6 +77,58 @@ export const useMatterJs = (
   const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
   const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
   const dangerZoneRef = useRef<DangerZone | null>(null);
+
+  // Add FPS tracking refs
+  const fpsRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(Date.now());
+  const frameCountRef = useRef<number>(0);
+  const FPS_UPDATE_INTERVAL = 500; // Update FPS every 500ms
+
+  // Add FPS calculation effect
+  useEffect(() => {
+    const calculateFPS = () => {
+      const currentTime = Date.now();
+      frameCountRef.current++;
+
+      if (currentTime - lastTimeRef.current >= FPS_UPDATE_INTERVAL) {
+        fpsRef.current = Math.round((frameCountRef.current * 1000) / (currentTime - lastTimeRef.current));
+        console.log(`FPS: ${fpsRef.current}`);
+        frameCountRef.current = 0;
+        lastTimeRef.current = currentTime;
+      }
+    };
+
+    Matter.Events.on(engineRef.current!, 'afterUpdate', calculateFPS);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'afterUpdate', calculateFPS);
+      }
+    };
+  }, []);
+
+  // Add performance optimizations
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    // Optimize collision broadphase
+    const grid = Matter.Grid.create();
+    const gridOptions = {
+      bucketWidth: 80,
+      bucketHeight: 80
+    };
+    
+    engineRef.current.grid = grid;
+    Object.assign(engineRef.current.grid, gridOptions);
+
+    // Enable body sleeping for static bodies
+    const bodies = Matter.Composite.allBodies(engineRef.current.world);
+    bodies.forEach(body => {
+      if (body.isStatic) {
+        body.isSleeping = true;
+      }
+    });
+  }, []);
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
@@ -183,15 +236,15 @@ export const useMatterJs = (
       visualRadius * 2
     );
 
-    // Create with default physics properties
-    const circle = Matter.Bodies.circle(x, y, collisionRadius, {
+    // Set up options including performance optimizations for larger circles
+    const circleOptions: Matter.IBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
       friction: 0.005,
       frictionAir: 0.0002,
       restitution: 0.3,
       frictionStatic: 0.02,
       slop: 0.02,
-      sleepThreshold: Infinity,
+      sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
         category: 0x0001,
@@ -205,7 +258,15 @@ export const useMatterJs = (
         }
       },
       label: `circle-${tier}`
-    }) as CircleBody;
+    };
+
+    // Add chamfer for larger circles
+    if (tier >= 8) {
+      circleOptions.chamfer = { radius: collisionRadius * 0.1 };
+    }
+
+    // Create circle with all options
+    const circle = Matter.Bodies.circle(x, y, collisionRadius, circleOptions) as CircleBody;
 
     // Set basic circle properties
     circle.isMerging = false;
@@ -221,6 +282,15 @@ export const useMatterJs = (
       angularVelocity: 0
     });
 
+    // Cache bounds for larger circles
+    if (tier >= 8) {
+      circle.bounds = Matter.Bounds.create([
+        { x: x - collisionRadius, y: y - collisionRadius },
+        { x: x + collisionRadius, y: y + collisionRadius }
+      ]);
+    }
+
+    // Add to world after all properties are set
     Matter.Composite.add(engineRef.current.world, circle);
     
     return circle;
@@ -1080,7 +1150,38 @@ export const useMatterJs = (
     }
   }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp]);
 
-  // Add new stress test function
+  // Add helper function to get random tier for stress test
+  const getRandomStressTestTier = (): TierType => {
+    // Weighted distribution favoring smaller tiers but allowing larger ones
+    const weights = {
+      1: 30,  // 30% chance
+      2: 25,  // 25% chance
+      3: 15,  // 15% chance
+      4: 10,  // 10% chance
+      5: 8,   // 8% chance
+      6: 5,   // 5% chance
+      7: 3,   // 3% chance
+      8: 2,   // 2% chance
+      9: 1,   // 1% chance
+      10: 0.5, // 0.5% chance
+      11: 0.3, // 0.3% chance
+      12: 0.2  // 0.2% chance
+    };
+
+    const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const [tier, weight] of Object.entries(weights)) {
+      random -= weight;
+      if (random <= 0) {
+        return Number(tier) as TierType;
+      }
+    }
+    
+    return 1;
+  };
+
+  // Update spawnStressTestBalls function
   const spawnStressTestBalls = useCallback((count: number = 50) => {
     if (!renderRef.current || !engineRef.current) return;
     
@@ -1093,7 +1194,7 @@ export const useMatterJs = (
         // Random position and tier
         const x = Math.random() * (width * 0.8) + (width * 0.1); // Keep away from walls
         const y = Math.random() * spawnHeight;
-        const tier = (Math.floor(Math.random() * 3) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+        const tier = getRandomStressTestTier();
         
         const circle = createCircle(tier, x, y);
         if (circle) {
@@ -1324,13 +1425,51 @@ export const useMatterJs = (
     };
   }, []);
 
+  // Add optimization for collision pairs
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const optimizeCollisions = () => {
+      const pairs = engineRef.current!.pairs.list;
+      
+      // Process only active collision pairs
+      pairs.forEach(pair => {
+        const bodyA = pair.bodyA as CircleBody;
+        const bodyB = pair.bodyB as CircleBody;
+
+        // Skip collision processing for sleeping or static bodies
+        if ((bodyA.isSleeping && bodyB.isSleeping) || 
+            (bodyA.isStatic || bodyB.isStatic)) {
+          pair.isActive = false;
+        }
+
+        // Optimize collision response for large bodies
+        if (bodyA.tier && bodyB.tier && (bodyA.tier >= 8 || bodyB.tier >= 8)) {
+          pair.restitution = 0.2; // Reduce bouncing for large bodies
+          pair.friction = 0.01;   // Reduce friction for large bodies
+        }
+      });
+    };
+
+    Matter.Events.on(engineRef.current, 'beforeUpdate', optimizeCollisions);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', optimizeCollisions);
+      }
+    };
+  }, []);
+
   return {
     engine: engineRef.current,
     startDrag,
     updateDrag,
     endDrag,
     spawnStressTestBalls,
-    currentBall: currentCircleRef.current as CircleBody | null
+    currentBall: currentCircleRef.current as CircleBody | null,
+    debug: {
+      fps: fpsRef.current
+    }
   };
 }; 
 

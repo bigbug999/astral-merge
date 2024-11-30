@@ -16,6 +16,9 @@ interface CircleBody extends Matter.Body {
 interface PowerUpDebugUIProps {
   currentBall: CircleBody | null;
   powerUps: PowerUpState;
+  debug?: {
+    fps: number;
+  };
 }
 
 const DEFAULT_STATS = {
@@ -28,7 +31,7 @@ const DEFAULT_STATS = {
   constantForce: 0
 };
 
-export function PowerUpDebugUI({ currentBall, powerUps }: PowerUpDebugUIProps) {
+export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIProps) {
   const [stats, setStats] = useState(DEFAULT_STATS);
 
   useEffect(() => {
@@ -58,6 +61,12 @@ export function PowerUpDebugUI({ currentBall, powerUps }: PowerUpDebugUIProps) {
     <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-2 text-xs w-[140px] ml-auto">
       <h3 className="text-zinc-400 font-medium mb-1">Ball Modifiers</h3>
       <div className="space-y-1">
+        <div className="flex justify-between mb-2 border-b border-zinc-700 pb-1">
+          <span className="text-zinc-500">FPS:</span>
+          <span className={`text-zinc-300 font-mono ${(debug?.fps || 0) < 45 ? 'text-red-400' : ''}`}>
+            {debug?.fps || '--'}
+          </span>
+        </div>
         <div className="flex justify-between">
           <span className="text-zinc-500">Density:</span>
           <span className="text-zinc-300 font-mono">×{(stats.density / DEFAULT_STATS.density).toFixed(1)}</span>

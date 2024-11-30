@@ -120,7 +120,8 @@ export default function Home() {
     endDrag, 
     spawnStressTestBalls, 
     engine,
-    currentBall 
+    currentBall,
+    debug
   } = useMatterJs(
     containerRef, 
     handleDrop, 
@@ -280,16 +281,20 @@ export default function Home() {
           </div>
 
           {/* Debug UI */}
-          <PowerUpDebugUI currentBall={currentBall} powerUps={powerUps} />
+          <PowerUpDebugUI 
+            currentBall={currentBall} 
+            powerUps={powerUps} 
+            debug={debug}
+          />
         </div>
 
         {/* Stress Test Button */}
         <div className="w-full">
           <button 
             className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
-            onClick={() => spawnStressTestBalls(50)}
+            onClick={() => spawnStressTestBalls(25)}
           >
-            Stress Test (Spawn 50 Balls)
+            Stress Test (Spawn 25 Balls)
           </button>
         </div>
 
