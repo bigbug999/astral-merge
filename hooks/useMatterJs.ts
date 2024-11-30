@@ -5,7 +5,22 @@ import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
 
+// Add constants at the top of the file, after imports
+const GAME_WIDTH = 450;  // Fixed game width
+const VISIBLE_HEIGHT = 800; // Visible game height
+const WALL_THICKNESS = 60;  // Move this before GAME_HEIGHT
+const GAME_HEIGHT = VISIBLE_HEIGHT - WALL_THICKNESS; // Now WALL_THICKNESS is defined
+const DANGER_ZONE_HEIGHT = 100; // Height of danger zone from top
+const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
+const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
+
+// Rest of the existing constants
 const OBJECT_POOL_SIZE = 50;
+const TARGET_FPS = 60;
+const FRAME_TIME = 1000 / TARGET_FPS;
+const FPS_UPDATE_INTERVAL = 500;
+const ANIMATION_DURATION = 200;
+const MERGE_ANIMATION_DURATION = 150;
 
 interface ObjectPool {
   circles: CircleBody[];
@@ -105,23 +120,15 @@ export const useMatterJs = (
   const nextSpawnXRef = useRef<number | null>(null);
   const isAnimatingRef = useRef(false);
   const animationStartTimeRef = useRef<number | null>(null);
-  const ANIMATION_DURATION = 200; // Reduced from 300ms to 200ms for initial drop
-  const MERGE_ANIMATION_DURATION = 150; // Reduced from 200ms to 150ms for merging
   const objectPoolRef = useRef<ObjectPool | null>(null);
   const frameRateLimiterRef = useRef<number>(0);
-  const TARGET_FPS = 60;
-  const FRAME_TIME = 1000 / TARGET_FPS;
   const isCreatingDropBallRef = useRef(false);
-  const DANGER_ZONE_HEIGHT = 100; // Height of danger zone from top
-  const DANGER_ZONE_GRACE_PERIOD = 2000; // 2 seconds before danger zone detection starts
-  const DANGER_ZONE_TIMEOUT = 3000; // 3 seconds in danger zone before game over
   const dangerZoneRef = useRef<DangerZone | null>(null);
 
   // Add FPS tracking refs
   const fpsRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
-  const FPS_UPDATE_INTERVAL = 500; // Update FPS every 500ms
 
   // Add FPS calculation effect
   useEffect(() => {
@@ -409,17 +416,11 @@ export const useMatterJs = (
     const staticBodies = allBodies.filter(body => 
       body.isStatic && body.label !== 'danger-zone'
     );
-    console.log(`Found ${staticBodies.length} static bodies to clean up`);
     
     staticBodies.forEach(body => {
       Matter.Composite.remove(engineRef.current!.world, body);
     });
-    
-    // Clear the wall reference array
-    wallBodiesRef.current = [];
 
-    const { width, height } = renderRef.current.canvas;
-    const wallThickness = 60;
     const wallOptions = {
       isStatic: true,
       restitution: 0.5,
@@ -430,30 +431,41 @@ export const useMatterJs = (
         mask: 0xFFFFFFFF
       },
       render: {
-        visible: false
-      },
-      label: 'wall'
+        visible: true, // Make visible for debugging
+        fillStyle: '#2d2d2d', // Dark color for the walls
+        strokeStyle: '#3d3d3d'
+      }
     };
 
+    // Create walls with fixed dimensions
     const walls = [
-      Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
-        ...wallOptions,
-        label: 'wall-bottom'
-      }),
-      Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
-        ...wallOptions,
-        label: 'wall-left'
-      }),
-      Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
-        ...wallOptions,
-        label: 'wall-right'
-      }),
+      // Bottom wall - position at GAME_HEIGHT - WALL_THICKNESS/2 to be fully visible
+      Matter.Bodies.rectangle(
+        GAME_WIDTH / 2,
+        GAME_HEIGHT - WALL_THICKNESS/2,
+        GAME_WIDTH,
+        WALL_THICKNESS,
+        { ...wallOptions, label: 'wall-bottom' }
+      ),
+      // Left wall - adjust height to match new game height
+      Matter.Bodies.rectangle(
+        -WALL_THICKNESS / 2,
+        GAME_HEIGHT / 2,
+        WALL_THICKNESS,
+        GAME_HEIGHT,
+        { ...wallOptions, label: 'wall-left' }
+      ),
+      // Right wall - adjust height to match new game height
+      Matter.Bodies.rectangle(
+        GAME_WIDTH + (WALL_THICKNESS / 2),
+        GAME_HEIGHT / 2,
+        WALL_THICKNESS,
+        GAME_HEIGHT,
+        { ...wallOptions, label: 'wall-right' }
+      ),
     ];
 
-    // Store new walls reference
     wallBodiesRef.current = walls;
-    
-    console.log('Created new walls:', walls.map(w => w.label));
     return walls;
   }, []);
 
@@ -794,18 +806,24 @@ export const useMatterJs = (
   useEffect(() => {
     if (!containerRef.current || !engineRef.current) return;
 
-    const { width, height } = containerRef.current.getBoundingClientRect();
-
     renderRef.current = Matter.Render.create({
       element: containerRef.current,
       engine: engineRef.current,
       options: {
-        width,
-        height,
+        width: GAME_WIDTH,
+        height: VISIBLE_HEIGHT, // Use VISIBLE_HEIGHT here
         wireframes: false,
-        background: 'transparent'
+        background: 'transparent',
+        pixelRatio: 1
       }
     });
+
+    // Add CSS to maintain aspect ratio and center the game
+    const canvas = renderRef.current.canvas;
+    canvas.style.width = '100%';
+    canvas.style.maxWidth = `${GAME_WIDTH}px`;
+    canvas.style.margin = '0 auto';
+    canvas.style.display = 'block';
 
     // Add collision handling for walls
     Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
@@ -819,7 +837,7 @@ export const useMatterJs = (
         
         if (superVoidBall && wall) {
           // If it hits the bottom wall, remove it
-          if (wall.position.y > height - 100) {
+          if (wall.position.y > GAME_HEIGHT - 100) {
             if (engineRef.current) {
               Matter.Composite.remove(engineRef.current.world, superVoidBall);
             }
@@ -1528,17 +1546,17 @@ export const useMatterJs = (
 
     const { width } = containerRef.current.getBoundingClientRect();
     
-    // Create danger zone without visualTimer
+    // Create danger zone with fixed width
     const dangerZone = Matter.Bodies.rectangle(
-      width / 2,
+      GAME_WIDTH / 2,
       DANGER_ZONE_HEIGHT / 2,
-      width,
+      GAME_WIDTH,
       DANGER_ZONE_HEIGHT,
       {
         isStatic: true,
         isSensor: true,
         render: {
-          fillStyle: 'rgba(75, 85, 99, 0.1)', // Start with grey
+          fillStyle: 'rgba(75, 85, 99, 0.1)',
           strokeStyle: 'rgba(75, 85, 99, 0.3)',
           lineWidth: 2
         },
