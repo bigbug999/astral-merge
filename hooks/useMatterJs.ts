@@ -43,7 +43,8 @@ export const useMatterJs = (
   nextTier: number,
   powerUps: PowerUpState,
   onPowerUpUse: () => void,
-  onGameOver: () => void
+  onGameOver: () => void,
+  onPowerUpEarned?: (level: 1 | 2 | 3) => void
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.75 },
@@ -257,31 +258,67 @@ export const useMatterJs = (
     powerUps.activePowerUpId = currentPowerUpId;
     
     if (newCircle) {
-      (newCircle as CircleBody).hasBeenDropped = true;
-      // Reduce the upward boost and add slight random horizontal movement
-      const randomHorizontal = (Math.random() - 0.5) * 0.5;
-      Matter.Body.setVelocity(newCircle, { 
-        x: randomHorizontal, 
-        y: -1.5  // Reduced from -2.5
-      });
-      
-      // Add a small delay before enabling collisions
-      setTimeout(() => {
-        if (newCircle && !newCircle.isMerging) {
-          Matter.Body.set(newCircle, {
-            isSleeping: false,
-            collisionFilter: {
-              group: 0,
-              category: 0x0001,
-              mask: 0xFFFFFFFF
+        (newCircle as CircleBody).hasBeenDropped = true;
+        // Reduce the upward boost and add slight random horizontal movement
+        const randomHorizontal = (Math.random() - 0.5) * 0.5;
+        Matter.Body.setVelocity(newCircle, { 
+            x: randomHorizontal, 
+            y: -1.5  // Reduced from -2.5
+        });
+        
+        // Add a small delay before enabling collisions
+        setTimeout(() => {
+            if (newCircle && !newCircle.isMerging) {
+                Matter.Body.set(newCircle, {
+                    isSleeping: false,
+                    collisionFilter: {
+                        group: 0,
+                        category: 0x0001,
+                        mask: 0xFFFFFFFF
+                    }
+                });
             }
-          });
+        }, 50);
+
+        // Add power-up rewards based on tier
+        if (newTier === 5) {
+            // Reward basic power-ups (one of each in the basic tier)
+            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+                if (powerUp.level === 1) {
+                    powerUps.powerUps[id] = Math.min(
+                        (powerUps.powerUps[id] || 0) + 1,
+                        powerUp.maxUses
+                    );
+                }
+            });
+            onPowerUpEarned?.(1);  // Basic power-ups earned
+        } else if (newTier === 6) {
+            // Reward super power-ups
+            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+                if (powerUp.level === 2) {
+                    powerUps.powerUps[id] = Math.min(
+                        (powerUps.powerUps[id] || 0) + 1,
+                        powerUp.maxUses
+                    );
+                }
+            });
+            onPowerUpEarned?.(2);  // Super power-ups earned
+        } else if (newTier === 7) {
+            // Reward ultra power-ups
+            Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+                if (powerUp.level === 3) {
+                    powerUps.powerUps[id] = Math.min(
+                        (powerUps.powerUps[id] || 0) + 1,
+                        powerUp.maxUses
+                    );
+                }
+            });
+            onPowerUpEarned?.(3);  // Ultra power-ups earned
         }
-      }, 50);
     }
 
     onNewTier(newTier);
-  }, [createCircle, onNewTier, powerUps]);
+}, [createCircle, onNewTier, powerUps, onPowerUpEarned]);
 
   // Add this before the useEffect that handles physics updates
   const applyGravityPowerUp = useCallback((circle: CircleBody, activePowerUp: PowerUp) => {
