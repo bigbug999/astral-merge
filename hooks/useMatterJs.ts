@@ -342,10 +342,11 @@ export const useMatterJs = (
   const cleanupBody = useCallback((body: CircleBody | Matter.Body) => {
     if (!engineRef.current) return;
     
-    // Skip if body is already removed
-    if (!Matter.Composite.get(engineRef.current.world, body.id, body.type)) {
-      console.log('Body already removed:', body.label);
-      return;
+    // Skip if body is already removed or is danger zone
+    if (!Matter.Composite.get(engineRef.current.world, body.id, body.type) ||
+        body.label === 'danger-zone') {
+        console.log('Body already removed or is danger zone:', body.label);
+        return;
     }
     
     console.log(`Cleaning up body: ${body.label}`);
@@ -394,13 +395,15 @@ export const useMatterJs = (
   const createOptimizedWalls = useCallback(() => {
     if (!renderRef.current || !engineRef.current) return [];
 
-    // Remove ALL static bodies from the world first
+    // Remove static bodies except danger zone
     const allBodies = Matter.Composite.allBodies(engineRef.current.world);
-    const staticBodies = allBodies.filter(body => body.isStatic);
+    const staticBodies = allBodies.filter(body => 
+        body.isStatic && body.label !== 'danger-zone'
+    );
     console.log(`Found ${staticBodies.length} static bodies to clean up`);
     
     staticBodies.forEach(body => {
-      Matter.World.remove(engineRef.current!.world, body, true);
+        Matter.World.remove(engineRef.current!.world, body, true);
     });
     
     // Clear the wall reference array
@@ -1788,59 +1791,49 @@ export const useMatterJs = (
     logWorldState(engineRef.current, 'After resize');
   }, [createOptimizedWalls]);
 
-  // Update the monitoring effect to handle special cases
+  // Update the monitoring effect to better handle the danger zone
   useEffect(() => {
-    if (!engineRef.current) return;
-
     const monitorInterval = setInterval(() => {
-      if (!engineRef.current?.world) return;
+        if (!engineRef.current?.world) return;
 
-      try {
-        const bodies = Matter.Composite.allBodies(engineRef.current.world);
-        const staticBodies = bodies.filter(body => {
-          // Exclude danger zone and currently dragged ball from static body check
-          return body.isStatic && 
-                 body.label !== 'danger-zone' && 
-                 body !== currentCircleRef.current;
-        });
-        
-        if (staticBodies.length > 3) { // We should only ever have 3 walls
-          console.warn('Extra static bodies detected:', 
-            staticBodies.length, 
-            'Static body labels:', 
-            staticBodies.map(b => b.label)
-          );
-          
-          // Clean up extra static bodies, but preserve special cases
-          staticBodies.forEach(body => {
-            // Only remove if it's not a wall and not a special case
-            if (!body.label?.includes('wall-') && 
-                body.label !== 'danger-zone' && 
-                body !== currentCircleRef.current && 
-                !body.label?.startsWith('circle-')) {
-              console.log('Removing extra static body:', body.label);
-              
-              if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
-                Matter.Composite.remove(engineRef.current!.world, body);
+        try {
+            const bodies = Matter.Composite.allBodies(engineRef.current.world);
+            const staticBodies = bodies.filter(body => {
+                // Only count walls in static body check
+                return body.isStatic && 
+                       body.label?.includes('wall-');
+            });
+            
+            if (staticBodies.length > 3) { // We should only have 3 walls
+                console.warn('Extra wall bodies detected:', 
+                    staticBodies.length, 
+                    'Static body labels:', 
+                    staticBodies.map(b => b.label)
+                );
                 
-                // Update wall references if needed
-                if (wallBodiesRef.current) {
-                  wallBodiesRef.current = wallBodiesRef.current.filter(w => w.id !== body.id);
-                }
-              }
-            }
-          });
+                // Clean up extra walls only
+                staticBodies.forEach(body => {
+                    // Only remove if it's a wall and not one of the first 3
+                    if (body.label?.includes('wall-') && 
+                        !wallBodiesRef.current?.includes(body)) {
+                        console.log('Removing extra wall body:', body.label);
+                        
+                        if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
+                            Matter.Composite.remove(engineRef.current!.world, body);
+                        }
+                    }
+                });
 
-          // Log remaining bodies for debugging
-          const remainingStatic = Matter.Composite.allBodies(engineRef.current.world)
-            .filter(body => body.isStatic)
-            .map(b => b.label);
-          console.log('Remaining static bodies:', remainingStatic);
+                // Log remaining bodies for debugging
+                const remainingStatic = Matter.Composite.allBodies(engineRef.current.world)
+                    .filter(body => body.isStatic)
+                    .map(b => b.label);
+                console.log('Remaining static bodies:', remainingStatic);
+            }
+        } catch (error) {
+            console.error('Error in static body monitoring:', error);
         }
-      } catch (error) {
-        console.error('Error in static body monitoring:', error);
-      }
-    }, 1000);
+    }, 1000); // Check every second
 
     return () => clearInterval(monitorInterval);
   }, []);
