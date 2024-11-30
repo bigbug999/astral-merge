@@ -51,6 +51,13 @@ interface CollisionPair extends Matter.Pair {
   bodyB: CircleBody;
 }
 
+// Add memory management tracking
+interface MemoryStats {
+  bodyCount: number;
+  activeCollisions: number;
+  textureCache: Map<string, string>;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -61,11 +68,17 @@ export const useMatterJs = (
   onGameOver: () => void,
   onPowerUpEarned?: (level: 1 | 2 | 3) => void
 ) => {
+  const memoryStatsRef = useRef<MemoryStats>({
+    bodyCount: 0,
+    activeCollisions: 0,
+    textureCache: new Map()
+  });
+
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.75 },
     positionIterations: 8,
     velocityIterations: 6,
-    constraintIterations: 3,
+    constraintIterations: 2,
     enableSleeping: true,
     timing: {
       timeScale: 0.9,
@@ -98,15 +111,45 @@ export const useMatterJs = (
   const frameCountRef = useRef<number>(0);
   const FPS_UPDATE_INTERVAL = 500; // Update FPS every 500ms
 
-  // Add FPS calculation effect
+  // Add adaptive physics settings
+  const updatePhysicsSettings = useCallback((fps: number) => {
+    if (!engineRef.current) return;
+
+    // Adjust physics settings based on FPS
+    if (fps < 30) {
+      // Severe performance issues - aggressive optimization
+      engineRef.current.timing.timeScale = 0.7;
+      engineRef.current.positionIterations = 4;
+      engineRef.current.velocityIterations = 3;
+      engineRef.current.constraintIterations = 1;
+    } else if (fps < 45) {
+      // Moderate performance issues - balanced optimization
+      engineRef.current.timing.timeScale = 0.8;
+      engineRef.current.positionIterations = 6;
+      engineRef.current.velocityIterations = 4;
+      engineRef.current.constraintIterations = 2;
+    } else {
+      // Good performance - default settings
+      engineRef.current.timing.timeScale = 0.9;
+      engineRef.current.positionIterations = 8;
+      engineRef.current.velocityIterations = 6;
+      engineRef.current.constraintIterations = 3;
+    }
+  }, []);
+
+  // Modify the FPS calculation effect to use the new adaptive settings
   useEffect(() => {
     const calculateFPS = () => {
       const currentTime = Date.now();
       frameCountRef.current++;
 
       if (currentTime - lastTimeRef.current >= FPS_UPDATE_INTERVAL) {
-        fpsRef.current = Math.round((frameCountRef.current * 1000) / (currentTime - lastTimeRef.current));
-        console.log(`FPS: ${fpsRef.current}`);
+        const fps = Math.round((frameCountRef.current * 1000) / (currentTime - lastTimeRef.current));
+        fpsRef.current = fps;
+        
+        // Update physics settings based on FPS
+        updatePhysicsSettings(fps);
+        
         frameCountRef.current = 0;
         lastTimeRef.current = currentTime;
       }
@@ -119,7 +162,7 @@ export const useMatterJs = (
         Matter.Events.off(engineRef.current, 'afterUpdate', calculateFPS);
       }
     };
-  }, []);
+  }, [updatePhysicsSettings]);
 
   // Add performance optimizations
   useEffect(() => {
@@ -145,7 +188,15 @@ export const useMatterJs = (
   }, []);
 
   // Add this helper function to create the circle texture with glow
-  const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
+  const createCircleTexture = useCallback((fillColor: string, strokeColor: string, glowColor: string, size: number) => {
+    // Create cache key
+    const cacheKey = `${fillColor}-${strokeColor}-${glowColor}-${size}`;
+    
+    // Check cache first
+    if (memoryStatsRef.current.textureCache.has(cacheKey)) {
+      return memoryStatsRef.current.textureCache.get(cacheKey)!;
+    }
+
     const canvas = document.createElement('canvas');
     const padding = 8; // Extra space for glow
     canvas.width = size + (padding * 2);
@@ -169,8 +220,17 @@ export const useMatterJs = (
     ctx.fill();
     ctx.stroke();
 
-    return canvas.toDataURL();
-  };
+    const texture = canvas.toDataURL();
+    
+    // Cache the result, but limit cache size
+    if (memoryStatsRef.current.textureCache.size > 100) {
+      // Clear old entries if cache gets too large
+      memoryStatsRef.current.textureCache.clear();
+    }
+    memoryStatsRef.current.textureCache.set(cacheKey, texture);
+    
+    return texture;
+  }, []);
 
   // Add this helper function to get active power-up
   const getActivePowerUp = useCallback((powerUpState: PowerUpState) => {
@@ -312,6 +372,14 @@ export const useMatterJs = (
 
   const mergeBodies = useCallback((bodyA: CircleBody, bodyB: CircleBody) => {
     if (!engineRef.current || !renderRef.current) return;
+
+    // Clean up sprite textures
+    if (bodyA.render.sprite?.texture) {
+      bodyA.render.sprite.texture = '';
+    }
+    if (bodyB.render.sprite?.texture) {
+      bodyB.render.sprite.texture = '';
+    }
 
     // Prevent merging if either body is already merging
     if (bodyA.isMerging || bodyB.isMerging) return;
@@ -584,8 +652,11 @@ export const useMatterJs = (
         friction: 0.0,
         frictionStatic: 0.0,
         collisionFilter: {
-          category: 0x0004, // Wall category
-          mask: 0xFFFFFFFF  // Collide with everything
+          category: 0x0004,
+          mask: 0xFFFFFFFF
+        },
+        render: {
+          visible: false
         }
       };
 
@@ -1439,27 +1510,39 @@ export const useMatterJs = (
     };
   }, []);
 
-  // Add optimization for collision pairs
+  // Enhance collision optimization
   useEffect(() => {
     if (!engineRef.current) return;
 
     const optimizeCollisions = () => {
       const pairs = engineRef.current!.pairs.list as CollisionPair[];
+      const fps = fpsRef.current;
       
-      // Process only active collision pairs
       pairs.forEach((pair: CollisionPair) => {
         const { bodyA, bodyB } = pair;
 
-        // Skip collision processing for sleeping or static bodies
+        // Enhanced sleeping conditions
         if ((bodyA.isSleeping && bodyB.isSleeping) || 
             (bodyA.isStatic || bodyB.isStatic)) {
           pair.isActive = false;
+          return;
         }
 
-        // Optimize collision response for large bodies
+        // Adaptive collision response based on FPS
+        if (fps < 45) {
+          // Reduce physics complexity when FPS is low
+          pair.restitution *= 0.8;
+          pair.friction *= 0.8;
+          
+          // Put bodies to sleep more aggressively
+          if (bodyA.speed < 0.5) Matter.Sleeping.set(bodyA, true);
+          if (bodyB.speed < 0.5) Matter.Sleeping.set(bodyB, true);
+        }
+
+        // Optimize large body collisions
         if (bodyA.tier && bodyB.tier && (bodyA.tier >= 8 || bodyB.tier >= 8)) {
-          pair.restitution = 0.2; // Reduce bouncing for large bodies
-          pair.friction = 0.01;   // Reduce friction for large bodies
+          pair.restitution = fps < 45 ? 0.1 : 0.2;
+          pair.friction = fps < 45 ? 0.005 : 0.01;
         }
       });
     };
@@ -1470,6 +1553,79 @@ export const useMatterJs = (
       if (engineRef.current) {
         Matter.Events.off(engineRef.current, 'beforeUpdate', optimizeCollisions);
       }
+    };
+  }, []);
+
+  // Add grid optimization based on FPS
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const updateGrid = () => {
+      const fps = fpsRef.current;
+      if (fps < 45 && engineRef.current.grid) {
+        // Use larger buckets when FPS is low to reduce collision checks
+        Object.assign(engineRef.current.grid, {
+          bucketWidth: 120,  // Increased from 80
+          bucketHeight: 120  // Increased from 80
+        });
+      }
+    };
+
+    Matter.Events.on(engineRef.current, 'beforeUpdate', updateGrid);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', updateGrid);
+      }
+    };
+  }, []);
+
+  // Add memory monitoring and cleanup
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const cleanupInterval = setInterval(() => {
+      const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+      memoryStatsRef.current.bodyCount = bodies.length;
+      
+      // Clean up off-screen bodies
+      bodies.forEach(body => {
+        const circle = body as CircleBody;
+        if (circle.position.y > 2000 || circle.position.y < -2000) {
+          // Clean up sprite textures
+          if (circle.render.sprite?.texture) {
+            circle.render.sprite.texture = '';
+          }
+          Matter.Composite.remove(engineRef.current!.world, circle);
+        }
+      });
+
+      // Clean up collision pairs
+      if (engineRef.current.pairs) {
+        const activePairs = engineRef.current.pairs.list.filter(pair => pair.isActive);
+        memoryStatsRef.current.activeCollisions = activePairs.length;
+        
+        // Reset collision pairs periodically to prevent memory buildup
+        if (activePairs.length > 100) {
+          engineRef.current.pairs.list = activePairs;
+        }
+      }
+
+      // Log memory stats if FPS is low
+      if (fpsRef.current < 45) {
+        console.log('Memory Stats:', {
+          bodies: memoryStatsRef.current.bodyCount,
+          collisions: memoryStatsRef.current.activeCollisions,
+          textureCacheSize: memoryStatsRef.current.textureCache.size,
+          fps: fpsRef.current
+        });
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(cleanupInterval);
+      // Clear texture cache on unmount
+      memoryStatsRef.current.textureCache.clear();
     };
   }, []);
 
