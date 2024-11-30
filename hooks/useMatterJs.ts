@@ -395,50 +395,44 @@ export const useMatterJs = (
   const createOptimizedWalls = useCallback(() => {
     if (!renderRef.current || !engineRef.current) return [];
 
-    // Remove static bodies except danger zone
-    const allBodies = Matter.Composite.allBodies(engineRef.current.world);
-    const staticBodies = allBodies.filter(body => 
-        body.isStatic && body.label !== 'danger-zone'
-    );
-    console.log(`Found ${staticBodies.length} static bodies to clean up`);
+    // Remove existing walls first
+    const existingWalls = Matter.Composite.allBodies(engineRef.current.world)
+        .filter(body => body.isStatic && body.label?.includes('wall-'));
     
-    staticBodies.forEach(body => {
-        Matter.World.remove(engineRef.current!.world, body, true);
+    console.log('Removing existing walls:', existingWalls.map(w => w.label));
+    existingWalls.forEach(wall => {
+        Matter.Composite.remove(engineRef.current!.world, wall);
     });
     
-    // Clear the wall reference array
-    wallBodiesRef.current = [];
-
     const { width, height } = renderRef.current.canvas;
     const wallThickness = 60;
     const wallOptions = {
-      isStatic: true,
-      restitution: 0.5,
-      friction: 0.0,
-      frictionStatic: 0.0,
-      collisionFilter: {
-        category: 0x0004,
-        mask: 0xFFFFFFFF
-      },
-      render: {
-        visible: false
-      },
-      label: 'wall'
+        isStatic: true,
+        restitution: 0.5,
+        friction: 0.0,
+        frictionStatic: 0.0,
+        collisionFilter: {
+            category: 0x0004,
+            mask: 0xFFFFFFFF
+        },
+        render: {
+            visible: false
+        }
     };
 
     const walls = [
-      Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
-        ...wallOptions,
-        label: 'wall-bottom'
-      }),
-      Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
-        ...wallOptions,
-        label: 'wall-left'
-      }),
-      Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
-        ...wallOptions,
-        label: 'wall-right'
-      }),
+        Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
+            ...wallOptions,
+            label: 'wall-bottom'
+        }),
+        Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
+            ...wallOptions,
+            label: 'wall-left'
+        }),
+        Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
+            ...wallOptions,
+            label: 'wall-right'
+        })
     ];
 
     // Store new walls reference
@@ -1237,30 +1231,29 @@ export const useMatterJs = (
   }, [createCircle, nextTier]);
 
   const updateDrag = useCallback((x: number) => {
-    if (!renderRef.current || !isDraggingRef.current) return;
+    if (!renderRef.current || !currentCircleRef.current) return;
     
     const { width } = renderRef.current.canvas;
     const circle = currentCircleRef.current as CircleBody;
-    if (!circle) return;
     
     const radius = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG || 1].radius;
     const padding = radius + 0.5;
     
-    // Update X position even during animation
+    // Update X position regardless of drag state
     const constrainedX = Math.max(
-      padding, 
-      Math.min(width - padding, x)
+        padding, 
+        Math.min(width - padding, x)
     );
     
     // Store the last valid mouse position
     nextSpawnXRef.current = constrainedX;
     
-    // Only update the circle position directly if not animating
+    // Only update the circle position if not animating
     if (!isAnimatingRef.current) {
-      Matter.Body.setPosition(circle, {
-        x: constrainedX,
-        y: circle.position.y,
-      });
+        Matter.Body.setPosition(circle, {
+            x: constrainedX,
+            y: circle.position.y,
+        });
     }
   }, []);
 
@@ -1798,42 +1791,69 @@ export const useMatterJs = (
 
         try {
             const bodies = Matter.Composite.allBodies(engineRef.current.world);
-            const staticBodies = bodies.filter(body => {
-                // Only count walls in static body check
+            
+            // Debug log to understand what bodies we have
+            const staticBodiesDebug = bodies.filter(body => body.isStatic).map(body => ({
+                label: body.label,
+                isCurrentBall: body === currentCircleRef.current,
+                isDangerZone: body === dangerZoneRef.current,
+                isWall: body.label?.includes('wall-')
+            }));
+            
+            if (staticBodiesDebug.length > 0) {
+                console.log('Static bodies debug:', staticBodiesDebug);
+            }
+
+            // Only look for wall bodies, with more explicit checks
+            const wallBodies = bodies.filter(body => {
+                const isWall = body.label?.includes('wall-');
+                const isCurrentBall = body === currentCircleRef.current;
+                const isDangerZone = body === dangerZoneRef.current;
+                const isInOriginalWalls = wallBodiesRef.current?.includes(body);
+
+                // Debug individual body if it's static
+                if (body.isStatic) {
+                    console.log('Static body check:', {
+                        label: body.label,
+                        isWall,
+                        isCurrentBall,
+                        isDangerZone,
+                        isInOriginalWalls
+                    });
+                }
+
                 return body.isStatic && 
-                       body.label?.includes('wall-');
+                       isWall && 
+                       !isCurrentBall && 
+                       !isDangerZone;
             });
             
-            if (staticBodies.length > 3) { // We should only have 3 walls
-                console.warn('Extra wall bodies detected:', 
-                    staticBodies.length, 
-                    'Static body labels:', 
-                    staticBodies.map(b => b.label)
-                );
+            if (wallBodies.length > 3) {
+                console.warn('Extra wall bodies detected:', {
+                    totalWalls: wallBodies.length,
+                    originalWalls: wallBodiesRef.current?.length || 0,
+                    labels: wallBodies.map(b => b.label)
+                });
                 
-                // Clean up extra walls only
-                staticBodies.forEach(body => {
-                    // Only remove if it's a wall and not one of the first 3
-                    if (body.label?.includes('wall-') && 
-                        !wallBodiesRef.current?.includes(body)) {
-                        console.log('Removing extra wall body:', body.label);
+                // Only remove walls that aren't in our original set
+                wallBodies.forEach(body => {
+                    if (!wallBodiesRef.current?.includes(body)) {
+                        console.log('Removing extra wall:', {
+                            label: body.label,
+                            id: body.id,
+                            isInOriginalWalls: wallBodiesRef.current?.includes(body)
+                        });
                         
                         if (Matter.Composite.get(engineRef.current!.world, body.id, body.type)) {
                             Matter.Composite.remove(engineRef.current!.world, body);
                         }
                     }
                 });
-
-                // Log remaining bodies for debugging
-                const remainingStatic = Matter.Composite.allBodies(engineRef.current.world)
-                    .filter(body => body.isStatic)
-                    .map(b => b.label);
-                console.log('Remaining static bodies:', remainingStatic);
             }
         } catch (error) {
-            console.error('Error in static body monitoring:', error);
+            console.error('Error in wall body monitoring:', error);
         }
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(monitorInterval);
   }, []);
