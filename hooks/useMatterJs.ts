@@ -47,9 +47,9 @@ export const useMatterJs = (
 ) => {
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: 1.75 },
-    positionIterations: 8,
-    velocityIterations: 6,
-    constraintIterations: 3,
+    positionIterations: 10,
+    velocityIterations: 8,
+    constraintIterations: 4,
     enableSleeping: true,
     timing: {
       timeScale: 0.9,

@@ -235,7 +235,7 @@ export default function Home() {
             {/* Gravity Group */}
             <div className="flex items-start gap-4">
               <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Gravity</div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 {getPowerUpsByGroup('GRAVITY').map(powerUp => (
                   <PowerUpButton
                     key={powerUp.id}
@@ -257,7 +257,7 @@ export default function Home() {
             {/* Void Group */}
             <div className="flex items-start gap-4">
               <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">Void</div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 {getPowerUpsByGroup('VOID').map(powerUp => (
                   <PowerUpButton
                     key={powerUp.id}
@@ -279,7 +279,7 @@ export default function Home() {
             {/* Mystery Group */}
             <div className="flex items-start gap-4">
               <div className="w-14 text-xs text-zinc-500 uppercase tracking-wider pt-2">?????</div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <div className="w-12 h-12 rounded-lg bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center">
                   <span className="text-zinc-600">?</span>
                 </div>
