@@ -7,6 +7,7 @@ export interface Flask {
     gravity?: number;
     friction?: number;
     frictionAir?: number;
+    frictionStatic?: number;
     restitution?: number;
     timeScale?: number;
     density?: number;
