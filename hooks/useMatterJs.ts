@@ -1974,57 +1974,38 @@ export const useMatterJs = (
     }
   }, []);
 
-  // Update the effect that handles slop changes
+  // Remove the separate effects and combine them into one
   useEffect(() => {
     if (engineRef.current) {
-      // Set initial slop value by adjusting iterations
+      // Create the setSlop function
       const setEngineSlop = (slopValue: number) => {
-        // Convert slop (0-0.5) to iterations (2-12)
-        // More slop = fewer iterations = squishier physics
-        const iterations = Math.round(12 - (slopValue * 5)); // Adjusted formula for new range
+        if (!engineRef.current) return;
+        
+        // Store the slop value
+        currentSlopRef.current = slopValue;
+        
+        // Convert slop (0-2) to iterations (2-12)
+        const iterations = Math.round(12 - (slopValue * 5));
         engineRef.current.positionIterations = Math.max(2, iterations);
         engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
       };
 
-      setEngineSlop(0.05); // Set default slop
-      
-      // Add method to window.matterEngine for PowerUpDebugUI to use
-      if (window.matterEngine) {
-        window.matterEngine.setSlop = setEngineSlop;
-      }
-    }
-  }, []);
-
-  // Create a stable setEngineSlop function that persists between renders
-  const setEngineSlop = useCallback((slopValue: number) => {
-    if (!engineRef.current) return;
-    
-    // Store the slop value
-    currentSlopRef.current = slopValue;
-    
-    // Convert slop (0-2) to iterations (2-12)
-    // More slop = fewer iterations = squishier physics
-    const iterations = Math.round(12 - (slopValue * 5)); // Adjusted formula for new range
-    engineRef.current.positionIterations = Math.max(2, iterations);
-    engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
-  }, []);
-
-  // Single effect to initialize matterEngine and setSlop
-  useEffect(() => {
-    if (engineRef.current) {
-      // Add the setSlop method to the engine
-      window.matterEngine = Object.assign(engineRef.current, {
+      // Create the enhanced engine with setSlop method
+      const enhancedEngine = Object.assign(engineRef.current, {
         setSlop: setEngineSlop
       });
 
       // Set initial slop value
       setEngineSlop(DEFAULT_SLOP);
 
+      // Assign the enhanced engine to window
+      window.matterEngine = enhancedEngine;
+
       return () => {
         window.matterEngine = undefined;
       };
     }
-  }, [setEngineSlop]);
+  }, []); // Empty dependency array since we only want this to run once
 
   return {
     engine: engineRef.current,
