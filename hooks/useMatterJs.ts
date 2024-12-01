@@ -868,16 +868,16 @@ export const useMatterJs = (
       isFixed: true,
       delta: 1000 / 240, // Fixed 240Hz timestep for smooth simulation
       enabled: true,
-      frameDeltaSmoothing: true,
-      frameDeltaSnapping: true, // Helps with different refresh rates
       maxFrameTime: 1000 / 30, // Limit max frame time to maintain 30fps minimum
-      maxUpdates: 4 // Limit max updates per frame for stability
     });
-    
+
     runnerRef.current = runner;
 
     // Start the runner with the engine
     Matter.Runner.run(runner, engineRef.current);
+
+    // Add render run back since it's still needed
+    Matter.Render.run(renderRef.current);
 
     // Remove the direct engine update calls
     // Matter.Engine.update(engineRef.current, runner.delta);
