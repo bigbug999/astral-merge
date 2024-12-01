@@ -799,8 +799,7 @@ export const useMatterJs = (
         height,
         wireframes: false,
         background: 'transparent',
-        showSleeping: false, // This disables the opacity change
-        opacity: 1 // Use opacity at the renderer level
+        showSleeping: false  // This alone will prevent opacity changes for sleeping bodies
       }
     });
 
