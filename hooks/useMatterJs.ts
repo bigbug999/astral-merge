@@ -1964,17 +1964,7 @@ export const useMatterJs = (
     }
   }, [flaskState.activeFlaskId, isMobile]);
 
-  useEffect(() => {
-    if (engineRef.current) {
-      window.matterEngine = engineRef.current;
-      
-      return () => {
-        window.matterEngine = undefined;
-      };
-    }
-  }, []);
-
-  // Remove the separate effects and combine them into one
+  // Keep only this effect that properly sets up the engine with setSlop
   useEffect(() => {
     if (engineRef.current) {
       // Create the setSlop function
@@ -1985,8 +1975,9 @@ export const useMatterJs = (
         currentSlopRef.current = slopValue;
         
         // Convert slop (0-2) to iterations (2-12)
-        const iterations = Math.round(12 - (slopValue * 5));
-        engineRef.current.positionIterations = Math.max(2, iterations);
+        // Use a more direct conversion that might feel more responsive
+        const iterations = Math.max(2, Math.round(12 - (slopValue * 4)));
+        engineRef.current.positionIterations = iterations;
         engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
       };
 

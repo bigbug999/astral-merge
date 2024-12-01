@@ -28,11 +28,10 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
 
   const handleSlopChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSlop = parseFloat(e.target.value);
+    
     setStats(prev => ({ ...prev, slop: newSlop }));
     
-    if (window.matterEngine?.setSlop) {
-      window.matterEngine.setSlop(newSlop);
-    }
+    window.matterEngine?.setSlop?.(newSlop);
   };
 
   useEffect(() => {
@@ -59,10 +58,10 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
   }, [currentBall, powerUps]);
 
   useEffect(() => {
-    if (debug?.slop !== undefined && debug.slop !== stats.slop) {
+    if (debug?.slop !== undefined) {
       setStats(prev => ({ ...prev, slop: debug.slop }));
     }
-  }, [debug?.slop, stats.slop]);
+  }, [debug?.slop]);
 
   return (
     <div className="flex items-start gap-2">
