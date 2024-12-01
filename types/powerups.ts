@@ -2,9 +2,9 @@
 export const POWER_UP_CONFIG = {
   GRAVITY: {
     HEAVY: {
-      FORCE_MULTIPLIER: 30,
+      FORCE_MULTIPLIER: 15,
       DURATION: 5000,
-      CONSTANT_FORCE: 0.04,
+      CONSTANT_FORCE: 0.02,
       DENSITY: 0.04,
       FRICTION: 0.001,
       FRICTION_AIR: 0.0001,
@@ -12,9 +12,9 @@ export const POWER_UP_CONFIG = {
       FRICTION_STATIC: 0.0001,
     },
     SUPER: {
-      FORCE_MULTIPLIER: 50,
+      FORCE_MULTIPLIER: 25,
       DURATION: 6000,
-      CONSTANT_FORCE: 0.06,
+      CONSTANT_FORCE: 0.03,
       DENSITY: 0.08,
       FRICTION: 0.0005,
       FRICTION_AIR: 0.00005,
@@ -22,9 +22,9 @@ export const POWER_UP_CONFIG = {
       FRICTION_STATIC: 0.00005,
     },
     ULTRA: {
-      FORCE_MULTIPLIER: 100,
+      FORCE_MULTIPLIER: 40,
       DURATION: 6000,
-      CONSTANT_FORCE: 0.12,
+      CONSTANT_FORCE: 0.06,
       DENSITY: 0.24,
       FRICTION: 0,
       FRICTION_AIR: 0.00003,
