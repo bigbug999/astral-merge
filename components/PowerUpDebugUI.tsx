@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
 import Matter from 'matter-js';
 import { PowerUp, PowerUpState, POWER_UPS } from '@/types/powerups';
-
-interface PowerUpStats {
-  density: number;
-  velocity: number;
-  force: number;
-  timeRemaining: number;
-  slop: number;
-}
-
-interface CircleBody extends Matter.Body {
-  powerUpStats?: PowerUpStats;
-}
+import { PowerUpStats, CircleBody } from '@/types/physics';
 
 interface PowerUpDebugUIProps {
   currentBall: CircleBody | null;
@@ -73,7 +62,7 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
     if (debug?.slop !== undefined && debug.slop !== stats.slop) {
       setStats(prev => ({ ...prev, slop: debug.slop }));
     }
-  }, [debug?.slop]);
+  }, [debug?.slop, stats.slop]);
 
   return (
     <div className="flex items-start gap-2">

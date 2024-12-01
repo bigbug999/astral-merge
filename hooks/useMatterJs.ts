@@ -6,6 +6,7 @@ import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
 import type { FlaskState } from '@/types/flasks';
 import { FLASKS } from '@/types/flasks';
+import { CircleBody, PowerUpStats } from '@/types/physics';
 
 // Near the top of the file, add:
 declare global {
@@ -27,26 +28,6 @@ interface MatterBody extends Matter.Body {
   events?: Record<string, any>;
   constraints?: Matter.Constraint[];
   parts: Matter.Body[];
-}
-
-interface CircleBody extends MatterBody {
-  tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-  hasBeenDropped?: boolean;
-  isMerging?: boolean;
-  isHeavyBall?: boolean;
-  isVoidBall?: boolean;
-  isSuperVoid?: boolean;
-  deletionsRemaining?: number;
-  powerUpDropTime?: number;
-  inDangerZone?: boolean;
-  dangerZoneStartTime?: number;
-  spawnTime?: number;
-  powerUpStats?: {
-    density: number;
-    velocity: number;
-    force: number;
-    timeRemaining: number;
-  };
 }
 
 interface DangerZone extends Matter.Body {
