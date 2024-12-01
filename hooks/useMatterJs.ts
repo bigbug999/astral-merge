@@ -866,9 +866,8 @@ export const useMatterJs = (
     // Create runner with fixed timestep settings
     const runner = Matter.Runner.create({
       isFixed: true,
-      delta: 1000 / 240, // Fixed 240Hz timestep for smooth simulation
-      enabled: true,
-      maxFrameTime: 1000 / 30, // Limit max frame time to maintain 30fps minimum
+      delta: 1000 / 120, // Fixed 120Hz timestep - good balance between smoothness and performance
+      enabled: true
     });
 
     runnerRef.current = runner;
