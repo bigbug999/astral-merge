@@ -110,7 +110,7 @@ export const useMatterJs = (
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: isMobile ? 1.8 : 0.9, // Double timeScale on mobile
+      timeScale: isMobile ? 2.7 : 1.35, // Increased from 1.8/0.9 to 2.7/1.35
       timestamp: 0,
     }
   }));
@@ -881,9 +881,9 @@ export const useMatterJs = (
     // Remove the direct engine update calls
     // Matter.Engine.update(engineRef.current, runner.delta);
 
-    // Update engine settings with slightly reduced speed
-    engineRef.current.world.gravity.scale = 0.0009;  // Middle ground between 0.0008 and 0.001
-    engineRef.current.timing.timeScale = 0.9;        // Middle ground between 0.8 and 1.0
+    // Update engine settings with increased speed
+    engineRef.current.world.gravity.scale = 0.0009;  // Keep gravity scale the same
+    engineRef.current.timing.timeScale = 1.35;       // Increase from 0.9 to 1.35 (1.5x faster)
     
     // Optimize engine settings for better performance
     engineRef.current.world.gravity.scale = 0.0009;
