@@ -104,13 +104,13 @@ export const useMatterJs = (
 
   // Update engine creation with conditional physics based on device
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: isMobile ? 3.5 : 1.75 }, // Double gravity on mobile
-    positionIterations: 12,    // Increased from 8 to 12
-    velocityIterations: 8,     // Increased from 6 to 8
-    constraintIterations: 4,   // Increased from 3 to 4
+    gravity: { y: isMobile ? 2.5 : 1.75 }, // Keep mobile gravity different
+    positionIterations: 12,
+    velocityIterations: 8,
+    constraintIterations: 4,
     enableSleeping: true,
     timing: {
-      timeScale: isMobile ? 2.7 : 1.35, // Increased from 1.8/0.9 to 2.7/1.35
+      timeScale: 1.35, // Single timeScale for all devices
       timestamp: 0,
     }
   }));
@@ -1885,8 +1885,8 @@ export const useMatterJs = (
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
     // Reset to default physics
-    engineRef.current.gravity.y = isMobile ? 3.5 : 1.75;
-    engineRef.current.timing.timeScale = isMobile ? 2.7 : 1.35;
+    engineRef.current.gravity.y = isMobile ? 2.5 : 1.75;
+    engineRef.current.timing.timeScale = 1.35; // Single timeScale for all devices
 
     // Apply flask physics if active
     if (flask?.physics) {
