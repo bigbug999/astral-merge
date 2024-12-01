@@ -308,10 +308,8 @@ export const useMatterJs = (
         sprite: {
           texture: texture,
           xScale: 1,
-          yScale: 1,
-          opacity: 1 // Force full opacity
-        },
-        opacity: 1 // Backup opacity setting
+          yScale: 1
+        }
       },
       label: `circle-${tier}`
     };
