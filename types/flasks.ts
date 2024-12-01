@@ -48,9 +48,11 @@ export const FLASKS = {
     physics: {
       gravity: 0.15,
       timeScale: 1.2,
+      friction: 0.001,
       frictionAir: 0.00001,
       restitution: 0.95,
-      friction: 0.001
+      frictionStatic: 0.001,
+      density: 0.015
     },
     visual: {
       color: '#a78bfa',
@@ -63,9 +65,13 @@ export const FLASKS = {
     description: 'Removes friction from all surfaces',
     icon: 'SparklesIcon',
     physics: {
+      gravity: 1.75,
+      timeScale: 1.35,
       friction: 0.0001,
       frictionAir: 0.00001,
-      frictionStatic: 0.0001
+      frictionStatic: 0.0001,
+      restitution: 0.4,
+      density: 0.02
     },
     visual: {
       color: '#60a5fa',
@@ -78,10 +84,13 @@ export const FLASKS = {
     description: 'Makes everything more bouncy',
     icon: 'BounceIcon',
     physics: {
-      restitution: 0.85,
+      gravity: 1.75,
+      timeScale: 1.35,
       friction: 0.003,
-      density: 0.008,
-      frictionAir: 0.0002
+      frictionAir: 0.0002,
+      frictionStatic: 0.02,
+      restitution: 0.85,
+      density: 0.008
     },
     visual: {
       color: '#4ade80',
