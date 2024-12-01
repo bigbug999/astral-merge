@@ -308,8 +308,10 @@ export const useMatterJs = (
         sprite: {
           texture: texture,
           xScale: 1,
-          yScale: 1
-        }
+          yScale: 1,
+          opacity: 1 // Force full opacity
+        },
+        opacity: 1 // Backup opacity setting
       },
       label: `circle-${tier}`
     };
@@ -799,6 +801,7 @@ export const useMatterJs = (
         wireframes: false,
         background: 'transparent',
         showSleeping: false, // This disables the opacity change
+        sleepOpacity: 1, // Forces full opacity even for sleeping bodies
       }
     });
 
@@ -1888,25 +1891,22 @@ export const useMatterJs = (
         
         // For low gravity, add some special handling
         if (flask.id === 'LOW_GRAVITY') {
-          // Increase the timeScale significantly for faster movement in low gravity
-          engineRef.current.timing.timeScale = 2.1; // Increased from 1.8 to 2.1 for faster movement
+          // Increase timeScale for faster movement
+          engineRef.current.timing.timeScale = 2.4; // Increased from 2.1
 
-          // Add collision handling for ball-to-ball interactions
           const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
             event.pairs.forEach((pair) => {
               const bodyA = pair.bodyA as CircleBody;
               const bodyB = pair.bodyB as CircleBody;
               
-              // Only handle collisions between circles (not walls)
               if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
                 const collisionAngle = Math.atan2(
                   bodyB.position.y - bodyA.position.y,
                   bodyB.position.x - bodyA.position.x
                 );
 
-                const bounceForce = 0.08; // Increased from 0.05 to 0.08 for stronger bounces
+                const bounceForce = 0.06; // Slightly reduced from 0.08
                 
-                // Apply opposite forces to both balls
                 Matter.Body.setVelocity(bodyA, {
                   x: bodyA.velocity.x - Math.cos(collisionAngle) * bounceForce,
                   y: bodyA.velocity.y - Math.sin(collisionAngle) * bounceForce
@@ -1917,9 +1917,8 @@ export const useMatterJs = (
                   y: bodyB.velocity.y + Math.sin(collisionAngle) * bounceForce
                 });
 
-                // Add a small random component for more interesting bounces
                 const randomAngle = Math.random() * Math.PI * 2;
-                const randomForce = 0.03; // Increased from 0.02 to 0.03
+                const randomForce = 0.03; // Keep original
 
                 Matter.Body.applyForce(bodyA, bodyA.position, {
                   x: Math.cos(randomAngle) * randomForce,
@@ -1934,7 +1933,6 @@ export const useMatterJs = (
             });
           };
 
-          // Add the collision listener
           Matter.Events.on(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
 
           return () => {
@@ -1944,25 +1942,8 @@ export const useMatterJs = (
           };
         }
       }
-
-      // Move this inside the if block but after the LOW_GRAVITY check
-      // so it doesn't override our custom timeScale
-      if (flask.physics.timeScale !== undefined && flask.id !== 'LOW_GRAVITY') {
-        engineRef.current.timing.timeScale = flask.physics.timeScale;
-      }
-
-      // Apply to all existing bodies with adjusted values
-      const bodies = Matter.Composite.allBodies(engineRef.current.world);
-      bodies.forEach(body => {
-        if (!body.isStatic && body.label?.startsWith('circle-')) {
-          Matter.Body.set(body, {
-            friction: (flask.physics.friction ?? body.friction) * 0.8,  // Reduce friction
-            frictionAir: (flask.physics.frictionAir ?? body.frictionAir) * 0.8,  // Reduce air friction
-            restitution: (flask.physics.restitution ?? body.restitution) * 1.2  // Increase bounciness
-          });
-        }
-      });
     }
+    // ... rest of the effect code ...
   }, [flaskState.activeFlaskId, isMobile]);
 
   // Keep only this effect that properly sets up the engine with setSlop

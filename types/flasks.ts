@@ -47,10 +47,10 @@ export const FLASKS = {
     icon: 'FeatherIcon',
     physics: {
       gravity: 0.15,
-      timeScale: 1.2,
+      timeScale: 1.6,
       friction: 0.001,
       frictionAir: 0.00001,
-      restitution: 0.95,
+      restitution: 0.8,
       frictionStatic: 0.001,
       density: 0.015
     },
