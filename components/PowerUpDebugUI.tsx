@@ -1,4 +1,4 @@
- import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Matter from 'matter-js';
 import { PowerUp, PowerUpState, POWER_UPS } from '@/types/powerups';
 
@@ -7,6 +7,7 @@ interface PowerUpStats {
   velocity: number;
   force: number;
   timeRemaining: number;
+  slop: number;
 }
 
 interface CircleBody extends Matter.Body {
@@ -18,6 +19,7 @@ interface PowerUpDebugUIProps {
   powerUps: PowerUpState;
   debug?: {
     fps: number;
+    slop: number;
   };
 }
 
@@ -28,11 +30,21 @@ const DEFAULT_STATS = {
   restitution: 0.5,
   frictionStatic: 0.05,
   forceMultiplier: 1,
-  constantForce: 0
+  constantForce: 0,
+  slop: 0.05
 };
 
 export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIProps) {
   const [stats, setStats] = useState(DEFAULT_STATS);
+
+  const handleSlopChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSlop = parseFloat(e.target.value);
+    setStats(prev => ({ ...prev, slop: newSlop }));
+    
+    if (window.matterEngine?.setSlop) {
+      window.matterEngine.setSlop(newSlop);
+    }
+  };
 
   useEffect(() => {
     const updateInterval = setInterval(() => {
@@ -40,22 +52,28 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
         const activePowerUpId = powerUps.activePowerUpId;
         const activePowerUp = activePowerUpId ? POWER_UPS[activePowerUpId] : null;
 
-        setStats({
+        setStats(prev => ({
+          ...prev,
           density: activePowerUp?.physics.density || DEFAULT_STATS.density,
           friction: activePowerUp?.physics.friction || DEFAULT_STATS.friction,
           frictionAir: activePowerUp?.physics.frictionAir || DEFAULT_STATS.frictionAir,
           restitution: activePowerUp?.physics.restitution || DEFAULT_STATS.restitution,
           frictionStatic: activePowerUp?.physics.frictionStatic || DEFAULT_STATS.frictionStatic,
           forceMultiplier: activePowerUp?.effects?.forceMultiplier || DEFAULT_STATS.forceMultiplier,
-          constantForce: activePowerUp?.effects?.constantForce || DEFAULT_STATS.constantForce
-        });
-      } else {
-        setStats(DEFAULT_STATS);
+          constantForce: activePowerUp?.effects?.constantForce || DEFAULT_STATS.constantForce,
+          slop: prev.slop
+        }));
       }
     }, 100);
 
     return () => clearInterval(updateInterval);
   }, [currentBall, powerUps]);
+
+  useEffect(() => {
+    if (debug?.slop !== undefined && debug.slop !== stats.slop) {
+      setStats(prev => ({ ...prev, slop: debug.slop }));
+    }
+  }, [debug?.slop]);
 
   return (
     <div className="flex items-start gap-2">
@@ -97,6 +115,30 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
               <span className="text-zinc-300 font-mono">+{stats.constantForce.toFixed(3)}</span>
             </div>
           </div>
+        </div>
+        <div className="mt-2 pt-2 border-t border-zinc-700">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-zinc-500">Slop:</span>
+            <span className="text-zinc-300 font-mono">{stats.slop.toFixed(3)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.001"
+            value={stats.slop}
+            onChange={handleSlopChange}
+            className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer 
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 
+              [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full 
+              [&::-webkit-slider-thumb]:bg-violet-500 [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3 
+              [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full 
+              [&::-moz-range-thumb]:bg-violet-500 [&::-moz-range-thumb]:border-none
+              [&::-moz-range-thumb]:cursor-pointer
+              hover:[&::-webkit-slider-thumb]:bg-violet-400
+              hover:[&::-moz-range-thumb]:bg-violet-400"
+          />
         </div>
       </div>
     </div>

@@ -7,6 +7,15 @@ import type { TierType } from '@/types/game';
 import type { FlaskState } from '@/types/flasks';
 import { FLASKS } from '@/types/flasks';
 
+// Near the top of the file, add:
+declare global {
+  interface Window {
+    matterEngine?: Matter.Engine & {
+      setSlop: (value: number) => void;
+    };
+  }
+}
+
 const OBJECT_POOL_SIZE = 50;
 
 interface ObjectPool {
@@ -88,6 +97,9 @@ const isMobileDevice = () => {
   return isMobileUA || isSmallScreen;
 };
 
+// Near the top of file, add a constant for default slop
+const DEFAULT_SLOP = 0.05;
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -102,15 +114,18 @@ export const useMatterJs = (
   // Add device detection
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  // Update engine creation with conditional physics based on device
+  // Add ref to track current slop value
+  const currentSlopRef = useRef(DEFAULT_SLOP);
+
+  // Update engine creation
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 1.75 }, // Single gravity value for all devices
-    positionIterations: 12,
-    velocityIterations: 8,
-    constraintIterations: 4,
+    gravity: { y: 1.75 },
+    positionIterations: Math.round(12 - (DEFAULT_SLOP * 20)), // Set initial iterations based on default slop
+    velocityIterations: Math.max(2, Math.floor((12 - (DEFAULT_SLOP * 20)) * 0.8)),
+    constraintIterations: 2,
     enableSleeping: true,
     timing: {
-      timeScale: 1.35, // Single timeScale for all devices
+      timeScale: 1.35,
       timestamp: 0,
     }
   }));
@@ -297,13 +312,11 @@ export const useMatterJs = (
     
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
-      // Modified physics for tier 1 balls - increased density and reduced friction
-      density: tier === 1 ? 0.05 : 0.02, // Doubled density for tier 1 (was 0.025)
-      friction: tier === 1 ? 0.001 : (activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005)), // Greatly reduced friction for tier 1
-      frictionAir: tier === 1 ? 0.0001 : (activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)), // Reduced air friction for tier 1
+      density: tier === 1 ? 0.05 : 0.02,
+      friction: tier === 1 ? 0.001 : (activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005)),
+      frictionAir: tier === 1 ? 0.0001 : (activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)),
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: tier === 1 ? 0.001 : (isMobile ? 0.04 : 0.02), // Reduced static friction for tier 1
-      slop: isMobile ? 0.04 : 0.02,
+      frictionStatic: tier === 1 ? 0.001 : (isMobile ? 0.04 : 0.02),
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
@@ -1968,6 +1981,68 @@ export const useMatterJs = (
     }
   }, [flaskState.activeFlaskId, isMobile]);
 
+  useEffect(() => {
+    if (engineRef.current) {
+      window.matterEngine = engineRef.current;
+      
+      return () => {
+        window.matterEngine = undefined;
+      };
+    }
+  }, []);
+
+  // Update the effect that handles slop changes
+  useEffect(() => {
+    if (engineRef.current) {
+      // Set initial slop value by adjusting iterations
+      const setEngineSlop = (slopValue: number) => {
+        // Convert slop (0-0.5) to iterations (2-12)
+        // More slop = fewer iterations = squishier physics
+        const iterations = Math.round(12 - (slopValue * 5)); // Adjusted formula for new range
+        engineRef.current.positionIterations = Math.max(2, iterations);
+        engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
+      };
+
+      setEngineSlop(0.05); // Set default slop
+      
+      // Add method to window.matterEngine for PowerUpDebugUI to use
+      if (window.matterEngine) {
+        window.matterEngine.setSlop = setEngineSlop;
+      }
+    }
+  }, []);
+
+  // Create a stable setEngineSlop function that persists between renders
+  const setEngineSlop = useCallback((slopValue: number) => {
+    if (!engineRef.current) return;
+    
+    // Store the slop value
+    currentSlopRef.current = slopValue;
+    
+    // Convert slop (0-2) to iterations (2-12)
+    // More slop = fewer iterations = squishier physics
+    const iterations = Math.round(12 - (slopValue * 5)); // Adjusted formula for new range
+    engineRef.current.positionIterations = Math.max(2, iterations);
+    engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
+  }, []);
+
+  // Single effect to initialize matterEngine and setSlop
+  useEffect(() => {
+    if (engineRef.current) {
+      // Add the setSlop method to the engine
+      window.matterEngine = Object.assign(engineRef.current, {
+        setSlop: setEngineSlop
+      });
+
+      // Set initial slop value
+      setEngineSlop(DEFAULT_SLOP);
+
+      return () => {
+        window.matterEngine = undefined;
+      };
+    }
+  }, [setEngineSlop]);
+
   return {
     engine: engineRef.current,
     startDrag,
@@ -1977,7 +2052,8 @@ export const useMatterJs = (
     currentBall: currentCircleRef.current as CircleBody | null,
     debug: {
       fps: fpsRef.current,
-      isMobile
+      isMobile,
+      slop: currentSlopRef.current // Add current slop to debug info
     }
   };
 }; 
