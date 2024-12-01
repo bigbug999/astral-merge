@@ -7,11 +7,9 @@ export function BounceIcon({ className = "" }: { className?: string }) {
       stroke="currentColor"
       strokeWidth="1.5"
     >
-      <path 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        d="M7 14l-5 5m0 0l5 5m-5-5h12a4 4 0 004-4V3m0 0l-5 5m5-5l-5-5" 
-      />
+      <circle cx="12" cy="12" r="1" />
+      <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z" />
+      <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z" />
     </svg>
   );
 } 

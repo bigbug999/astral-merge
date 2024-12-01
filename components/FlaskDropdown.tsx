@@ -2,14 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { Flask, FlaskId } from '@/types/flasks';
 import { FLASKS } from '@/types/flasks';
+import { FlaskConicalIcon } from './icons/FlaskConicalIcon';
 import { FlaskIcon } from './icons/FlaskIcon';
 import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BounceIcon } from './icons/BounceIcon';
-import { ChemistryFlaskIcon } from './icons/ChemistryFlaskIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-  ChemistryFlaskIcon,
+  FlaskConicalIcon,
   FlaskIcon,
   FeatherIcon,
   SparklesIcon,
@@ -54,7 +54,7 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
             : "border-zinc-700/50"
         )}
       >
-        <IconComponent className="w-4 h-4 text-zinc-400" />
+        <IconComponent className="w-5 h-5 text-zinc-400" />
         <span className="text-xs text-zinc-100/90 flex-1 text-left">{currentFlask.name}</span>
         <svg 
           className={cn(
@@ -91,7 +91,7 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
                 )}
               >
                 <OptionIcon className={cn(
-                  "w-4 h-4",
+                  "w-5 h-5",
                   flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
                   "group-hover:text-zinc-100"
                 )} />

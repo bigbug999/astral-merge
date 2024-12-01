@@ -12,7 +12,7 @@ export interface Flask {
   id: FlaskId;
   name: string;
   description: string;
-  icon: 'ChemistryFlaskIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon';
+  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon';
   physics: FlaskPhysics;
   visual: {
     color: string;
@@ -25,7 +25,7 @@ export const FLASKS = {
     id: 'DEFAULT',
     name: 'Default Flask',
     description: 'Standard physics behavior',
-    icon: 'ChemistryFlaskIcon',
+    icon: 'FlaskConicalIcon',
     physics: {
       gravity: 1.75,
       timeScale: 1.35,
