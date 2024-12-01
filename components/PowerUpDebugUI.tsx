@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+ import { useEffect, useState } from 'react';
 import Matter from 'matter-js';
 import { PowerUp, PowerUpState, POWER_UPS } from '@/types/powerups';
 
@@ -61,7 +61,7 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
     <div className="flex items-start gap-2">
       <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-2 text-xs w-[384px]">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-zinc-400 font-medium">Ball Modifiers</h3>
+          <h3 className="text-zinc-400 font-medium">Debug</h3>
           <span className={`text-zinc-300 font-mono ${(debug?.fps || 0) < 45 ? 'text-red-400' : ''}`}>
             {debug?.fps || '--'} FPS
           </span>
