@@ -16,6 +16,11 @@ import { ColorLegend } from '@/components/ColorLegend';
 import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
 import { FlaskButton } from '@/components/FlaskButton';
 import { FlaskState, FLASKS, createInitialFlaskState } from '@/types/flasks';
+import { FlaskIcon } from '@/components/icons/FlaskIcon';
+import { FeatherIcon } from '@/components/icons/FeatherIcon';
+import { SparklesIcon } from '@/components/icons/SparklesIcon';
+import { BounceIcon } from '@/components/icons/BounceIcon';
+import { FlaskDropdown } from '@/components/FlaskDropdown';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -55,6 +60,23 @@ const calculateScore = (tier: number, combo: number) => {
   const baseScore = Math.pow(2, tier) * 1; // Now tier 1 will be 2 points (2^1 * 1)
   const multiplier = 1 + (combo * 0.5); // Keeping the same combo multiplier
   return Math.floor(baseScore * multiplier);
+};
+
+// Update the spawn height constant
+const SPAWN_HEIGHT = 75; // Set to halfway between 60 and 90
+
+// Add a helper function to get the icon component
+const getFlaskIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'FeatherIcon':
+      return FeatherIcon;
+    case 'SparklesIcon':
+      return SparklesIcon;
+    case 'BounceIcon':
+      return BounceIcon;
+    default:
+      return FlaskIcon;
+  }
 };
 
 export default function Home() {
@@ -164,11 +186,9 @@ export default function Home() {
     endDrag(relativeX);
   }, [endDrag]);
 
-  // Fixed preview size of 32px diameter (16px radius)
-  const PREVIEW_DIAMETER = 32;
-  const getPreviewScale = (originalDiameter: number) => {
-    return PREVIEW_DIAMETER / originalDiameter;
-  };
+  // Update the PREVIEW_DIAMETER constant to be smaller and more consistent
+  const PREVIEW_DIAMETER = 24; // Smaller fixed size for all preview balls
+  const PREVIEW_STROKE_WIDTH = 2; // Consistent stroke width
 
   // Add helper function to get combo color
   const getComboColor = (combo: number) => {
@@ -186,7 +206,6 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
-      {/* Bottom Controls Section - Now includes score and preview */}
       <div className="w-full max-w-sm flex flex-col gap-4">
         {/* Game Container */}
         <div 
@@ -198,47 +217,55 @@ export default function Home() {
         >
           {/* Ceiling */}
           <div className="absolute top-0 left-0 right-0 h-1" />
+
+          {/* Preview, Score, and Flask Container */}
+          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1.5">
+            {/* Left side group */}
+            <div className="flex items-center gap-1.5">
+              {/* Preview Circle */}
+              <div className="w-9 h-9 border-2 border-zinc-700/50 rounded-lg flex items-center justify-center bg-zinc-800/30 backdrop-blur-md shrink-0">
+                <div 
+                  className="rounded-full"
+                  style={{
+                    width: `${PREVIEW_DIAMETER}px`,
+                    height: `${PREVIEW_DIAMETER}px`,
+                    backgroundColor: CIRCLE_CONFIG[nextTier].color,
+                    border: `${PREVIEW_STROKE_WIDTH}px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
+                    boxShadow: `0 0 10px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.2')}`,
+                  }}
+                />
+              </div>
+
+              {/* Score Display */}
+              <div className="h-9 px-1.5 w-[108px] rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md flex flex-col justify-center">
+                <div className="text-xs font-bold text-zinc-100/90">
+                  {score}
+                </div>
+                <div 
+                  className={`text-[9px] transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
+                  style={{
+                    color: combo > 0 ? getComboColor(combo) : 'rgba(244, 244, 245, 0.9)'
+                  }}
+                >
+                  ×{(1 + (combo * 0.5)).toFixed(1)}
+                </div>
+              </div>
+            </div>
+
+            {/* Flask Dropdown */}
+            <FlaskDropdown
+              value={flaskState.activeFlaskId}
+              onChange={(value) => setFlaskState({ activeFlaskId: value })}
+            />
+          </div>
         </div>
 
-        {/* Power-up Section with Score and Preview */}
+        {/* Power-up Section - Remove the old preview and score */}
         <div className="flex flex-col gap-4">
-          {/* Combined Score, Preview, and Power-ups Row */}
+          {/* Combined Power-ups Row */}
           <div className="flex items-center gap-1 w-full">
-            {/* Preview Circle */}
-            <div className="w-9 h-9 border-2 border-zinc-700 rounded-lg flex items-center justify-center bg-zinc-800 shrink-0">
-              <div 
-                className="rounded-full"
-                style={{
-                  width: CIRCLE_CONFIG[nextTier].radius * 2,
-                  height: CIRCLE_CONFIG[nextTier].radius * 2,
-                  backgroundColor: CIRCLE_CONFIG[nextTier].color,
-                  border: `3px solid ${CIRCLE_CONFIG[nextTier].strokeColor}`,
-                  boxShadow: `0 0 15px ${CIRCLE_CONFIG[nextTier].color.replace('0.1', '0.3')}`,
-                  transform: `scale(${getPreviewScale(CIRCLE_CONFIG[nextTier].radius * 2)})`,
-                }}
-              />
-            </div>
-
-            {/* Score Display */}
-            <div className="h-9 px-1.5 rounded-lg border-2 border-zinc-700 bg-zinc-800 flex flex-col justify-center flex-1">
-              <div className="text-sm font-bold text-zinc-100">
-                {score}
-              </div>
-              <div 
-                className={`text-[10px] transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
-                style={{
-                  color: combo > 0 ? getComboColor(combo) : '#f4f4f5'
-                }}
-              >
-                ×{(1 + (combo * 0.5)).toFixed(1)}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="h-5 w-px bg-zinc-700 mx-0.5" />
-
             {/* All Power-ups in one row */}
-            <div className="flex items-center gap-1 flex-1 justify-end">
+            <div className="flex items-center gap-1 flex-1">
               {/* Gravity Power-ups */}
               {getPowerUpsByGroup('GRAVITY').map(powerUp => (
                 <PowerUpButton
@@ -273,27 +300,6 @@ export default function Home() {
                       ...prev,
                       activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
                         (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                    }));
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Add Flask Section */}
-          <div className="flex items-center gap-1 w-full p-1">
-            <div className="text-xs text-zinc-500 px-2">Flasks</div>
-            <div className="h-5 w-px bg-zinc-700" />
-            <div className="flex items-center gap-1 flex-1">
-              {Object.values(FLASKS).map(flask => (
-                <FlaskButton
-                  key={flask.id}
-                  flask={flask}
-                  isActive={flaskState.activeFlaskId === flask.id}
-                  size="xs"
-                  onClick={() => {
-                    setFlaskState(prev => ({
-                      activeFlaskId: prev.activeFlaskId === flask.id ? null : flask.id
                     }));
                   }}
                 />

@@ -1185,7 +1185,10 @@ export const useMatterJs = (
       animationStartTimeRef.current = performance.now();
       
       const startY = -circleRadius;
-      const targetY = 30;
+      const BASE_SPAWN_Y = 75; // Base spawn height for tier 1
+      const tier1Radius = CIRCLE_CONFIG[1].radius;
+      // Adjust targetY so bottom edge aligns with tier 1 bottom edge
+      const targetY = BASE_SPAWN_Y - (circleRadius - tier1Radius);
       const totalDistance = targetY - startY;
       
       const animateSlideDown = (timestamp: number) => {

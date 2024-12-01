@@ -1,8 +1,8 @@
 export interface Flask {
-  id: string;
+  id: FlaskId;
   name: string;
   description: string;
-  icon: string;
+  icon: 'ChemistryFlaskIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon';
   physics: {
     gravity?: number;
     friction?: number;
@@ -18,7 +18,24 @@ export interface Flask {
   };
 }
 
-export const FLASKS: Record<string, Flask> = {
+export const FLASKS = {
+  DEFAULT: {
+    id: 'DEFAULT',
+    name: 'Default Flask',
+    description: 'Standard physics behavior',
+    icon: 'ChemistryFlaskIcon',
+    physics: {
+      gravity: 1.75,
+      timeScale: 1.35,
+      friction: 0.01,
+      frictionAir: 0.0002,
+      restitution: 0.3
+    },
+    visual: {
+      color: '#a78bfa',
+      glowColor: 'rgba(167, 139, 250, 0.5)'
+    }
+  },
   LOW_GRAVITY: {
     id: 'LOW_GRAVITY',
     name: 'Low Gravity',
@@ -67,10 +84,12 @@ export const FLASKS: Record<string, Flask> = {
       glowColor: 'rgba(74, 222, 128, 0.5)'
     }
   }
-};
+} as const;
+
+export type FlaskId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'BOUNCY';
 
 export interface FlaskState {
-  activeFlaskId: string | null;
+  activeFlaskId: FlaskId | null;
 }
 
 export const createInitialFlaskState = (): FlaskState => ({
