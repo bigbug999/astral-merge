@@ -878,9 +878,6 @@ export const useMatterJs = (
     // Add render run back since it's still needed
     Matter.Render.run(renderRef.current);
 
-    // Remove the direct engine update calls
-    // Matter.Engine.update(engineRef.current, runner.delta);
-
     // Optimize engine settings for better performance
     engineRef.current.positionIterations = 8;
     engineRef.current.velocityIterations = 6;
