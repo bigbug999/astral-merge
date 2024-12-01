@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
@@ -78,6 +78,16 @@ const logWorldState = (engine: Matter.Engine, context: string) => {
   }
 };
 
+// Add these helper functions near the top of the file
+const isMobileDevice = () => {
+  const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  const isMobileUA = mobileRegex.test(userAgent);
+  const isSmallScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
+  
+  return isMobileUA || isSmallScreen;
+};
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -89,14 +99,18 @@ export const useMatterJs = (
   flaskState: FlaskState,
   onPowerUpEarned?: (level: 1 | 2 | 3) => void
 ) => {
+  // Add device detection
+  const isMobile = useMemo(() => isMobileDevice(), []);
+
+  // Update engine creation with conditional physics based on device
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: 3.5 }, // Doubled from 1.75
+    gravity: { y: isMobile ? 3.5 : 1.75 }, // Double gravity on mobile
     positionIterations: 8,
     velocityIterations: 6,
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: 1.8, // Doubled from 0.9
+      timeScale: isMobile ? 1.8 : 0.9, // Double timeScale on mobile
       timestamp: 0,
     }
   }));
@@ -284,11 +298,11 @@ export const useMatterJs = (
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
-      friction: activeFlask?.physics.friction ?? 0.01, // Doubled from 0.005
-      frictionAir: activeFlask?.physics.frictionAir ?? 0.0004, // Doubled from 0.0002
+      friction: activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005),
+      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002),
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: 0.04, // Doubled from 0.02
-      slop: 0.04, // Doubled from 0.02
+      frictionStatic: isMobile ? 0.04 : 0.02,
+      slop: isMobile ? 0.04 : 0.02,
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
@@ -339,7 +353,7 @@ export const useMatterJs = (
     Matter.Composite.add(engineRef.current.world, circle);
     
     return circle;
-  }, [flaskState.activeFlaskId]);
+  }, [flaskState.activeFlaskId, isMobile]);
 
   // Add a ref to track wall bodies
   const wallBodiesRef = useRef<Matter.Body[]>([]);
@@ -1062,7 +1076,7 @@ export const useMatterJs = (
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.36 } // Doubled from 0.18
+                      { x: 0, y: isMobile ? 0.36 : 0.18 }
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1078,7 +1092,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.12 } // Doubled from 0.06
+                      { x: 0, y: isMobile ? 0.12 : 0.06 }
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1094,7 +1108,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: 0.04 } // Doubled from 0.02
+                      { x: 0, y: isMobile ? 0.04 : 0.02 }
                     );
                   }
                 }
@@ -1297,11 +1311,16 @@ export const useMatterJs = (
     circle.hasBeenDropped = true;
     Matter.Sleeping.set(circle, false);
     
-    // Calculate initial drop velocity
+    // Calculate initial drop velocity with special case for low gravity
     const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.65);
-    const initialDropVelocity = activePowerUp 
+    let initialDropVelocity = activePowerUp 
       ? baseDropVelocity * (activePowerUp.effects?.forceMultiplier || 1)
       : baseDropVelocity;
+
+    // Add higher initial velocity for low gravity flask
+    if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
+      initialDropVelocity *= 6; // Increased from 3x to 6x for more dramatic initial drop
+    }
     
     // Set initial velocity based on power-up type
     if (activePowerUp?.id === 'VOID_BALL' || activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') {
@@ -1434,7 +1453,7 @@ export const useMatterJs = (
 
       setTimeout(() => clearInterval(bounceInterval), POWER_UP_CONFIG.VOID.BASIC.BOUNCE_DURATION);
     }
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.activeFlaskId]);
 
   // Add helper function to get random tier for stress test
   const getRandomStressTestTier = (): TierType => {
@@ -1870,66 +1889,57 @@ export const useMatterJs = (
 
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
-    // Reset to default physics (now doubled for mobile)
-    engineRef.current.gravity.y = 3.5;
-    engineRef.current.timing.timeScale = 1.8;
+    // Reset to default physics
+    engineRef.current.gravity.y = 1.75;
+    engineRef.current.timing.timeScale = 0.9;
 
     // Apply flask physics if active
     if (flask?.physics) {
       if (flask.physics.gravity !== undefined) {
         engineRef.current.gravity.y = flask.physics.gravity;
         
-        // For low gravity, add some special handling with faster physics
+        // For low gravity, add some special handling
         if (flask.id === 'LOW_GRAVITY') {
-          // Apply to all existing bodies with faster initial velocities
+          // Apply to all existing bodies
           const bodies = Matter.Composite.allBodies(engineRef.current.world);
           bodies.forEach(body => {
             if (!body.isStatic && body.label?.startsWith('circle-')) {
-              // Reduce vertical velocity less aggressively
+              // Just reduce vertical velocity
               Matter.Body.setVelocity(body, {
                 x: body.velocity.x,
-                y: body.velocity.y * 0.6 // Changed from 0.3 to 0.6
+                y: body.velocity.y * 0.3
               });
             }
           });
 
-          // Add continuous force monitoring for low gravity with faster physics
+          // Add continuous force monitoring for low gravity
           const lowGravityInterval = setInterval(() => {
             if (engineRef.current && flaskState.activeFlaskId === 'LOW_GRAVITY') {
               const bodies = Matter.Composite.allBodies(engineRef.current.world);
               
+              // Find the bottom wall position more accurately
               const bottomWall = bodies.find(body => body.label === 'wall-bottom');
               if (!bottomWall) return;
               
+              // Use the top edge of the bottom wall as the floor
               const floorY = bottomWall.bounds.min.y;
 
               bodies.forEach(body => {
                 if (!body.isStatic && body.label?.startsWith('circle-')) {
-                  // Increased speed cap for faster movement
-                  if (body.velocity.y > 6) { // Increased from 3 to 6
+                  // Higher speed cap for more dramatic bounces
+                  if (body.velocity.y > 3) {
                     Matter.Body.setVelocity(body, {
                       x: body.velocity.x,
-                      y: 6
+                      y: 3
                     });
                   }
                   
-                  // Add stronger bounce boost when hitting the ground
+                  // Add bounce boost when hitting the ground
                   if (body.velocity.y > 0 && body.position.y > floorY) {
                     Matter.Body.setVelocity(body, {
-                      x: body.velocity.x * 0.95, // Slight horizontal damping
-                      y: body.velocity.y * -1.2 // Increased bounce from -0.98 to -1.2
+                      x: body.velocity.x,
+                      y: body.velocity.y * -0.98
                     });
-                  }
-                  
-                  // Add slight random horizontal movement for more dynamic behavior
-                  if (Math.random() < 0.1) { // 10% chance each frame
-                    Matter.Body.applyForce(body, 
-                      body.position, 
-                      { 
-                        x: (Math.random() - 0.5) * 0.0002,
-                        y: 0
-                      }
-                    );
                   }
                 }
               });
@@ -1978,7 +1988,8 @@ export const useMatterJs = (
     spawnStressTestBalls,
     currentBall: currentCircleRef.current as CircleBody | null,
     debug: {
-      fps: fpsRef.current
+      fps: fpsRef.current,
+      isMobile
     }
   };
 }; 
