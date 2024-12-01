@@ -93,6 +93,12 @@ const TARGET_SIMULATION_RATE = 90; // Target 90 FPS simulation rate
 const BASE_TIME_SCALE = 1.0;      // Base time scale for physics
 const MOBILE_GRAVITY_MULTIPLIER = 1.5; // Reduced from 2x to 1.5x
 
+// Add this interface near the top of the file with other interfaces
+interface CustomRunner extends Matter.Runner {
+  lastTime?: number;
+  frameRequestId?: number;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -121,7 +127,7 @@ export const useMatterJs = (
     }
   }));
   const renderRef = useRef<Matter.Render | null>(null);
-  const runnerRef = useRef<Matter.Runner | null>(null);
+  const runnerRef = useRef<CustomRunner | null>(null);
   const currentCircleRef = useRef<Matter.Body | null>(null);
   const isDraggingRef = useRef(false);
   const isFirstSpawnRef = useRef(true);
@@ -869,288 +875,103 @@ export const useMatterJs = (
       });
     });
 
+    // Update the runner configuration effect
+    useEffect(() => {
+      if (!engineRef.current || !renderRef.current) return;
+
+      // Create runner with fixed timestep and cast to CustomRunner
     const runner = Matter.Runner.create({
       isFixed: true,
-      delta: 1000 / 120,
-    });
-    runnerRef.current = runner;
+        delta: 1000 / TARGET_SIMULATION_RATE, // ~11.11ms per step for 90fps
+      }) as CustomRunner;
 
-    // Update engine settings with slightly reduced speed
-    engineRef.current.world.gravity.scale = 0.0009;  // Middle ground between 0.0008 and 0.001
-    engineRef.current.timing.timeScale = 0.9;        // Middle ground between 0.8 and 1.0
-    
-    // Force an initial engine update
-    Matter.Engine.update(engineRef.current, runner.delta);
+      // Store runner reference
+      runnerRef.current = runner as Matter.Runner;
 
-    // Optimize engine settings for better performance
-    engineRef.current.world.gravity.scale = 0.0009;
-    engineRef.current.timing.timeScale = 0.9;
-    
-    // Optimize solver iterations for stability
-    engineRef.current.positionIterations = 8;
-    engineRef.current.velocityIterations = 6;
-    engineRef.current.constraintIterations = 3;
+      // Custom update function to handle timing
+      const updateEngine = () => {
+        if (!engineRef.current) return;
 
-    // Add performance optimizations for the physics bodies
-    const walls = createOptimizedWalls();
-    Matter.Composite.add(engineRef.current.world, walls);
-
-    // Add performance optimization for collision handling
-    let collisionQueue: Array<[CircleBody, CircleBody]> = [];
-    let isProcessingCollisions = false;
-
-    const processCollisionQueue = () => {
-      if (isProcessingCollisions || collisionQueue.length === 0) return;
-      
-      isProcessingCollisions = true;
-      const [bodyA, bodyB] = collisionQueue.shift()!;
-      
-      mergeBodies(bodyA, bodyB);
-      
-      isProcessingCollisions = false;
-      if (collisionQueue.length > 0) {
-        requestAnimationFrame(processCollisionQueue);
-      }
-    };
-
-    const collisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
-      event.pairs.forEach((pair) => {
-        const bodyA = pair.bodyA as CircleBody;
-        const bodyB = pair.bodyB as CircleBody;
+        const now = performance.now();
+        const delta = now - (runner.lastTime || now);
         
-        if (!bodyA.label?.startsWith('circle-') || !bodyB.label?.startsWith('circle-')) {
-          return;
-        }
-
-        // Void ball collision handling
-        if (bodyA.hasBeenDropped && bodyB.hasBeenDropped) {
-          // Check if either ball is a void ball
-          const voidBall = bodyA.isVoidBall ? bodyA : (bodyB.isVoidBall ? bodyB : null);
-          const targetBall = bodyA.isVoidBall ? bodyB : (bodyB.isVoidBall ? bodyA : null);
-
-          if (voidBall && targetBall && !targetBall.isVoidBall) {
-            if (typeof voidBall.deletionsRemaining === 'number' && voidBall.deletionsRemaining > 0) {
-              // Remove the target ball
-              Matter.Composite.remove(engineRef.current.world, targetBall);
-              voidBall.deletionsRemaining--;
-              
-              // Only apply bounce and velocity changes for basic void balls
-              if (!voidBall.isSuperVoid) {
-                Matter.Body.setVelocity(voidBall, {
-                  x: voidBall.velocity.x * POWER_UP_CONFIG.VOID.BASIC.VELOCITY_DAMPING,
-                  y: Math.min(voidBall.velocity.y, POWER_UP_CONFIG.VOID.BASIC.MIN_BOUNCE_Y)
-                });
-              } else {
-                // For super and ultra void balls, maintain downward velocity
-                Matter.Body.setVelocity(voidBall, {
-                  x: 0,
-                  y: voidBall.isSuperVoid ? POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED : POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED
-                });
-              }
-              
-              // Remove void ball if no deletions remaining
-              if (voidBall.deletionsRemaining <= 0) {
-                setTimeout(() => {
-                  if (engineRef.current) {
-                    cleanupBody(voidBall);
-                  }
-                }, 100);
-              }
-            }
-            return;
-          }
-        }
-
-        // Normal merge logic (only if neither ball is a void ball)
-        if (!bodyA.isVoidBall && !bodyB.isVoidBall &&
-            bodyA.hasBeenDropped && bodyB.hasBeenDropped && 
-            !bodyA.isMerging && !bodyB.isMerging) {
-          const tierA = bodyA.tier;
-          const tierB = bodyB.tier;
-
-          if (tierA === tierB && tierA !== undefined && tierA < 12) {
-            collisionQueue.push([bodyA, bodyB]);
-            requestAnimationFrame(processCollisionQueue);
-          }
-        }
-      });
-    };
-
-    // Listen for both collisionStart and collisionActive
-    Matter.Events.on(engineRef.current, 'collisionStart', collisionHandler);
-    Matter.Events.on(engineRef.current, 'collisionActive', collisionHandler);
-
-    // Add before update event handler to check for and wake up falling sleeping bodies
-    const beforeUpdateHandler = () => {
-      if (engineRef.current && containerRef.current) {
-        const bodies = Matter.Composite.allBodies(engineRef.current.world);
+        // Calculate how many steps we need based on elapsed time
+        const targetDelta = 1000 / TARGET_SIMULATION_RATE;
+        const steps = Math.floor(delta / targetDelta);
         
-        bodies.forEach((body) => {
-          const circle = body as CircleBody;
+        // Update engine multiple times if needed to catch up
+        for (let i = 0; i < Math.min(steps, 4); i++) { // Cap at 4 steps to prevent spiral
+          Matter.Engine.update(engineRef.current, targetDelta, BASE_TIME_SCALE);
+        }
+
+        runner.lastTime = now;
+
+        // Request next frame
+        runner.frameRequestId = requestAnimationFrame(updateEngine);
+      };
+
+      // Start the runner
+      runner.frameRequestId = requestAnimationFrame(updateEngine);
+
+      // Cleanup
+      return () => {
+        if (runner.frameRequestId) {
+          cancelAnimationFrame(runner.frameRequestId);
+        }
+      };
+    }, []);
+
+    // Also update the runnerRef type declaration
+    const runnerRef = useRef<CustomRunner | null>(null);
+
+    // ... rest of the code remains the same ...
+
+    // Update FPS monitoring
+    useEffect(() => {
+      let frameCount = 0;
+      let lastTime = performance.now();
+      const fpsUpdateInterval = 1000; // Update every second
+
+      const measureFPS = () => {
+        const currentTime = performance.now();
+        frameCount++;
+
+        if (currentTime - lastTime >= fpsUpdateInterval) {
+          const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+          console.log(`Actual FPS: ${fps}, Target: ${TARGET_SIMULATION_RATE}`);
           
-          // Only check circles that are sleeping and have been dropped
-          if (circle.label?.startsWith('circle-') && 
-              circle.isSleeping && 
-              circle.hasBeenDropped) {
-            
-            // Check if there's any support below this circle
-            const position = circle.position;
-            const radius = circle.circleRadius || 0;
-            
-            // Create a small rectangle below the circle to check for collisions
-            const detector = Matter.Bodies.rectangle(
-              position.x,
-              position.y + radius + 1, // Just below the circle
-              radius * 0.5, // Narrow detector
-              2, // Very thin
-              { isSensor: true }
-            );
-
-            // Check for collisions with the detector
-            const collisions = Matter.Query.collides(detector, bodies);
-            
-            // If no collisions (except with self) or only colliding with other sleeping bodies
-            const hasSupport = collisions.some(collision => {
-              const other = collision.bodyA === detector ? collision.bodyB : collision.bodyA;
-              return other !== circle && 
-                     !other.isSleeping && 
-                     !other.label?.startsWith('danger-zone');
-            });
-
-            // Wake up the circle if it has no support
-            if (!hasSupport) {
-              Matter.Sleeping.set(circle, false);
-              // Add a small downward velocity to ensure it starts moving
-              Matter.Body.setVelocity(circle, {
-                x: circle.velocity.x,
-                y: Math.max(circle.velocity.y, 0.1)
-              });
-            }
-          }
-        });
-      }
-    };
-
+          // Adjust time scale if needed to maintain consistent speed
     if (engineRef.current) {
-      Matter.Events.on(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
-    }
-
-    const POWER_UP_DURATION = 5000; // 5 seconds in milliseconds
-
-    // Update the force interval to handle super heavy balls more effectively
-    const forceInterval = setInterval(() => {
-      if (engineRef.current) {
-        const bodies = Matter.Composite.allBodies(engineRef.current.world);
-        const currentTime = Date.now();
-
-        bodies.forEach((body) => {
-          const circle = body as CircleBody;
-          if (circle.label?.startsWith('circle-') && circle.hasBeenDropped) {
+            const currentTimeScale = engineRef.current.timing.timeScale;
+            const targetTimeScale = TARGET_SIMULATION_RATE / fps * BASE_TIME_SCALE;
             
-            // Check if power-up is active
-            if (circle.powerUpDropTime) {
-              const elapsedTime = currentTime - circle.powerUpDropTime;
-              
-              if (elapsedTime > POWER_UP_DURATION) {
-                // Reset physics properties to defaults from POWER_UP_CONFIG
-                Matter.Body.set(circle, {
-                  density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
-                  friction: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION,
-                  frictionAir: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_AIR,
-                  restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
-                  frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC,
-                  slop: 0.02
-                });
-                circle.isHeavyBall = false;
-                circle.powerUpDropTime = undefined;
-                
-                // Update appearance
-                if (circle.render.sprite) {
-                  const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
-                  circle.render.sprite.texture = createCircleTexture(
-                    visualConfig.color,
-                    visualConfig.strokeColor,
-                    visualConfig.glowColor,
-                    (visualConfig.radius - 1) * 2
-                  );
-                }
-              } 
-              // Apply continuous forces while power-up is active
-              else if (circle.isHeavyBall) {
-                if (circle.velocity.y < 30) { // Increased velocity cap
-                  const activePowerUp = getActivePowerUp(powerUps);
-                  if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: isMobile ? 0.36 : 0.18 }
-                    );
-                    
-                    // Add periodic sideways forces for more dynamic movement
-                    if (Math.random() < 0.1) { // 10% chance each frame
-                      Matter.Body.applyForce(circle,
-                        circle.position,
-                        { 
-                          x: (Math.random() - 0.5) * 0.02,
-                          y: 0
-                        }
-                      );
-                    }
-                  } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: isMobile ? 0.12 : 0.06 }
-                    );
-                    
-                    // Add periodic sideways forces for more dynamic movement
-                    if (Math.random() < 0.1) { // 10% chance each frame
-                      Matter.Body.applyForce(circle,
-                        circle.position,
-                        { 
-                          x: (Math.random() - 0.5) * 0.01,
-                          y: 0
-                        }
-                      );
-                    }
-                  } else if (activePowerUp?.id === 'HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: isMobile ? 0.04 : 0.02 }
-                    );
-                  }
-                }
-              }
-            }
+            // Smoothly adjust time scale
+            engineRef.current.timing.timeScale = currentTimeScale * 0.95 + targetTimeScale * 0.05;
           }
-        });
-      }
-    }, 16); // Run at ~60fps
 
-    Matter.Runner.run(runner, engineRef.current);
-    Matter.Render.run(renderRef.current);
+          frameCount = 0;
+          lastTime = currentTime;
+        }
 
-    return () => {
-      collisionQueue = [];
-      // Clean up both event listeners
-      Matter.Events.off(engineRef.current, 'collisionStart', collisionHandler);
-      Matter.Events.off(engineRef.current, 'collisionActive', collisionHandler);
-      
-      // Add null check before stopping the renderer
-      if (renderRef.current) {
-        Matter.Render.stop(renderRef.current);
+        requestAnimationFrame(measureFPS);
+      };
+
+      const frameId = requestAnimationFrame(measureFPS);
+
+      return () => cancelAnimationFrame(frameId);
+    }, []);
+
+    return {
+      engine: engineRef.current,
+      startDrag,
+      updateDrag,
+      endDrag,
+      spawnStressTestBalls,
+      currentBall: currentCircleRef.current as CircleBody | null,
+      debug: {
+        fps: fpsRef.current,
+        isMobile
       }
-      
-      if (runnerRef.current) {
-        Matter.Runner.stop(runnerRef.current);
-      }
-      
-      Matter.Engine.clear(engineRef.current);
-      renderRef.current?.canvas.remove();
-      runnerRef.current = null;
-      // Add to cleanup
-      if (engineRef.current) {
-        Matter.Events.off(engineRef.current, 'beforeUpdate', beforeUpdateHandler);
-      }
-      clearInterval(forceInterval);
     };
   }, [containerRef, createCircle, mergeBodies, powerUps]);
 
@@ -1985,52 +1806,6 @@ export const useMatterJs = (
       });
     }
   }, [flaskState.activeFlaskId]);
-
-  // Add runner configuration
-  useEffect(() => {
-    if (!engineRef.current || !renderRef.current) return;
-
-    // Create runner with fixed timestep
-    const runner = Matter.Runner.create({
-      isFixed: true,
-      delta: 1000 / TARGET_SIMULATION_RATE, // ~11.11ms per step for 90fps
-    });
-
-    // Store runner reference
-    runnerRef.current = runner;
-
-    // Custom update function to handle timing
-    const updateEngine = () => {
-      if (!engineRef.current) return;
-
-      const now = performance.now();
-      const delta = now - (runner.lastTime || now);
-      
-      // Calculate how many steps we need based on elapsed time
-      const targetDelta = 1000 / TARGET_SIMULATION_RATE;
-      const steps = Math.floor(delta / targetDelta);
-      
-      // Update engine multiple times if needed to catch up
-      for (let i = 0; i < Math.min(steps, 4); i++) { // Cap at 4 steps to prevent spiral
-        Matter.Engine.update(engineRef.current, targetDelta, BASE_TIME_SCALE);
-      }
-
-      runner.lastTime = now;
-
-      // Request next frame
-      runner.frameRequestId = requestAnimationFrame(updateEngine);
-    };
-
-    // Start the runner
-    runner.frameRequestId = requestAnimationFrame(updateEngine);
-
-    // Cleanup
-    return () => {
-      if (runner.frameRequestId) {
-        cancelAnimationFrame(runner.frameRequestId);
-      }
-    };
-  }, []);
 
   // Update FPS monitoring
   useEffect(() => {
