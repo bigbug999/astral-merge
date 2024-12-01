@@ -54,13 +54,13 @@ export const FLASKS: Record<string, Flask> = {
   BOUNCY: {
     id: 'BOUNCY',
     name: 'Super Bounce',
-    description: 'Makes everything extremely bouncy',
+    description: 'Makes everything more bouncy',
     icon: 'BounceIcon',
     physics: {
-      restitution: 0.98,
-      friction: 0.001,
-      density: 0.005,
-      frictionAir: 0.0001
+      restitution: 0.85,
+      friction: 0.003,
+      density: 0.008,
+      frictionAir: 0.0002
     },
     visual: {
       color: '#4ade80',
