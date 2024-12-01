@@ -308,10 +308,9 @@ export const useMatterJs = (
         sprite: {
           texture: texture,
           xScale: 1,
-          yScale: 1,
-          opacity: 1 // Force full opacity
+          yScale: 1
         },
-        opacity: 1 // Backup opacity setting
+        visible: true // Use visible instead of opacity
       },
       label: `circle-${tier}`
     };
@@ -801,7 +800,7 @@ export const useMatterJs = (
         wireframes: false,
         background: 'transparent',
         showSleeping: false, // This disables the opacity change
-        sleepOpacity: 1, // Forces full opacity even for sleeping bodies
+        opacity: 1 // Use opacity at the renderer level
       }
     });
 
