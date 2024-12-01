@@ -297,11 +297,12 @@ export const useMatterJs = (
     
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
-      density: tier === 1 ? 0.025 : 0.02,
-      friction: activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005),
-      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002),
+      // Modified physics for tier 1 balls - increased density and reduced friction
+      density: tier === 1 ? 0.05 : 0.02, // Doubled density for tier 1 (was 0.025)
+      friction: tier === 1 ? 0.001 : (activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005)), // Greatly reduced friction for tier 1
+      frictionAir: tier === 1 ? 0.0001 : (activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)), // Reduced air friction for tier 1
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: isMobile ? 0.04 : 0.02,
+      frictionStatic: tier === 1 ? 0.001 : (isMobile ? 0.04 : 0.02), // Reduced static friction for tier 1
       slop: isMobile ? 0.04 : 0.02,
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
