@@ -39,6 +39,7 @@ interface ExtendedBodyDefinition extends Matter.IBodyDefinition {
   chamfer?: {
     radius: number;
   };
+  render?: ExtendedRenderOptions;
 }
 
 interface CollisionPair extends Matter.Pair {
@@ -80,6 +81,16 @@ const isMobileDevice = () => {
 
 // Near the top of file, add a constant for default slop
 const DEFAULT_SLOP = 0.05;
+
+// Add these interface extensions near the top of the file with the other interfaces
+interface ExtendedSpriteOptions extends Matter.IBodyRenderOptionsSprite {
+  opacity?: number;
+}
+
+interface ExtendedRenderOptions extends Matter.IBodyRenderOptions {
+  sprite?: ExtendedSpriteOptions;
+  opacity?: number;
+}
 
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
@@ -309,7 +320,7 @@ export const useMatterJs = (
           texture: texture,
           xScale: 1,
           yScale: 1,
-          opacity: 1 // Force full opacity
+          opacity: 1 // Now TypeScript knows about this property
         },
         opacity: 1 // Backup opacity setting
       },
