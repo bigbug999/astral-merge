@@ -863,10 +863,9 @@ export const useMatterJs = (
       });
     });
 
-    // Update runner creation with conditional timing for mobile
     const runner = Matter.Runner.create({
       isFixed: true,
-      delta: isMobile ? 1000 / 240 : 1000 / 120, // Double update rate on mobile
+      delta: 1000 / 120,
     });
     runnerRef.current = runner;
 
