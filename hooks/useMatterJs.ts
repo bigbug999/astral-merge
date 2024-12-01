@@ -105,9 +105,9 @@ export const useMatterJs = (
   // Update engine creation with conditional physics based on device
   const engineRef = useRef(Matter.Engine.create({ 
     gravity: { y: isMobile ? 3.5 : 1.75 }, // Double gravity on mobile
-    positionIterations: 8,
-    velocityIterations: 6,
-    constraintIterations: 3,
+    positionIterations: 12,    // Increased from 8 to 12
+    velocityIterations: 8,     // Increased from 6 to 8
+    constraintIterations: 4,   // Increased from 3 to 4
     enableSleeping: true,
     timing: {
       timeScale: isMobile ? 2.7 : 1.35, // Increased from 1.8/0.9 to 2.7/1.35
@@ -1885,8 +1885,8 @@ export const useMatterJs = (
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
     // Reset to default physics
-    engineRef.current.gravity.y = 1.75;
-    engineRef.current.timing.timeScale = 0.9;
+    engineRef.current.gravity.y = isMobile ? 3.5 : 1.75;
+    engineRef.current.timing.timeScale = isMobile ? 2.7 : 1.35;
 
     // Apply flask physics if active
     if (flask?.physics) {
@@ -1899,10 +1899,10 @@ export const useMatterJs = (
           const bodies = Matter.Composite.allBodies(engineRef.current.world);
           bodies.forEach(body => {
             if (!body.isStatic && body.label?.startsWith('circle-')) {
-              // Just reduce vertical velocity
+              // Reduce vertical velocity
               Matter.Body.setVelocity(body, {
                 x: body.velocity.x,
-                y: body.velocity.y * 0.3
+                y: body.velocity.y * 0.8  // Changed from 0.5 to 0.8 for less reduction
               });
             }
           });
@@ -1912,20 +1912,18 @@ export const useMatterJs = (
             if (engineRef.current && flaskState.activeFlaskId === 'LOW_GRAVITY') {
               const bodies = Matter.Composite.allBodies(engineRef.current.world);
               
-              // Find the bottom wall position more accurately
               const bottomWall = bodies.find(body => body.label === 'wall-bottom');
               if (!bottomWall) return;
               
-              // Use the top edge of the bottom wall as the floor
               const floorY = bottomWall.bounds.min.y;
 
               bodies.forEach(body => {
                 if (!body.isStatic && body.label?.startsWith('circle-')) {
-                  // Higher speed cap for more dramatic bounces
-                  if (body.velocity.y > 3) {
+                  // Increase speed cap for more dramatic movement
+                  if (body.velocity.y > 4) {  // Keep the higher speed cap
                     Matter.Body.setVelocity(body, {
                       x: body.velocity.x,
-                      y: 3
+                      y: 4
                     });
                   }
                   
@@ -1933,7 +1931,7 @@ export const useMatterJs = (
                   if (body.velocity.y > 0 && body.position.y > floorY) {
                     Matter.Body.setVelocity(body, {
                       x: body.velocity.x,
-                      y: body.velocity.y * -0.98
+                      y: body.velocity.y * -1.1  // Keep the bounce boost
                     });
                   }
                 }
@@ -1945,35 +1943,24 @@ export const useMatterJs = (
         }
       }
 
+      // Apply other physics properties
       if (flask.physics.timeScale !== undefined) {
         engineRef.current.timing.timeScale = flask.physics.timeScale;
       }
 
-      // Apply to all existing bodies
+      // Apply to all existing bodies with adjusted values
       const bodies = Matter.Composite.allBodies(engineRef.current.world);
       bodies.forEach(body => {
         if (!body.isStatic && body.label?.startsWith('circle-')) {
           Matter.Body.set(body, {
-            friction: flask.physics.friction ?? body.friction,
-            frictionAir: flask.physics.frictionAir ?? body.frictionAir,
-            restitution: flask.physics.restitution ?? body.restitution
-          });
-        }
-      });
-    } else {
-      // Reset all balls to default physics when no flask is active
-      const bodies = Matter.Composite.allBodies(engineRef.current.world);
-      bodies.forEach(body => {
-        if (!body.isStatic && body.label?.startsWith('circle-')) {
-          Matter.Body.set(body, {
-            friction: 0.005,
-            frictionAir: 0.0002,
-            restitution: 0.3
+            friction: (flask.physics.friction ?? body.friction) * 0.8,  // Reduce friction
+            frictionAir: (flask.physics.frictionAir ?? body.frictionAir) * 0.8,  // Reduce air friction
+            restitution: (flask.physics.restitution ?? body.restitution) * 1.2  // Increase bounciness
           });
         }
       });
     }
-  }, [flaskState.activeFlaskId]);
+  }, [flaskState.activeFlaskId, isMobile]);
 
   return {
     engine: engineRef.current,
