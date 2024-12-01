@@ -1913,8 +1913,8 @@ export const useMatterJs = (
         
         // For low gravity, add some special handling
         if (flask.id === 'LOW_GRAVITY') {
-          // Increase the timeScale for faster movement in low gravity
-          engineRef.current.timing.timeScale = 1.5; // Increased from default 1.35
+          // Increase the timeScale significantly for faster movement in low gravity
+          engineRef.current.timing.timeScale = 2.1; // Increased from 1.8 to 2.1 for faster movement
 
           // Add collision handling for ball-to-ball interactions
           const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
@@ -1924,13 +1924,12 @@ export const useMatterJs = (
               
               // Only handle collisions between circles (not walls)
               if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
-                // Calculate collision angle and apply directional bounce
                 const collisionAngle = Math.atan2(
                   bodyB.position.y - bodyA.position.y,
                   bodyB.position.x - bodyA.position.x
                 );
 
-                const bounceForce = 0.05; // Adjust this value to control bounce strength
+                const bounceForce = 0.08; // Increased from 0.05 to 0.08 for stronger bounces
                 
                 // Apply opposite forces to both balls
                 Matter.Body.setVelocity(bodyA, {
@@ -1945,7 +1944,7 @@ export const useMatterJs = (
 
                 // Add a small random component for more interesting bounces
                 const randomAngle = Math.random() * Math.PI * 2;
-                const randomForce = 0.02;
+                const randomForce = 0.03; // Increased from 0.02 to 0.03
 
                 Matter.Body.applyForce(bodyA, bodyA.position, {
                   x: Math.cos(randomAngle) * randomForce,
