@@ -104,13 +104,13 @@ export const useMatterJs = (
 
   // Update engine creation with conditional physics based on device
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: isMobile ? 3.5 : 1.75 }, // Double gravity on mobile
+    gravity: { y: 1.75 }, // Use consistent gravity across devices
     positionIterations: 8,
     velocityIterations: 6,
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: isMobile ? 1.8 : 0.9, // Double timeScale on mobile
+      timeScale: 0.9, // Use consistent timeScale across devices
       timestamp: 0,
     }
   }));
@@ -1076,7 +1076,7 @@ export const useMatterJs = (
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.36 : 0.18 }
+                      { x: 0, y: 0.18 } // Use consistent force for both mobile and desktop
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1092,7 +1092,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.12 : 0.06 }
+                      { x: 0, y: 0.06 } // Use consistent force for both mobile and desktop
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1108,7 +1108,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.04 : 0.02 }
+                      { x: 0, y: 0.02 } // Use consistent force for both mobile and desktop
                     );
                   }
                 }
