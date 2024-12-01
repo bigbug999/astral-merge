@@ -865,9 +865,26 @@ export const useMatterJs = (
 
     const runner = Matter.Runner.create({
       isFixed: true,
-      delta: 1000 / 120,
+      delta: 1000 / 60, // Force 60 FPS
     });
     runnerRef.current = runner;
+
+    // Add FPS limiting
+    let lastFrameTime = performance.now();
+    const targetFrameInterval = 1000 / 60; // Target 60 FPS
+
+    Matter.Events.on(engineRef.current, 'beforeUpdate', () => {
+      const currentTime = performance.now();
+      const timeSinceLastFrame = currentTime - lastFrameTime;
+      
+      if (timeSinceLastFrame < targetFrameInterval) {
+        // Skip frame if we're running too fast
+        Matter.Events.trigger(engineRef.current, 'afterUpdate');
+        return;
+      }
+      
+      lastFrameTime = currentTime;
+    });
 
     // Update engine settings with slightly reduced speed
     engineRef.current.world.gravity.scale = 0.0009;  // Middle ground between 0.0008 and 0.001
@@ -1118,6 +1135,17 @@ export const useMatterJs = (
         });
       }
     }, 16); // Run at ~60fps
+
+    // Override the runner's tick function to limit FPS
+    runner.tick = () => {
+      const currentTime = performance.now();
+      const timeSinceLastFrame = currentTime - lastFrameTime;
+      
+      if (timeSinceLastFrame >= (1000 / 60)) { // Only update if enough time has passed
+        Matter.Engine.update(engineRef.current, runner.delta);
+        lastFrameTime = currentTime;
+      }
+    };
 
     Matter.Runner.run(runner, engineRef.current);
     Matter.Render.run(renderRef.current);
