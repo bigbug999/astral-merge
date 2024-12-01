@@ -647,11 +647,25 @@ export const useMatterJs = (
         });
         onPowerUpEarned?.(3);  // Ultra power-ups earned
       }
+
+      // Add stronger upward boost for low gravity flask
+      if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
+        Matter.Body.setVelocity(newCircle, { 
+          x: randomHorizontal * 1.5, // Slightly stronger horizontal movement
+          y: -3  // Much stronger upward boost (was -1.5)
+        });
+      } else {
+        // Normal merge velocity
+        Matter.Body.setVelocity(newCircle, { 
+          x: randomHorizontal, 
+          y: -1.5
+        });
+      }
     }
 
     onNewTier(newTier);
     logWorldState(engineRef.current, 'After merge');
-  }, [createCircle, onNewTier, powerUps, onPowerUpEarned, cleanupBody]);
+  }, [createCircle, onNewTier, powerUps, onPowerUpEarned, cleanupBody, flaskState.activeFlaskId]);
 
   // Update collision handling
   const processCollisionQueue = useCallback(() => {
@@ -1895,56 +1909,67 @@ export const useMatterJs = (
         
         // For low gravity, add some special handling
         if (flask.id === 'LOW_GRAVITY') {
-          // Apply to all existing bodies
-          const bodies = Matter.Composite.allBodies(engineRef.current.world);
-          bodies.forEach(body => {
-            if (!body.isStatic && body.label?.startsWith('circle-')) {
-              // Reduce vertical velocity
-              Matter.Body.setVelocity(body, {
-                x: body.velocity.x,
-                y: body.velocity.y * 0.8  // Changed from 0.5 to 0.8 for less reduction
-              });
-            }
-          });
+          // Increase the timeScale for faster movement in low gravity
+          engineRef.current.timing.timeScale = 1.5; // Increased from default 1.35
 
-          // Add continuous force monitoring for low gravity
-          const lowGravityInterval = setInterval(() => {
-            if (engineRef.current && flaskState.activeFlaskId === 'LOW_GRAVITY') {
-              const bodies = Matter.Composite.allBodies(engineRef.current.world);
+          // Add collision handling for ball-to-ball interactions
+          const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
+            event.pairs.forEach((pair) => {
+              const bodyA = pair.bodyA as CircleBody;
+              const bodyB = pair.bodyB as CircleBody;
               
-              const bottomWall = bodies.find(body => body.label === 'wall-bottom');
-              if (!bottomWall) return;
-              
-              const floorY = bottomWall.bounds.min.y;
+              // Only handle collisions between circles (not walls)
+              if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
+                // Calculate collision angle and apply directional bounce
+                const collisionAngle = Math.atan2(
+                  bodyB.position.y - bodyA.position.y,
+                  bodyB.position.x - bodyA.position.x
+                );
 
-              bodies.forEach(body => {
-                if (!body.isStatic && body.label?.startsWith('circle-')) {
-                  // Increase speed cap for more dramatic movement
-                  if (body.velocity.y > 4) {  // Keep the higher speed cap
-                    Matter.Body.setVelocity(body, {
-                      x: body.velocity.x,
-                      y: 4
-                    });
-                  }
-                  
-                  // Add bounce boost when hitting the ground
-                  if (body.velocity.y > 0 && body.position.y > floorY) {
-                    Matter.Body.setVelocity(body, {
-                      x: body.velocity.x,
-                      y: body.velocity.y * -1.1  // Keep the bounce boost
-                    });
-                  }
-                }
-              });
+                const bounceForce = 0.05; // Adjust this value to control bounce strength
+                
+                // Apply opposite forces to both balls
+                Matter.Body.setVelocity(bodyA, {
+                  x: bodyA.velocity.x - Math.cos(collisionAngle) * bounceForce,
+                  y: bodyA.velocity.y - Math.sin(collisionAngle) * bounceForce
+                });
+                
+                Matter.Body.setVelocity(bodyB, {
+                  x: bodyB.velocity.x + Math.cos(collisionAngle) * bounceForce,
+                  y: bodyB.velocity.y + Math.sin(collisionAngle) * bounceForce
+                });
+
+                // Add a small random component for more interesting bounces
+                const randomAngle = Math.random() * Math.PI * 2;
+                const randomForce = 0.02;
+
+                Matter.Body.applyForce(bodyA, bodyA.position, {
+                  x: Math.cos(randomAngle) * randomForce,
+                  y: Math.sin(randomAngle) * randomForce
+                });
+
+                Matter.Body.applyForce(bodyB, bodyB.position, {
+                  x: Math.cos(randomAngle + Math.PI) * randomForce,
+                  y: Math.sin(randomAngle + Math.PI) * randomForce
+                });
+              }
+            });
+          };
+
+          // Add the collision listener
+          Matter.Events.on(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+
+          return () => {
+            if (engineRef.current) {
+              Matter.Events.off(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
             }
-          }, 16);
-
-          return () => clearInterval(lowGravityInterval);
+          };
         }
       }
 
-      // Apply other physics properties
-      if (flask.physics.timeScale !== undefined) {
+      // Move this inside the if block but after the LOW_GRAVITY check
+      // so it doesn't override our custom timeScale
+      if (flask.physics.timeScale !== undefined && flask.id !== 'LOW_GRAVITY') {
         engineRef.current.timing.timeScale = flask.physics.timeScale;
       }
 
