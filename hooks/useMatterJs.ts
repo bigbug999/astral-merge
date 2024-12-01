@@ -725,7 +725,8 @@ export const useMatterJs = (
       density: activePowerUp.physics.density || 0,
       velocity: 0,
       force: activePowerUp.effects?.constantForce || 0,
-      timeRemaining: activePowerUp.effects?.duration || 5000
+      timeRemaining: activePowerUp.effects?.duration || 5000,
+      slop: currentSlopRef.current // Add current slop value
     };
   }, []);
 
@@ -771,6 +772,7 @@ export const useMatterJs = (
                   if (circle.powerUpStats) {
                     circle.powerUpStats.velocity = circle.velocity.y;
                     circle.powerUpStats.timeRemaining = duration - elapsedTime;
+                    circle.powerUpStats.slop = currentSlopRef.current; // Add slop update
                   }
                 }
               }
