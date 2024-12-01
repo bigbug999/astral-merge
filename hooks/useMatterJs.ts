@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import Matter from 'matter-js';
 import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
@@ -88,6 +88,38 @@ const isMobileDevice = () => {
   return isMobileUA || isSmallScreen;
 };
 
+// Add this helper function near the top of the file
+const getDeviceRefreshRate = (): Promise<number> => {
+  return new Promise((resolve) => {
+    if ('screen' in window && 'requestAnimationFrame' in window) {
+      let lastTime = performance.now();
+      let frames = 0;
+      let rafId: number;
+
+      const countFrames = (timestamp: number) => {
+        frames++;
+        if (timestamp - lastTime >= 500) { // Measure for 500ms
+          const fps = Math.round((frames * 1000) / (timestamp - lastTime));
+          cancelAnimationFrame(rafId);
+          resolve(fps);
+        } else {
+          rafId = requestAnimationFrame(countFrames);
+        }
+      };
+
+      rafId = requestAnimationFrame(countFrames);
+
+      // Fallback after 1 second
+      setTimeout(() => {
+        cancelAnimationFrame(rafId);
+        resolve(60); // Default to 60Hz if detection fails
+      }, 1000);
+    } else {
+      resolve(60); // Default to 60Hz if API not available
+    }
+  });
+};
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -102,15 +134,28 @@ export const useMatterJs = (
   // Add device detection
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  // Update engine creation with doubled speed for mobile
+  // Add refresh rate state
+  const [refreshRate, setRefreshRate] = useState<number>(60);
+  
+  // Add effect to detect refresh rate on mount
+  useEffect(() => {
+    getDeviceRefreshRate().then(rate => {
+      console.log('Detected refresh rate:', rate);
+      setRefreshRate(rate);
+    });
+  }, []);
+
+  // Update engine creation with conditional physics based on device and refresh rate
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: isMobile ? 7 : 1.75 }, // Doubled from 3.5 to 7
+    gravity: { 
+      y: isMobile ? (refreshRate <= 60 ? 4.67 : 3.5) : 1.75 // 33% faster on 60Hz
+    },
     positionIterations: 8,
     velocityIterations: 6,
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: isMobile ? 3.6 : 0.9, // Doubled from 1.8 to 3.6
+      timeScale: isMobile ? (refreshRate <= 60 ? 2.4 : 1.8) : 0.9, // 33% faster on 60Hz
       timestamp: 0,
     }
   }));
@@ -298,11 +343,11 @@ export const useMatterJs = (
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
-      friction: activeFlask?.physics.friction ?? (isMobile ? 0.02 : 0.005), // Doubled from 0.01
-      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.0008 : 0.0002), // Doubled from 0.0004
+      friction: activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005),
+      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002),
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: isMobile ? 0.08 : 0.02, // Doubled from 0.04
-      slop: isMobile ? 0.08 : 0.02, // Doubled from 0.04
+      frictionStatic: isMobile ? 0.04 : 0.02,
+      slop: isMobile ? 0.04 : 0.02,
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
@@ -746,6 +791,8 @@ export const useMatterJs = (
   useEffect(() => {
     if (!engineRef.current || !containerRef.current) return;
 
+    const updateInterval = isMobile && refreshRate <= 60 ? 12 : 16; // Faster updates on 60Hz
+
     const forceInterval = setInterval(() => {
       if (engineRef.current) {
         const bodies = Matter.Composite.allBodies(engineRef.current.world);
@@ -788,13 +835,33 @@ export const useMatterJs = (
                 }
               }
             }
+
+            // Adjust force multipliers for 60Hz devices
+            if (isMobile && refreshRate <= 60) {
+              if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
+                Matter.Body.applyForce(circle, 
+                  circle.position, 
+                  { x: 0, y: 0.665 } // 33% stronger force
+                );
+              } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
+                Matter.Body.applyForce(circle, 
+                  circle.position, 
+                  { x: 0, y: 0.266 } // 33% stronger force
+                );
+              } else if (activePowerUp?.id === 'HEAVY_BALL') {
+                Matter.Body.applyForce(circle, 
+                  circle.position, 
+                  { x: 0, y: 0.0665 } // 33% stronger force
+                );
+              }
+            }
           }
         });
       }
-    }, 16); // Keep at 60fps
+    }, updateInterval);
 
     return () => clearInterval(forceInterval);
-  }, [powerUps, getActivePowerUp]);
+  }, [powerUps, getActivePowerUp, refreshRate]);
 
   useEffect(() => {
     if (!containerRef.current || !engineRef.current) return;
@@ -1076,7 +1143,7 @@ export const useMatterJs = (
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.72 : 0.18 } // Doubled from 0.36
+                      { x: 0, y: isMobile ? 0.36 : 0.18 }
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1092,7 +1159,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.24 : 0.06 } // Doubled from 0.12
+                      { x: 0, y: isMobile ? 0.12 : 0.06 }
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1108,7 +1175,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.08 : 0.02 } // Doubled from 0.04
+                      { x: 0, y: isMobile ? 0.04 : 0.02 }
                     );
                   }
                 }
@@ -1311,15 +1378,18 @@ export const useMatterJs = (
     circle.hasBeenDropped = true;
     Matter.Sleeping.set(circle, false);
     
-    // Calculate initial drop velocity with special case for low gravity
-    const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.65);
+    // Calculate initial drop velocity with special case for low gravity and 60Hz
+    const baseDropVelocity = engineRef.current.gravity.y * (
+      engineRef.current.timing.timeScale * 
+      (isMobile && refreshRate <= 60 ? 0.865 : 0.65) // Adjusted for 60Hz
+    );
     let initialDropVelocity = activePowerUp 
       ? baseDropVelocity * (activePowerUp.effects?.forceMultiplier || 1)
       : baseDropVelocity;
 
     // Add higher initial velocity for low gravity flask
     if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
-      initialDropVelocity *= isMobile ? 12 : 6; // Doubled from 6x to 12x for mobile
+      initialDropVelocity *= 6; // Increased from 3x to 6x for more dramatic initial drop
     }
     
     // Set initial velocity based on power-up type
@@ -1453,7 +1523,7 @@ export const useMatterJs = (
 
       setTimeout(() => clearInterval(bounceInterval), POWER_UP_CONFIG.VOID.BASIC.BOUNCE_DURATION);
     }
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.activeFlaskId]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.activeFlaskId, refreshRate]);
 
   // Add helper function to get random tier for stress test
   const getRandomStressTestTier = (): TierType => {
@@ -1889,9 +1959,14 @@ export const useMatterJs = (
 
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
-    // Reset to default physics
-    engineRef.current.gravity.y = 1.75;
-    engineRef.current.timing.timeScale = 0.9;
+    // Reset to default physics with 60Hz adjustments
+    engineRef.current.gravity.y = isMobile ? 
+      (refreshRate <= 60 ? 4.67 : 3.5) : 
+      1.75;
+    
+    engineRef.current.timing.timeScale = isMobile ? 
+      (refreshRate <= 60 ? 2.4 : 1.8) : 
+      0.9;
 
     // Apply flask physics if active
     if (flask?.physics) {
@@ -1978,7 +2053,7 @@ export const useMatterJs = (
         }
       });
     }
-  }, [flaskState.activeFlaskId]);
+  }, [flaskState.activeFlaskId, refreshRate]);
 
   return {
     engine: engineRef.current,
@@ -1989,7 +2064,8 @@ export const useMatterJs = (
     currentBall: currentCircleRef.current as CircleBody | null,
     debug: {
       fps: fpsRef.current,
-      isMobile
+      isMobile,
+      refreshRate // Add refresh rate to debug info
     }
   };
 }; 
