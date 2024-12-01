@@ -104,7 +104,7 @@ export const useMatterJs = (
 
   // Update engine creation with conditional physics based on device
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: isMobile ? 2.5 : 1.75 }, // Keep mobile gravity different
+    gravity: { y: 1.75 }, // Single gravity value for all devices
     positionIterations: 12,
     velocityIterations: 8,
     constraintIterations: 4,
@@ -1074,7 +1074,7 @@ export const useMatterJs = (
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.36 : 0.18 }
+                      { x: 0, y: 0.06 }  // Remove mobile-specific value
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1090,7 +1090,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.12 : 0.06 }
+                      { x: 0, y: 0.03 }  // Remove mobile-specific value
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1106,7 +1106,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.04 : 0.02 }
+                      { x: 0, y: 0.02 }  // Remove mobile-specific value
                     );
                   }
                 }
@@ -1885,8 +1885,8 @@ export const useMatterJs = (
     const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
     // Reset to default physics
-    engineRef.current.gravity.y = isMobile ? 2.5 : 1.75;
-    engineRef.current.timing.timeScale = 1.35; // Single timeScale for all devices
+    engineRef.current.gravity.y = 1.75; // Single gravity value for all devices
+    engineRef.current.timing.timeScale = 1.35;
 
     // Apply flask physics if active
     if (flask?.physics) {
