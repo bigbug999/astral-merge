@@ -260,51 +260,48 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Power-up Section - Remove the old preview and score */}
+        {/* Power-up Section */}
         <div className="flex flex-col gap-4">
           {/* Combined Power-ups Row */}
-          <div className="flex items-center gap-1 w-full">
-            {/* All Power-ups in one row */}
-            <div className="flex items-center gap-1 flex-1">
-              {/* Gravity Power-ups */}
-              {getPowerUpsByGroup('GRAVITY').map(powerUp => (
-                <PowerUpButton
-                  key={powerUp.id}
-                  powerUp={powerUp}
-                  isActive={powerUps.activePowerUpId === powerUp.id}
-                  remainingUses={powerUps.powerUps[powerUp.id]}
-                  size="xs"
-                  onClick={() => {
-                    setPowerUps(prev => ({
-                      ...prev,
-                      activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                        (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                    }));
-                  }}
-                />
-              ))}
+          <div className="grid grid-cols-7 gap-2 w-full">
+            {/* Gravity Power-ups */}
+            {getPowerUpsByGroup('GRAVITY').map(powerUp => (
+              <PowerUpButton
+                key={powerUp.id}
+                powerUp={powerUp}
+                isActive={powerUps.activePowerUpId === powerUp.id}
+                remainingUses={powerUps.powerUps[powerUp.id]}
+                onClick={() => {
+                  setPowerUps(prev => ({
+                    ...prev,
+                    activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                      (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                  }));
+                }}
+              />
+            ))}
 
-              {/* Divider between power-up groups */}
-              <div className="h-5 w-px bg-zinc-700 mx-0.5" />
-
-              {/* Void Power-ups */}
-              {getPowerUpsByGroup('VOID').map(powerUp => (
-                <PowerUpButton
-                  key={powerUp.id}
-                  powerUp={powerUp}
-                  isActive={powerUps.activePowerUpId === powerUp.id}
-                  remainingUses={powerUps.powerUps[powerUp.id]}
-                  size="xs"
-                  onClick={() => {
-                    setPowerUps(prev => ({
-                      ...prev,
-                      activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                        (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                    }));
-                  }}
-                />
-              ))}
+            {/* Divider */}
+            <div className="flex items-center justify-center">
+              <div className="h-5 w-px bg-zinc-700" />
             </div>
+
+            {/* Void Power-ups */}
+            {getPowerUpsByGroup('VOID').map(powerUp => (
+              <PowerUpButton
+                key={powerUp.id}
+                powerUp={powerUp}
+                isActive={powerUps.activePowerUpId === powerUp.id}
+                remainingUses={powerUps.powerUps[powerUp.id]}
+                onClick={() => {
+                  setPowerUps(prev => ({
+                    ...prev,
+                    activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
+                      (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
+                  }));
+                }}
+              />
+            ))}
           </div>
 
           {/* Debug UI */}
