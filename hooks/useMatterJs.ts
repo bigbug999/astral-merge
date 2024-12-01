@@ -824,7 +824,28 @@ export const useMatterJs = (
                   // Apply constant force if velocity is below cap
                   if (circle.velocity.y < 30) { // Increased velocity cap
                     const force = activePowerUp.effects?.constantForce || POWER_UP_CONFIG.GRAVITY.HEAVY.CONSTANT_FORCE;
-                    Matter.Body.applyForce(circle, circle.position, { x: 0, y: force });
+                    
+                    // Apply additional force for 60Hz devices
+                    if (isMobile && refreshRate <= 60) {
+                      if (activePowerUp.id === 'ULTRA_HEAVY_BALL') {
+                        Matter.Body.applyForce(circle, 
+                          circle.position, 
+                          { x: 0, y: force * 1.33 } // 33% stronger force
+                        );
+                      } else if (activePowerUp.id === 'SUPER_HEAVY_BALL') {
+                        Matter.Body.applyForce(circle, 
+                          circle.position, 
+                          { x: 0, y: force * 1.33 } // 33% stronger force
+                        );
+                      } else if (activePowerUp.id === 'HEAVY_BALL') {
+                        Matter.Body.applyForce(circle, 
+                          circle.position, 
+                          { x: 0, y: force * 1.33 } // 33% stronger force
+                        );
+                      }
+                    } else {
+                      Matter.Body.applyForce(circle, circle.position, { x: 0, y: force });
+                    }
                   }
                   
                   // Update stats for UI display
@@ -833,26 +854,6 @@ export const useMatterJs = (
                     circle.powerUpStats.timeRemaining = duration - elapsedTime;
                   }
                 }
-              }
-            }
-
-            // Adjust force multipliers for 60Hz devices
-            if (isMobile && refreshRate <= 60) {
-              if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
-                Matter.Body.applyForce(circle, 
-                  circle.position, 
-                  { x: 0, y: 0.665 } // 33% stronger force
-                );
-              } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
-                Matter.Body.applyForce(circle, 
-                  circle.position, 
-                  { x: 0, y: 0.266 } // 33% stronger force
-                );
-              } else if (activePowerUp?.id === 'HEAVY_BALL') {
-                Matter.Body.applyForce(circle, 
-                  circle.position, 
-                  { x: 0, y: 0.0665 } // 33% stronger force
-                );
               }
             }
           }
