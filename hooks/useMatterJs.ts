@@ -808,6 +808,88 @@ export const useMatterJs = (
     return () => clearInterval(forceInterval);
   }, [powerUps, getActivePowerUp]);
 
+  // Move the runner configuration effect to the correct location
+  useEffect(() => {
+    if (!engineRef.current || !renderRef.current) return;
+
+    // Create runner with fixed timestep and cast to CustomRunner
+    const runner = Matter.Runner.create({
+      isFixed: true,
+      delta: 1000 / TARGET_SIMULATION_RATE, // ~11.11ms per step for 90fps
+    }) as CustomRunner;
+
+    // Store runner reference
+    runnerRef.current = runner;
+
+    // Custom update function to handle timing
+    const updateEngine = () => {
+      if (!engineRef.current) return;
+
+      const now = performance.now();
+      const delta = now - (runner.lastTime || now);
+      
+      // Calculate how many steps we need based on elapsed time
+      const targetDelta = 1000 / TARGET_SIMULATION_RATE;
+      const steps = Math.floor(delta / targetDelta);
+      
+      // Update engine multiple times if needed to catch up
+      for (let i = 0; i < Math.min(steps, 4); i++) { // Cap at 4 steps to prevent spiral
+        Matter.Engine.update(engineRef.current, targetDelta, BASE_TIME_SCALE);
+      }
+
+      runner.lastTime = now;
+
+      // Request next frame
+      runner.frameRequestId = requestAnimationFrame(updateEngine);
+    };
+
+    // Start the runner
+    runner.frameRequestId = requestAnimationFrame(updateEngine);
+
+    // Cleanup
+    return () => {
+      if (runner.frameRequestId) {
+        cancelAnimationFrame(runner.frameRequestId);
+      }
+    };
+  }, []);
+
+  // Move the FPS monitoring effect to the correct location
+  useEffect(() => {
+    let frameCount = 0;
+    let lastTime = performance.now();
+    const fpsUpdateInterval = 1000; // Update every second
+
+    const measureFPS = () => {
+      const currentTime = performance.now();
+      frameCount++;
+
+      if (currentTime - lastTime >= fpsUpdateInterval) {
+        const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+        console.log(`Actual FPS: ${fps}, Target: ${TARGET_SIMULATION_RATE}`);
+        
+        // Adjust time scale if needed to maintain consistent speed
+        if (engineRef.current) {
+          const currentTimeScale = engineRef.current.timing.timeScale;
+          const targetTimeScale = TARGET_SIMULATION_RATE / fps * BASE_TIME_SCALE;
+          
+          // Smoothly adjust time scale
+          engineRef.current.timing.timeScale = currentTimeScale * 0.95 + targetTimeScale * 0.05;
+        }
+
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+
+      requestAnimationFrame(measureFPS);
+    };
+
+    const frameId = requestAnimationFrame(measureFPS);
+
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  // Main effect for Matter.js setup
   useEffect(() => {
     if (!containerRef.current || !engineRef.current) return;
 
