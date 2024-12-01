@@ -85,7 +85,7 @@ export default function Home() {
   const [combo, setCombo] = useState(0);
   const [maxTierSeen, setMaxTierSeen] = useState<number>(1);
   const [nextTier, setNextTier] = useState<TierType>(() => getRandomTier(maxTierSeen));
-  const [powerUps, setPowerUps] = useState<PowerUpState>(createInitialPowerUpState());
+  const [powerUps, setPowerUps] = useState<PowerUpState>(createInitialPowerUpState(true));
   const [isGameOver, setIsGameOver] = useState(false);
   const [flaskState, setFlaskState] = useState<FlaskState>(createInitialFlaskState());
 
@@ -139,6 +139,27 @@ export default function Home() {
     // Add any additional game over logic here
   }, []);
 
+  const handlePowerUpEarned = useCallback((level: 1 | 2 | 3) => {
+    setPowerUps(prev => {
+      const newPowerUps = { ...prev.powerUps };
+      
+      // Give one of each power-up at the earned level
+      Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+        if (powerUp.level === level) {
+          newPowerUps[id] = Math.min(
+            (newPowerUps[id] || 0) + 1,
+            powerUp.maxUses
+          );
+        }
+      });
+      
+      return {
+        ...prev,
+        powerUps: newPowerUps
+      };
+    });
+  }, []);
+
   const { 
     startDrag, 
     updateDrag, 
@@ -155,7 +176,8 @@ export default function Home() {
     powerUps,
     handlePowerUpUse,
     handleGameOver,
-    flaskState
+    flaskState,
+    handlePowerUpEarned
   );
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
@@ -203,6 +225,11 @@ export default function Home() {
     // For tiers 9-12, use color directly
     return config.color;
   };
+
+  // Add refill power-ups function
+  const handleRefillPowerUps = useCallback(() => {
+    setPowerUps(createInitialPowerUpState(false));
+  }, []);
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
@@ -313,12 +340,20 @@ export default function Home() {
         </div>
 
         {/* Stress Test Button */}
-        <div className="w-full">
+        <div className="w-full flex flex-col gap-2">
           <button 
             className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
             onClick={() => spawnStressTestBalls(25)}
           >
             Stress Test (Spawn 25 Balls)
+          </button>
+          
+          {/* Add Refill Power-ups Button */}
+          <button 
+            className="w-full p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:text-blue-400 transition-colors"
+            onClick={handleRefillPowerUps}
+          >
+            Refill Power-ups (Debug)
           </button>
         </div>
 

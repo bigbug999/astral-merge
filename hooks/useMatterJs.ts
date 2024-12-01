@@ -613,40 +613,18 @@ export const useMatterJs = (
         }
       }, 50);
 
-      // Handle power-up rewards
-      if (newTier === 5) {
-        // Reward basic power-ups (one of each in the basic tier)
-        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-          if (powerUp.level === 1) {
-            powerUps.powerUps[id] = Math.min(
-              (powerUps.powerUps[id] || 0) + 1,
-              powerUp.maxUses
-            );
-          }
-        });
-        onPowerUpEarned?.(1);  // Basic power-ups earned
-      } else if (newTier === 6) {
-        // Reward super power-ups
-        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-          if (powerUp.level === 2) {
-            powerUps.powerUps[id] = Math.min(
-              (powerUps.powerUps[id] || 0) + 1,
-              powerUp.maxUses
-            );
-          }
-        });
-        onPowerUpEarned?.(2);  // Super power-ups earned
-      } else if (newTier === 7) {
-        // Reward ultra power-ups
-        Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-          if (powerUp.level === 3) {
-            powerUps.powerUps[id] = Math.min(
-              (powerUps.powerUps[id] || 0) + 1,
-              powerUp.maxUses
-            );
-          }
-        });
-        onPowerUpEarned?.(3);  // Ultra power-ups earned
+      // Award power-ups based on specific tiers
+      if (onPowerUpEarned) {
+        if (newTier === 5) {
+          // Tier 5 earns level 1 power-ups
+          onPowerUpEarned(1);
+        } else if (newTier === 6) {
+          // Tier 6 earns level 2 power-ups
+          onPowerUpEarned(2);
+        } else if (newTier === 7) {
+          // Tier 7 earns level 3 power-ups
+          onPowerUpEarned(3);
+        }
       }
 
       // Add stronger upward boost for low gravity flask

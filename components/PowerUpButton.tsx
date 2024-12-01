@@ -1,16 +1,16 @@
 import { cn } from '@/lib/utils';
 import { PowerUp } from '@/types/powerups';
-import { AnvilIcon } from './icons/AnvilIcon';
-import { SuperAnvilIcon } from './icons/SuperAnvilIcon';
-import { UltraAnvilIcon } from './icons/UltraAnvilIcon';
+import { WeightIcon } from './icons/WeightIcon';
+import { SuperWeightIcon } from './icons/SuperWeightIcon';
+import { UltraWeightIcon } from './icons/UltraWeightIcon';
 import { NegativeBallIcon } from './icons/NegativeBallIcon';
 import { SuperNegativeBallIcon } from './icons/SuperNegativeBallIcon';
 import { UltraNegativeBallIcon } from './icons/UltraNegativeBallIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-  AnvilIcon,
-  SuperAnvilIcon,
-  UltraAnvilIcon,
+  WeightIcon,
+  SuperWeightIcon,
+  UltraWeightIcon,
   NegativeBallIcon,
   SuperNegativeBallIcon,
   UltraNegativeBallIcon,
@@ -32,10 +32,10 @@ export function PowerUpButton({ powerUp, isActive, remainingUses, onClick }: Pow
     if (isActive) return 'text-white';
     
     switch (level) {
-      case 1: return 'text-zinc-400 hover:text-zinc-300';
-      case 2: return 'text-amber-400 hover:text-amber-300';
-      case 3: return 'text-fuchsia-400 hover:text-fuchsia-300';
-      default: return 'text-zinc-400 hover:text-zinc-300';
+      case 1: return 'text-green-400 hover:text-green-300';
+      case 2: return 'text-purple-400 hover:text-purple-300';
+      case 3: return 'text-orange-400 hover:text-orange-300';
+      default: return 'text-green-400 hover:text-green-300';
     }
   };
 
@@ -44,10 +44,10 @@ export function PowerUpButton({ powerUp, isActive, remainingUses, onClick }: Pow
     if (isDisabled) return 'bg-zinc-800';
     if (isActive) {
       switch (level) {
-        case 1: return 'bg-zinc-700';
-        case 2: return 'bg-amber-900';
-        case 3: return 'bg-fuchsia-900';
-        default: return 'bg-zinc-700';
+        case 1: return 'bg-green-900';
+        case 2: return 'bg-purple-900';
+        case 3: return 'bg-orange-900';
+        default: return 'bg-green-900';
       }
     }
     return 'bg-zinc-800';

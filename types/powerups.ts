@@ -123,7 +123,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     name: 'Heavy Ball',
     description: 'Makes the ball heavier and fall faster',
     maxUses: 10,
-    icon: 'AnvilIcon',
+    icon: 'WeightIcon',
     group: 'GRAVITY',
     level: 1,
     physics: {
@@ -134,8 +134,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
       frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC,
     },
     visual: {
-      strokeColor: '#ffffff',
-      glowColor: 'rgba(255, 255, 255, 0.3)',
+      strokeColor: '#22c55e',
+      glowColor: 'rgba(34, 197, 94, 0.3)',
     },
     effects: {
       forceMultiplier: POWER_UP_CONFIG.GRAVITY.HEAVY.FORCE_MULTIPLIER,
@@ -148,7 +148,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     name: 'Super Heavy Ball',
     description: 'Makes the ball extremely heavy with devastating impact',
     maxUses: 5,
-    icon: 'SuperAnvilIcon',
+    icon: 'SuperWeightIcon',
     group: 'GRAVITY',
     level: 2,
     physics: {
@@ -159,8 +159,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
       frictionStatic: POWER_UP_CONFIG.GRAVITY.SUPER.FRICTION_STATIC,
     },
     visual: {
-      strokeColor: '#ff0000',
-      glowColor: 'rgba(255, 0, 0, 0.3)',
+      strokeColor: '#a855f7',
+      glowColor: 'rgba(168, 85, 247, 0.3)',
     },
     effects: {
       forceMultiplier: POWER_UP_CONFIG.GRAVITY.SUPER.FORCE_MULTIPLIER,
@@ -173,7 +173,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
     name: 'Ultra Heavy Ball',
     description: 'Creates an incredibly dense ball with maximum impact force',
     maxUses: 3,
-    icon: 'UltraAnvilIcon',
+    icon: 'UltraWeightIcon',
     group: 'GRAVITY',
     level: 3,
     physics: {
@@ -184,8 +184,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
       frictionStatic: POWER_UP_CONFIG.GRAVITY.ULTRA.FRICTION_STATIC,
     },
     visual: {
-      strokeColor: '#ff00ff',
-      glowColor: 'rgba(255, 0, 255, 0.4)',
+      strokeColor: '#f97316',
+      glowColor: 'rgba(249, 115, 22, 0.4)',
     },
     effects: {
       forceMultiplier: POWER_UP_CONFIG.GRAVITY.ULTRA.FORCE_MULTIPLIER,
@@ -283,9 +283,9 @@ export interface PowerUpState {
 }
 
 // Initial state factory
-export const createInitialPowerUpState = (): PowerUpState => ({
+export const createInitialPowerUpState = (startWithZero: boolean = true): PowerUpState => ({
   activePowerUpId: null,
   powerUps: Object.fromEntries(
-    Object.entries(POWER_UPS).map(([id, powerUp]) => [id, powerUp.maxUses])
+    Object.entries(POWER_UPS).map(([id, powerUp]) => [id, startWithZero ? 0 : powerUp.maxUses])
   )
 }); 
