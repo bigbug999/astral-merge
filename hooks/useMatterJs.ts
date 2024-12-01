@@ -799,7 +799,6 @@ export const useMatterJs = (
         wireframes: false,
         background: 'transparent',
         showSleeping: false, // This disables the opacity change
-        sleepOpacity: 1, // Forces full opacity even for sleeping bodies
       }
     });
 
