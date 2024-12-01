@@ -92,6 +92,12 @@ interface ExtendedRenderOptions extends Matter.IBodyRenderOptions {
   opacity?: number;
 }
 
+// Add this interface near the top with the other interfaces
+interface ExtendedRendererOptions extends Matter.IRendererOptions {
+  sleepOpacity?: number;
+  background?: string;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -811,9 +817,9 @@ export const useMatterJs = (
         height,
         wireframes: false,
         background: 'transparent',
-        showSleeping: false, // This disables the opacity change
-        sleepOpacity: 1, // Forces full opacity even for sleeping bodies
-      }
+        showSleeping: false,
+        sleepOpacity: 1, // Now TypeScript knows about this property
+      } as ExtendedRendererOptions
     });
 
     // Add collision handling for walls
