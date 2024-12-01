@@ -102,15 +102,15 @@ export const useMatterJs = (
   // Add device detection
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  // Update engine creation with conditional physics based on device
+  // Update engine creation with increased speed for mobile
   const engineRef = useRef(Matter.Engine.create({ 
-    gravity: { y: isMobile ? 3.5 : 1.75 }, // Double gravity on mobile
+    gravity: { y: isMobile ? 4.66 : 1.75 }, // Increased from 3.5 to 4.66 (~33% faster)
     positionIterations: 8,
     velocityIterations: 6,
     constraintIterations: 3,
     enableSleeping: true,
     timing: {
-      timeScale: isMobile ? 1.8 : 0.9, // Double timeScale on mobile
+      timeScale: isMobile ? 2.4 : 0.9, // Increased from 1.8 to 2.4 (~33% faster)
       timestamp: 0,
     }
   }));
@@ -298,11 +298,11 @@ export const useMatterJs = (
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.025 : 0.02,
-      friction: activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005),
-      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002),
+      friction: activeFlask?.physics.friction ?? (isMobile ? 0.013 : 0.005), // Increased from 0.01
+      frictionAir: activeFlask?.physics.frictionAir ?? (isMobile ? 0.00053 : 0.0002), // Increased from 0.0004
       restitution: activeFlask?.physics.restitution ?? 0.3,
-      frictionStatic: isMobile ? 0.04 : 0.02,
-      slop: isMobile ? 0.04 : 0.02,
+      frictionStatic: isMobile ? 0.053 : 0.02, // Increased from 0.04
+      slop: isMobile ? 0.053 : 0.02, // Increased from 0.04
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
@@ -1076,7 +1076,7 @@ export const useMatterJs = (
                   if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.36 : 0.18 }
+                      { x: 0, y: isMobile ? 0.48 : 0.18 } // Increased from 0.36
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1092,7 +1092,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.12 : 0.06 }
+                      { x: 0, y: isMobile ? 0.16 : 0.06 } // Increased from 0.12
                     );
                     
                     // Add periodic sideways forces for more dynamic movement
@@ -1108,7 +1108,7 @@ export const useMatterJs = (
                   } else if (activePowerUp?.id === 'HEAVY_BALL') {
                     Matter.Body.applyForce(circle, 
                       circle.position, 
-                      { x: 0, y: isMobile ? 0.04 : 0.02 }
+                      { x: 0, y: isMobile ? 0.053 : 0.02 } // Increased from 0.04
                     );
                   }
                 }
@@ -1319,7 +1319,7 @@ export const useMatterJs = (
 
     // Add higher initial velocity for low gravity flask
     if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
-      initialDropVelocity *= 6; // Increased from 3x to 6x for more dramatic initial drop
+      initialDropVelocity *= isMobile ? 8 : 6; // Increased from 6x to 8x for mobile
     }
     
     // Set initial velocity based on power-up type
