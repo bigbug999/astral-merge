@@ -1,17 +1,19 @@
+export interface FlaskPhysics {
+  gravity?: number;
+  timeScale?: number;
+  friction?: number;
+  frictionAir?: number;
+  frictionStatic?: number;
+  restitution?: number;
+  density?: number;
+}
+
 export interface Flask {
   id: FlaskId;
   name: string;
   description: string;
   icon: 'ChemistryFlaskIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon';
-  physics: {
-    gravity?: number;
-    friction?: number;
-    frictionAir?: number;
-    frictionStatic?: number;
-    restitution?: number;
-    timeScale?: number;
-    density?: number;
-  };
+  physics: FlaskPhysics;
   visual: {
     color: string;
     glowColor: string;
@@ -29,7 +31,9 @@ export const FLASKS = {
       timeScale: 1.35,
       friction: 0.01,
       frictionAir: 0.0002,
-      restitution: 0.3
+      restitution: 0.3,
+      frictionStatic: 0.02,
+      density: 0.02
     },
     visual: {
       color: '#a78bfa',
