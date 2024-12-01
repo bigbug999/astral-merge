@@ -63,13 +63,14 @@ export function ColorLegend() {
               <h4 className="text-zinc-400 text-xs font-medium">Mystical Colors (Tiers 1-4)</h4>
               <div className="grid grid-cols-4 gap-3">
                 {Object.entries(MYSTICAL_COLORS).map(([name, colors]) => (
-                  <div key={name} className="flex flex-col items-center gap-2 p-2 bg-zinc-800/50 rounded-lg">
+                  <div key={name} className="flex flex-col items-center gap-2 p-4 bg-zinc-800/50 rounded-lg">
                     <div 
                       className="w-8 h-8 rounded-full border-2"
                       style={{
                         backgroundColor: colors.color,
                         borderColor: colors.strokeColor,
-                        boxShadow: `0 0 10px ${colors.glowColor}`
+                        boxShadow: `0 0 15px 5px ${colors.glowColor}`,
+                        filter: 'blur(0px)',
                       }}
                     />
                     <span className="text-zinc-300 text-xs text-center">
@@ -85,13 +86,14 @@ export function ColorLegend() {
               <h4 className="text-zinc-400 text-xs font-medium">Transition Colors (Tiers 5-7)</h4>
               <div className="grid grid-cols-3 gap-3">
                 {Object.entries(TRANSITION_COLORS).map(([name, colors]) => (
-                  <div key={name} className="flex flex-col items-center gap-2 p-2 bg-zinc-800/50 rounded-lg">
+                  <div key={name} className="flex flex-col items-center gap-2 p-4 bg-zinc-800/50 rounded-lg">
                     <div 
                       className="w-8 h-8 rounded-full border-2"
                       style={{
                         backgroundColor: colors.color,
                         borderColor: colors.strokeColor,
-                        boxShadow: `0 0 10px ${colors.glowColor}`
+                        boxShadow: `0 0 15px 5px ${colors.glowColor}`,
+                        filter: 'blur(0px)',
                       }}
                     />
                     <span className="text-zinc-300 text-xs text-center">
@@ -107,13 +109,14 @@ export function ColorLegend() {
               <h4 className="text-zinc-400 text-xs font-medium">Warm Colors (Tiers 8-12)</h4>
               <div className="grid grid-cols-5 gap-3">
                 {Object.entries(WARM_COLORS).map(([name, colors]) => (
-                  <div key={name} className="flex flex-col items-center gap-2 p-2 bg-zinc-800/50 rounded-lg">
+                  <div key={name} className="flex flex-col items-center gap-2 p-4 bg-zinc-800/50 rounded-lg">
                     <div 
                       className="w-8 h-8 rounded-full border-2"
                       style={{
                         backgroundColor: colors.color,
                         borderColor: colors.strokeColor,
-                        boxShadow: `0 0 10px ${colors.glowColor}`
+                        boxShadow: `0 0 15px 5px ${colors.glowColor}`,
+                        filter: 'blur(0px)',
                       }}
                     />
                     <span className="text-zinc-300 text-xs text-center">
