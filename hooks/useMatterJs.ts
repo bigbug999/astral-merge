@@ -881,15 +881,7 @@ export const useMatterJs = (
     // Remove the direct engine update calls
     // Matter.Engine.update(engineRef.current, runner.delta);
 
-    // Update engine settings with increased speed
-    engineRef.current.world.gravity.scale = 0.0009;  // Keep gravity scale the same
-    engineRef.current.timing.timeScale = 1.35;       // Increase from 0.9 to 1.35 (1.5x faster)
-    
     // Optimize engine settings for better performance
-    engineRef.current.world.gravity.scale = 0.0009;
-    engineRef.current.timing.timeScale = 0.9;
-    
-    // Optimize solver iterations for stability
     engineRef.current.positionIterations = 8;
     engineRef.current.velocityIterations = 6;
     engineRef.current.constraintIterations = 3;
