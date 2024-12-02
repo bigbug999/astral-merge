@@ -101,7 +101,8 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
 // Add this helper function near the top of the file
 const getPixelRatio = () => {
   if (typeof window === 'undefined') return 1;
-  return window.devicePixelRatio || 1;
+  // Cap the pixel ratio at 2 to prevent overly large scaling
+  return Math.min(window.devicePixelRatio || 1, 2);
 };
 
 export const useMatterJs = (
@@ -219,16 +220,19 @@ export const useMatterJs = (
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
+    // Clear any existing transforms
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    
     // Scale all drawing operations
     ctx.scale(pixelRatio, pixelRatio);
     
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;  // Don't scale the blur, keep it consistent
+    ctx.shadowBlur = 15;  // Keep blur consistent
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // Draw circle with glow - use actual coordinates based on size
+    // Draw circle with glow
     ctx.beginPath();
     ctx.arc(actualSize/2, actualSize/2, size/2 - 1, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
@@ -834,20 +838,20 @@ export const useMatterJs = (
         background: 'transparent',
         showSleeping: false,
         sleepOpacity: 1,
-        pixelRatio, // Set pixel ratio for renderer
+        pixelRatio, // Use capped pixel ratio
         hasBounds: true,
         enabled: true
       } as ExtendedRendererOptions
     });
 
-    // Set canvas size properly
+    // Set canvas size
     const canvas = renderRef.current.canvas;
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     canvas.width = Math.floor(width * pixelRatio);
     canvas.height = Math.floor(height * pixelRatio);
 
-    // Update the render context scale
+    // Set the transform once
     const context = canvas.getContext('2d');
     if (context) {
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
