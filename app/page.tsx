@@ -232,7 +232,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
       <div className="w-full max-w-sm flex flex-col gap-4">
         {/* Game Container */}
         <div 
@@ -240,7 +240,7 @@ export default function Home() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className="relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-1"
+          className="relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-1 select-none"
         >
           {/* Ceiling */}
           <div className="absolute top-0 left-0 right-0 h-1" />
@@ -340,9 +340,9 @@ export default function Home() {
         </div>
 
         {/* Stress Test Button */}
-        <div className="w-full flex flex-col gap-2">
+        <div className="w-full flex flex-col gap-2 select-none">
           <button 
-            className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+            className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors select-none"
             onClick={() => spawnStressTestBalls(25)}
           >
             Stress Test (Spawn 25 Balls)
@@ -350,7 +350,7 @@ export default function Home() {
           
           {/* Add Refill Power-ups Button */}
           <button 
-            className="w-full p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:text-blue-400 transition-colors"
+            className="w-full p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:text-blue-400 transition-colors select-none"
             onClick={handleRefillPowerUps}
           >
             Refill Power-ups (Debug)
