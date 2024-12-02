@@ -202,18 +202,12 @@ export const useMatterJs = (
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
-    const devicePixelRatio = window.devicePixelRatio || 1;
     const padding = 8; // Extra space for glow
-    
-    // Scale canvas size by device pixel ratio
-    canvas.width = (size + (padding * 2)) * devicePixelRatio;
-    canvas.height = (size + (padding * 2)) * devicePixelRatio;
+    canvas.width = size + (padding * 2);
+    canvas.height = size + (padding * 2);
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
-
-    // Scale all drawing operations
-    ctx.scale(devicePixelRatio, devicePixelRatio);
 
     // Draw glow
     ctx.shadowColor = glowColor;
@@ -230,11 +224,7 @@ export const useMatterJs = (
     ctx.fill();
     ctx.stroke();
 
-    // Set CSS size to match desired size
-    canvas.style.width = `${size + (padding * 2)}px`;
-    canvas.style.height = `${size + (padding * 2)}px`;
-
-    return canvas.toDataURL('image/png', 1.0); // Use PNG format with max quality
+    return canvas.toDataURL();
   };
 
   // Add this helper function to get active power-up
@@ -829,7 +819,6 @@ export const useMatterJs = (
         background: 'transparent',
         showSleeping: false,
         sleepOpacity: 1, // Now TypeScript knows about this property
-        pixelRatio: window.devicePixelRatio || 1, // Set pixel ratio for render
       } as ExtendedRendererOptions
     });
 
