@@ -98,6 +98,12 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
   background?: string;
 }
 
+// Add this helper function near the top of the file
+const getPixelRatio = () => {
+  if (typeof window === 'undefined') return 1;
+  return window.devicePixelRatio || 1;
+};
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -199,19 +205,25 @@ export const useMatterJs = (
     });
   }, []);
 
-  // Add this helper function to create the circle texture with glow
+  // Update the createCircleTexture function to handle high DPI
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
+    const pixelRatio = getPixelRatio();
     const padding = 8; // Extra space for glow
-    canvas.width = size + (padding * 2);
-    canvas.height = size + (padding * 2);
+    
+    // Scale canvas size by pixel ratio
+    canvas.width = (size + (padding * 2)) * pixelRatio;
+    canvas.height = (size + (padding * 2)) * pixelRatio;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
 
+    // Scale all drawing operations
+    ctx.scale(pixelRatio, pixelRatio);
+    
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 15 * pixelRatio; // Scale blur for high DPI
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
@@ -223,6 +235,10 @@ export const useMatterJs = (
     ctx.lineWidth = 2;
     ctx.fill();
     ctx.stroke();
+
+    // Set canvas display size to match desired size
+    canvas.style.width = `${size + (padding * 2)}px`;
+    canvas.style.height = `${size + (padding * 2)}px`;
 
     return canvas.toDataURL();
   };
@@ -808,7 +824,9 @@ export const useMatterJs = (
     if (!containerRef.current || !engineRef.current) return;
 
     const { width, height } = containerRef.current.getBoundingClientRect();
+    const pixelRatio = getPixelRatio();
 
+    // Create canvas with high DPI support
     renderRef.current = Matter.Render.create({
       element: containerRef.current,
       engine: engineRef.current,
@@ -818,9 +836,27 @@ export const useMatterJs = (
         wireframes: false,
         background: 'transparent',
         showSleeping: false,
-        sleepOpacity: 1, // Now TypeScript knows about this property
+        sleepOpacity: 1,
+        pixelRatio: pixelRatio, // Set pixel ratio for renderer
+        // Add these options for better image quality
+        hasBounds: true,
+        enabled: true,
+        antialias: true
       } as ExtendedRendererOptions
     });
+
+    // Scale the canvas for high DPI displays
+    const canvas = renderRef.current.canvas;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width * pixelRatio;
+    canvas.height = height * pixelRatio;
+    
+    // Scale the context to handle high DPI
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.scale(pixelRatio, pixelRatio);
+    }
 
     // Add collision handling for walls
     Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
@@ -1793,28 +1829,34 @@ export const useMatterJs = (
     };
   }, [cleanupBody]);
 
-  // Add resize handling to properly recreate walls
+  // Update handleResize to handle high DPI
   const handleResize = useCallback(() => {
     if (!engineRef.current || !renderRef.current || !containerRef.current) return;
     
     const { width, height } = containerRef.current.getBoundingClientRect();
-    
-    console.log('Handling resize - updating walls');
-    logWorldState(engineRef.current, 'Before resize');
+    const pixelRatio = getPixelRatio();
     
     // Update render bounds
     renderRef.current.bounds.max.x = width;
     renderRef.current.bounds.max.y = height;
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
-    renderRef.current.canvas.width = width;
-    renderRef.current.canvas.height = height;
+    
+    // Update canvas size with pixel ratio
+    renderRef.current.canvas.style.width = `${width}px`;
+    renderRef.current.canvas.style.height = `${height}px`;
+    renderRef.current.canvas.width = width * pixelRatio;
+    renderRef.current.canvas.height = height * pixelRatio;
+    
+    // Scale the context
+    const context = renderRef.current.canvas.getContext('2d');
+    if (context) {
+      context.scale(pixelRatio, pixelRatio);
+    }
     
     // Recreate walls with new dimensions
     const newWalls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, newWalls);
-    
-    logWorldState(engineRef.current, 'After resize');
   }, [createOptimizedWalls]);
 
   // Update the monitoring effect to better handle the danger zone
