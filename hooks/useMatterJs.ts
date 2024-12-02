@@ -98,13 +98,6 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
   background?: string;
 }
 
-// Add this helper function near the top of the file
-const getPixelRatio = () => {
-  if (typeof window === 'undefined') return 1;
-  // Cap the pixel ratio at 2 to prevent overly large scaling
-  return Math.min(window.devicePixelRatio || 1, 2);
-};
-
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -206,42 +199,42 @@ export const useMatterJs = (
     });
   }, []);
 
-  // Update the createCircleTexture function
+  // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
-    const pixelRatio = getPixelRatio();
+    const devicePixelRatio = window.devicePixelRatio || 1;
     const padding = 8; // Extra space for glow
     
-    // Set the actual size of the canvas
-    const actualSize = size + (padding * 2);
-    canvas.width = actualSize * pixelRatio;
-    canvas.height = actualSize * pixelRatio;
-    
+    // Scale canvas size by device pixel ratio
+    canvas.width = (size + (padding * 2)) * devicePixelRatio;
+    canvas.height = (size + (padding * 2)) * devicePixelRatio;
     const ctx = canvas.getContext('2d');
+    
     if (!ctx) return '';
 
-    // Clear any existing transforms
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    
     // Scale all drawing operations
-    ctx.scale(pixelRatio, pixelRatio);
-    
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;  // Keep blur consistent
+    ctx.shadowBlur = 15;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
     // Draw circle with glow
     ctx.beginPath();
-    ctx.arc(actualSize/2, actualSize/2, size/2 - 1, 0, Math.PI * 2);
+    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
     ctx.fill();
     ctx.stroke();
 
-    return canvas.toDataURL();
+    // Set CSS size to match desired size
+    canvas.style.width = `${size + (padding * 2)}px`;
+    canvas.style.height = `${size + (padding * 2)}px`;
+
+    return canvas.toDataURL('image/png', 1.0); // Use PNG format with max quality
   };
 
   // Add this helper function to get active power-up
@@ -825,9 +818,7 @@ export const useMatterJs = (
     if (!containerRef.current || !engineRef.current) return;
 
     const { width, height } = containerRef.current.getBoundingClientRect();
-    const pixelRatio = getPixelRatio();
 
-    // Create renderer with proper scaling
     renderRef.current = Matter.Render.create({
       element: containerRef.current,
       engine: engineRef.current,
@@ -837,25 +828,10 @@ export const useMatterJs = (
         wireframes: false,
         background: 'transparent',
         showSleeping: false,
-        sleepOpacity: 1,
-        pixelRatio, // Use capped pixel ratio
-        hasBounds: true,
-        enabled: true
+        sleepOpacity: 1, // Now TypeScript knows about this property
+        pixelRatio: window.devicePixelRatio || 1, // Set pixel ratio for render
       } as ExtendedRendererOptions
     });
-
-    // Set canvas size
-    const canvas = renderRef.current.canvas;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    canvas.width = Math.floor(width * pixelRatio);
-    canvas.height = Math.floor(height * pixelRatio);
-
-    // Set the transform once
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    }
 
     // Add collision handling for walls
     Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
@@ -1828,36 +1804,28 @@ export const useMatterJs = (
     };
   }, [cleanupBody]);
 
-  // Update handleResize to handle high DPI
+  // Add resize handling to properly recreate walls
   const handleResize = useCallback(() => {
     if (!engineRef.current || !renderRef.current || !containerRef.current) return;
     
     const { width, height } = containerRef.current.getBoundingClientRect();
-    const pixelRatio = getPixelRatio();
+    
+    console.log('Handling resize - updating walls');
+    logWorldState(engineRef.current, 'Before resize');
     
     // Update render bounds
     renderRef.current.bounds.max.x = width;
     renderRef.current.bounds.max.y = height;
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
-    
-    // Update canvas size
-    const canvas = renderRef.current.canvas;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    canvas.width = Math.floor(width * pixelRatio);
-    canvas.height = Math.floor(height * pixelRatio);
-    
-    // Reset and update the context transform
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); // Set proper scale
-    }
+    renderRef.current.canvas.width = width;
+    renderRef.current.canvas.height = height;
     
     // Recreate walls with new dimensions
     const newWalls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, newWalls);
+    
+    logWorldState(engineRef.current, 'After resize');
   }, [createOptimizedWalls]);
 
   // Update the monitoring effect to better handle the danger zone
