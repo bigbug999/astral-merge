@@ -205,17 +205,18 @@ export const useMatterJs = (
     });
   }, []);
 
-  // Update the createCircleTexture function to handle high DPI
+  // Update the createCircleTexture function
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
     const pixelRatio = getPixelRatio();
     const padding = 8; // Extra space for glow
     
-    // Scale canvas size by pixel ratio
-    canvas.width = (size + (padding * 2)) * pixelRatio;
-    canvas.height = (size + (padding * 2)) * pixelRatio;
-    const ctx = canvas.getContext('2d');
+    // Set the actual size of the canvas
+    const actualSize = size + (padding * 2);
+    canvas.width = actualSize * pixelRatio;
+    canvas.height = actualSize * pixelRatio;
     
+    const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
     // Scale all drawing operations
@@ -223,22 +224,18 @@ export const useMatterJs = (
     
     // Draw glow
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15 * pixelRatio; // Scale blur for high DPI
+    ctx.shadowBlur = 15;  // Don't scale the blur, keep it consistent
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // Draw circle with glow
+    // Draw circle with glow - use actual coordinates based on size
     ctx.beginPath();
-    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
+    ctx.arc(actualSize/2, actualSize/2, size/2 - 1, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
     ctx.fill();
     ctx.stroke();
-
-    // Set canvas display size to match desired size
-    canvas.style.width = `${size + (padding * 2)}px`;
-    canvas.style.height = `${size + (padding * 2)}px`;
 
     return canvas.toDataURL();
   };
@@ -826,7 +823,7 @@ export const useMatterJs = (
     const { width, height } = containerRef.current.getBoundingClientRect();
     const pixelRatio = getPixelRatio();
 
-    // Create canvas with high DPI support
+    // Create renderer with proper scaling
     renderRef.current = Matter.Render.create({
       element: containerRef.current,
       engine: engineRef.current,
@@ -837,25 +834,23 @@ export const useMatterJs = (
         background: 'transparent',
         showSleeping: false,
         sleepOpacity: 1,
-        pixelRatio: pixelRatio, // Set pixel ratio for renderer
-        // Add these options for better image quality
+        pixelRatio, // Set pixel ratio for renderer
         hasBounds: true,
-        enabled: true,
-        antialias: true
+        enabled: true
       } as ExtendedRendererOptions
     });
 
-    // Scale the canvas for high DPI displays
+    // Set canvas size properly
     const canvas = renderRef.current.canvas;
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    canvas.width = width * pixelRatio;
-    canvas.height = height * pixelRatio;
-    
-    // Scale the context to handle high DPI
+    canvas.width = Math.floor(width * pixelRatio);
+    canvas.height = Math.floor(height * pixelRatio);
+
+    // Update the render context scale
     const context = canvas.getContext('2d');
     if (context) {
-      context.scale(pixelRatio, pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     }
 
     // Add collision handling for walls
@@ -1842,16 +1837,18 @@ export const useMatterJs = (
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
     
-    // Update canvas size with pixel ratio
-    renderRef.current.canvas.style.width = `${width}px`;
-    renderRef.current.canvas.style.height = `${height}px`;
-    renderRef.current.canvas.width = width * pixelRatio;
-    renderRef.current.canvas.height = height * pixelRatio;
+    // Update canvas size
+    const canvas = renderRef.current.canvas;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = Math.floor(width * pixelRatio);
+    canvas.height = Math.floor(height * pixelRatio);
     
-    // Scale the context
-    const context = renderRef.current.canvas.getContext('2d');
+    // Reset and update the context transform
+    const context = canvas.getContext('2d');
     if (context) {
-      context.scale(pixelRatio, pixelRatio);
+      context.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); // Set proper scale
     }
     
     // Recreate walls with new dimensions
