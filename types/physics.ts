@@ -21,4 +21,5 @@ export interface CircleBody extends Matter.Body {
   dangerZoneStartTime?: number;
   spawnTime?: number;
   powerUpStats?: PowerUpStats;
+  dropTime?: number;
 } 
