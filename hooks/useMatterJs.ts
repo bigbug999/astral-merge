@@ -1621,6 +1621,8 @@ export const useMatterJs = (
 
   // Modify the danger zone collision detection
   useEffect(() => {
+    if (!engineRef.current) return;
+
     const checkDangerZone = () => {
         const currentTime = Date.now();
         const bodies = Matter.Composite.allBodies(engineRef.current!.world);
@@ -1632,8 +1634,16 @@ export const useMatterJs = (
             
             if (!circle.label?.startsWith('circle-') || !circle.hasBeenDropped) return;
             
-            // Check if circle has been in play long enough
-            if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
+            // Only start grace period when ball is dropped, not when spawned
+            if (!circle.dropTime) {
+                if (circle.hasBeenDropped) {
+                    circle.dropTime = currentTime;
+                }
+                return;
+            }
+
+            // Check if circle has been dropped long enough
+            if (currentTime - circle.dropTime < DANGER_ZONE_GRACE_PERIOD) return;
 
             // Only consider balls within the visible container
             const isAboveContainer = circle.position.y < 0;
@@ -1666,14 +1676,14 @@ export const useMatterJs = (
         }
     };
 
-    Matter.Events.on(engineRef.current!, 'beforeUpdate', checkDangerZone);
+    Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
 
     return () => {
         if (engineRef.current) {
             Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
         }
     };
-}, [onGameOver, updateDangerZoneAppearance]);
+}, [onGameOver]);
 
   // Update collision detection for super void balls
   useEffect(() => {
