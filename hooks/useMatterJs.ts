@@ -433,13 +433,14 @@ export const useMatterJs = (
     const existingWalls = Matter.Composite.allBodies(engineRef.current.world)
         .filter(body => body.isStatic && body.label?.includes('wall-'));
     
-    console.log('Removing existing walls:', existingWalls.map(w => w.label));
     existingWalls.forEach(wall => {
         Matter.Composite.remove(engineRef.current!.world, wall);
     });
     
     const { width, height } = renderRef.current.canvas;
     const wallThickness = 60;
+    const extraHeight = height * 0.5; // Add 50% more height above the visible container
+    
     const wallOptions = {
         isStatic: true,
         restitution: 0.5,
@@ -455,15 +456,22 @@ export const useMatterJs = (
     };
 
     const walls = [
+        // Add ceiling wall higher up
+        Matter.Bodies.rectangle(width / 2, -extraHeight - wallThickness / 2, width, wallThickness, {
+            ...wallOptions,
+            label: 'wall-top'
+        }),
+        // Bottom wall stays the same
         Matter.Bodies.rectangle(width / 2, height + (wallThickness / 2), width, wallThickness, {
             ...wallOptions,
             label: 'wall-bottom'
         }),
-        Matter.Bodies.rectangle(-wallThickness / 2, height / 2, wallThickness, height * 2, {
+        // Extend side walls to reach the higher ceiling
+        Matter.Bodies.rectangle(-wallThickness / 2, (height - extraHeight) / 2, wallThickness, height + extraHeight, {
             ...wallOptions,
             label: 'wall-left'
         }),
-        Matter.Bodies.rectangle(width + (wallThickness / 2), height / 2, wallThickness, height * 2, {
+        Matter.Bodies.rectangle(width + (wallThickness / 2), (height - extraHeight) / 2, wallThickness, height + extraHeight, {
             ...wallOptions,
             label: 'wall-right'
         })
@@ -472,9 +480,8 @@ export const useMatterJs = (
     // Store new walls reference
     wallBodiesRef.current = walls;
     
-    console.log('Created new walls:', walls.map(w => w.label));
     return walls;
-  }, []);
+}, []);
 
   // Add cleanup for walls in component unmount
   useEffect(() => {
@@ -1614,65 +1621,59 @@ export const useMatterJs = (
 
   // Modify the danger zone collision detection
   useEffect(() => {
-    if (!engineRef.current || !dangerZoneRef.current) return;
-
     const checkDangerZone = () => {
-      const currentTime = Date.now();
-      const bodies = Matter.Composite.allBodies(engineRef.current!.world);
-      let isAnyCircleInDanger = false;
-      let minTimeRemaining = DANGER_ZONE_TIMEOUT;
-      
-      bodies.forEach(body => {
-        const circle = body as CircleBody;
+        const currentTime = Date.now();
+        const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+        let isAnyCircleInDanger = false;
+        let minTimeRemaining = DANGER_ZONE_TIMEOUT;
         
-        if (!circle.label?.startsWith('circle-') || !circle.hasBeenDropped) return;
-        
-        // Check if circle has been in play long enough
-        if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
+        bodies.forEach(body => {
+            const circle = body as CircleBody;
+            
+            if (!circle.label?.startsWith('circle-') || !circle.hasBeenDropped) return;
+            
+            // Check if circle has been in play long enough
+            if (!circle.spawnTime || currentTime - circle.spawnTime < DANGER_ZONE_GRACE_PERIOD) return;
 
-        // Check if ball has exited from the top
-        if (circle.position.y < -50) { // Delete if ball is well above the container
-          Matter.Composite.remove(engineRef.current!.world, circle);
-          return;
+            // Only consider balls within the visible container
+            const isAboveContainer = circle.position.y < 0;
+            const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT && !isAboveContainer;
+            
+            if (isInDangerZone && !circle.inDangerZone) {
+                circle.inDangerZone = true;
+                circle.dangerZoneStartTime = currentTime;
+            } else if (!isInDangerZone && circle.inDangerZone) {
+                circle.inDangerZone = false;
+                circle.dangerZoneStartTime = undefined;
+            } else if (isInDangerZone && circle.inDangerZone && circle.dangerZoneStartTime) {
+                const timeInZone = currentTime - circle.dangerZoneStartTime;
+                const timeRemaining = DANGER_ZONE_TIMEOUT - timeInZone;
+                
+                if (timeRemaining <= 0) {
+                    onGameOver();
+                    Matter.Events.off(engineRef.current!, 'beforeUpdate', checkDangerZone);
+                    return;
+                }
+                
+                isAnyCircleInDanger = true;
+                minTimeRemaining = Math.min(minTimeRemaining, timeRemaining);
+            }
+        });
+
+        // Update danger zone appearance
+        if (dangerZoneRef.current) {
+            updateDangerZoneAppearance(isAnyCircleInDanger, minTimeRemaining);
         }
-
-        const isInDangerZone = circle.position.y < DANGER_ZONE_HEIGHT;
-        
-        if (isInDangerZone && !circle.inDangerZone) {
-          circle.inDangerZone = true;
-          circle.dangerZoneStartTime = currentTime;
-        } else if (!isInDangerZone && circle.inDangerZone) {
-          circle.inDangerZone = false;
-          circle.dangerZoneStartTime = undefined;
-        } else if (isInDangerZone && circle.inDangerZone && circle.dangerZoneStartTime) {
-          const timeInZone = currentTime - circle.dangerZoneStartTime;
-          const timeRemaining = DANGER_ZONE_TIMEOUT - timeInZone;
-          
-          if (timeRemaining <= 0) {
-            onGameOver();
-            Matter.Events.off(engineRef.current!, 'beforeUpdate', checkDangerZone);
-            return;
-          }
-          
-          isAnyCircleInDanger = true;
-          minTimeRemaining = Math.min(minTimeRemaining, timeRemaining);
-        }
-      });
-
-      // Update danger zone appearance
-      if (dangerZoneRef.current) {
-        updateDangerZoneAppearance(isAnyCircleInDanger, minTimeRemaining);
-      }
     };
 
-    Matter.Events.on(engineRef.current, 'beforeUpdate', checkDangerZone);
+    Matter.Events.on(engineRef.current!, 'beforeUpdate', checkDangerZone);
 
     return () => {
-      if (engineRef.current) {
-        Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
-      }
+        if (engineRef.current) {
+            Matter.Events.off(engineRef.current, 'beforeUpdate', checkDangerZone);
+        }
     };
-  }, [onGameOver, updateDangerZoneAppearance]);
+}, [onGameOver, updateDangerZoneAppearance]);
 
   // Update collision detection for super void balls
   useEffect(() => {
@@ -1837,38 +1838,27 @@ export const useMatterJs = (
                 console.log('Static bodies debug:', staticBodiesDebug);
             }
 
-            // Only look for wall bodies, with more explicit checks
+            // Update wall body check to include top wall
             const wallBodies = bodies.filter(body => {
                 const isWall = body.label?.includes('wall-');
                 const isCurrentBall = body === currentCircleRef.current;
                 const isDangerZone = body === dangerZoneRef.current;
                 const isInOriginalWalls = wallBodiesRef.current?.includes(body);
 
-                // Debug individual body if it's static
-                if (body.isStatic) {
-                    console.log('Static body check:', {
-                        label: body.label,
-                        isWall,
-                        isCurrentBall,
-                        isDangerZone,
-                        isInOriginalWalls
-                    });
-                }
-
                 return body.isStatic && 
                        isWall && 
                        !isCurrentBall && 
                        !isDangerZone;
             });
-            
-            if (wallBodies.length > 3) {
+
+            // Update maximum wall count to 4 (including ceiling)
+            if (wallBodies.length > 4) {
                 console.warn('Extra wall bodies detected:', {
                     totalWalls: wallBodies.length,
                     originalWalls: wallBodiesRef.current?.length || 0,
                     labels: wallBodies.map(b => b.label)
                 });
                 
-                // Only remove walls that aren't in our original set
                 wallBodies.forEach(body => {
                     if (!wallBodiesRef.current?.includes(body)) {
                         console.log('Removing extra wall:', {
@@ -1886,7 +1876,7 @@ export const useMatterJs = (
         } catch (error) {
             console.error('Error in wall body monitoring:', error);
         }
-    }, 1000);
+    }, 1000); // Check every second
 
     return () => clearInterval(monitorInterval);
   }, []);
