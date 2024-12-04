@@ -23,4 +23,5 @@ export interface CircleBody extends Matter.Body {
   powerUpStats?: PowerUpStats;
   dropTime?: number;
   isSpawnedBall?: boolean;
+  isScaled?: boolean;
 } 

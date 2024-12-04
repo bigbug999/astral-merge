@@ -238,7 +238,13 @@ export const useMatterJs = (
     
     const circle = currentCircleRef.current as CircleBody;
     const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
-    const visualRadius = (visualConfig.radius - 1);
+    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    
+    // Apply the same scaling logic as createCircle
+    const scale = (activeFlask?.id === 'SHRINK' || circle.isScaled) ? 0.75 : 1;
+    const baseVisualRadius = visualConfig.radius - 1;
+    const visualRadius = baseVisualRadius * scale;
+    
     const activePowerUp = getActivePowerUp(powerUps);
 
     // Update the ball's appearance based on active power-up
@@ -247,10 +253,10 @@ export const useMatterJs = (
         visualConfig.color,
         activePowerUp?.visual.strokeColor || visualConfig.strokeColor,
         activePowerUp?.visual.glowColor || visualConfig.glowColor,
-        visualRadius * 2
+        visualRadius * 2  // Use scaled radius
       );
     }
-  }, [powerUps, getActivePowerUp]);
+  }, [powerUps, getActivePowerUp, flaskState.activeFlaskId]);
 
   // Add effect to update appearance when power-ups change
   useEffect(() => {
@@ -290,24 +296,29 @@ export const useMatterJs = (
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
     y: number,
-    isStressTest: boolean = false
+    isStressTest: boolean = false,
+    forceScale?: boolean
   ) => {
     if (!renderRef.current || !engineRef.current) return null;
 
     const visualConfig = CIRCLE_CONFIG[tier];
     const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
-    // Apply scaling if shrink flask is active
-    const scale = activeFlask?.id === 'SHRINK' ? 0.75 : 1;
+    // Apply scaling if either the flask is active or scaling is forced
+    const shouldScale = forceScale || activeFlask?.id === 'SHRINK';
+    const scale = shouldScale ? 0.75 : 1;
     const collisionRadius = visualConfig.radius * scale;
-    const visualRadius = (visualConfig.radius - 1) * scale;
     
-    // Create texture with scaled visuals
+    // Ensure visual radius is calculated after scaling
+    const baseVisualRadius = visualConfig.radius - 1;
+    const visualRadius = baseVisualRadius * scale;
+    
+    // Create texture with scaled visuals - ensure we're using the scaled radius
     const texture = createCircleTexture(
       visualConfig.color,
       visualConfig.strokeColor,
       visualConfig.glowColor,
-      visualRadius * 2
+      visualRadius * 2  // This ensures the texture matches the physical size
     );
 
     // Set up options including flask physics if active
@@ -337,6 +348,9 @@ export const useMatterJs = (
 
     // Create circle with scaled radius
     const circle = Matter.Bodies.circle(x, y, collisionRadius, circleOptions) as CircleBody;
+    
+    // Mark the circle as scaled if scaling was applied
+    circle.isScaled = shouldScale;
     
     // Set basic circle properties
     circle.isMerging = false;
@@ -368,7 +382,7 @@ export const useMatterJs = (
     circle.hasBeenDropped = isStressTest;  // Stress test balls are considered dropped immediately
     
     return circle;
-  }, [flaskState.activeFlaskId, isMobile]);
+  }, [flaskState.activeFlaskId, createCircleTexture]);
 
   // Add a ref to track wall bodies
   const wallBodiesRef = useRef<Matter.Body[]>([]);
@@ -603,15 +617,13 @@ export const useMatterJs = (
     cleanupBody(bodyA);
     cleanupBody(bodyB);
     
-    // Create new merged circle
-    const newCircle = createCircle(newTier, midX, midY);
-    
-    // Restore original power-up state
-    powerUps.activePowerUpId = currentPowerUpId;
+    // Create new merged circle with forced scaling if either original was scaled
+    const shouldForceScale = bodyA.isScaled || bodyB.isScaled;
+    const newCircle = createCircle(newTier, midX, midY, false, shouldForceScale);
     
     if (newCircle) {
-      console.log(`Created new merged circle: Tier ${newTier}`);
-      (newCircle as CircleBody).hasBeenDropped = true;
+      console.log(`Created new merged circle: Tier ${newTier}, Scaled: ${newCircle.isScaled}`);
+      newCircle.hasBeenDropped = true;
       
       // Reduce the upward boost and add slight random horizontal movement
       const randomHorizontal = (Math.random() - 0.5) * 0.5;
