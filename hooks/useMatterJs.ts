@@ -290,15 +290,19 @@ export const useMatterJs = (
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
     y: number,
-    isStressTest: boolean = false  // Add this parameter
+    isStressTest: boolean = false
   ) => {
     if (!renderRef.current || !engineRef.current) return null;
 
     const visualConfig = CIRCLE_CONFIG[tier];
-    const collisionRadius = visualConfig.radius;
-    const visualRadius = collisionRadius - 1;
+    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
     
-    // Create texture with default visuals (no power-up effects)
+    // Apply scaling if shrink flask is active
+    const scale = activeFlask?.id === 'SHRINK' ? 0.75 : 1;
+    const collisionRadius = visualConfig.radius * scale;
+    const visualRadius = (visualConfig.radius - 1) * scale;
+    
+    // Create texture with scaled visuals
     const texture = createCircleTexture(
       visualConfig.color,
       visualConfig.strokeColor,
@@ -306,9 +310,6 @@ export const useMatterJs = (
       visualRadius * 2
     );
 
-    // Get active flask and its physics properties
-    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
-    
     // Set up options including flask physics if active
     const circleOptions: ExtendedBodyDefinition = {
       density: tier === 1 ? 0.05 : 0.02,
@@ -319,29 +320,24 @@ export const useMatterJs = (
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
-        category: isStressTest ? 0x0001 : 0x0002, // Regular category for stress test, spawn category otherwise
-        mask: isStressTest ? 0xFFFFFFFF : 0x0004  // Full collisions for stress test, walls only otherwise
+        category: isStressTest ? 0x0001 : 0x0002,
+        mask: isStressTest ? 0xFFFFFFFF : 0x0004
       },
       render: {
         sprite: {
           texture: texture,
           xScale: 1,
           yScale: 1,
-          opacity: 1 // Now TypeScript knows about this property
+          opacity: 1
         },
-        opacity: 1 // Backup opacity setting
+        opacity: 1
       },
       label: `circle-${tier}`
     };
 
-    // Add chamfer for larger circles
-    if (tier >= 8) {
-      circleOptions.chamfer = { radius: collisionRadius * 0.1 };
-    }
-
-    // Create circle with all options
+    // Create circle with scaled radius
     const circle = Matter.Bodies.circle(x, y, collisionRadius, circleOptions) as CircleBody;
-
+    
     // Set basic circle properties
     circle.isMerging = false;
     circle.tier = tier;

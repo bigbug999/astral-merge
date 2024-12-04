@@ -6,14 +6,14 @@ import { FlaskConicalIcon } from './icons/FlaskConicalIcon';
 import { FlaskIcon } from './icons/FlaskIcon';
 import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
-import { BounceIcon } from './icons/BounceIcon';
+import { ShrinkIcon } from './icons/ShrinkIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   FlaskConicalIcon,
   FlaskIcon,
   FeatherIcon,
   SparklesIcon,
-  BounceIcon,
+  ShrinkIcon,
 };
 
 interface FlaskDropdownProps {
@@ -102,7 +102,7 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
                   "hover:bg-zinc-700/50 transition-colors",
                   "group",
                   flask.id === 'DEFAULT' && "rounded-t-[6px]",
-                  flask.id === 'BOUNCY' && "rounded-b-[6px]",
+                  flask.id === 'SHRINK' && "rounded-b-[6px]",
                   flask.id === (value || 'DEFAULT') && "bg-zinc-700"
                 )}
               >

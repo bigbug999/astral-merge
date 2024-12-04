@@ -6,13 +6,14 @@ export interface FlaskPhysics {
   frictionStatic?: number;
   restitution?: number;
   density?: number;
+  scale?: number;
 }
 
 export interface Flask {
   id: FlaskId;
   name: string;
   description: string;
-  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon';
+  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon';
   physics: FlaskPhysics;
   visual: {
     color: string;
@@ -78,19 +79,20 @@ export const FLASKS = {
       glowColor: 'rgba(96, 165, 250, 0.5)'
     }
   },
-  BOUNCY: {
-    id: 'BOUNCY',
-    name: 'Super Bounce',
-    description: 'Makes everything more bouncy',
-    icon: 'BounceIcon',
+  SHRINK: {
+    id: 'SHRINK',
+    name: 'Large Flask',
+    description: 'Makes all balls 25% smaller',
+    icon: 'ShrinkIcon',
     physics: {
       gravity: 1.75,
       timeScale: 1.35,
-      friction: 0.003,
+      friction: 0.01,
       frictionAir: 0.0002,
       frictionStatic: 0.02,
-      restitution: 0.85,
-      density: 0.008
+      restitution: 0.3,
+      density: 0.02,
+      scale: 0.75
     },
     visual: {
       color: '#4ade80',
@@ -99,7 +101,7 @@ export const FLASKS = {
   }
 } as const;
 
-export type FlaskId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'BOUNCY';
+export type FlaskId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'SHRINK';
 
 export interface FlaskState {
   activeFlaskId: FlaskId | null;
