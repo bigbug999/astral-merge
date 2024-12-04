@@ -415,11 +415,10 @@ export const useMatterJs = (
     circle.hasBeenDropped = isStressTest;  // Stress test balls are considered dropped immediately
     
     // Set the circle's bounds to account for the glow
-    const bounds = {
-      min: { x: -collisionRadius - 16, y: -collisionRadius - 16 },
-      max: { x: collisionRadius + 16, y: collisionRadius + 16 }
+    circle.bounds = {
+      min: { x: circle.position.x - collisionRadius - 16, y: circle.position.y - collisionRadius - 16 },
+      max: { x: circle.position.x + collisionRadius + 16, y: circle.position.y + collisionRadius + 16 }
     };
-    Matter.Body.setBounds(circle, bounds);
     
     return circle;
   }, [flaskState.activeFlaskId, createCircleTexture]);
