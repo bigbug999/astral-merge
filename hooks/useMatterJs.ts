@@ -268,7 +268,7 @@ export const useMatterJs = (
     if (!circle) return;
     
     circle.isVoidBall = true;
-    circle.isSuperVoid = powerUp.level > 1;
+    circle.isSuperVoid = powerUp.id === 'SUPER_VOID_BALL' || powerUp.id === 'ULTRA_VOID_BALL';
     
     let config;
     if (powerUp.id === 'SUPER_VOID_BALL') {
@@ -287,7 +287,8 @@ export const useMatterJs = (
       friction: powerUp.physics.friction || circle.friction,
       frictionAir: powerUp.physics.frictionAir || circle.frictionAir,
       restitution: powerUp.physics.restitution || circle.restitution,
-      frictionStatic: powerUp.physics.frictionStatic || circle.frictionStatic
+      frictionStatic: powerUp.physics.frictionStatic || circle.frictionStatic,
+      isSensor: config.IS_SENSOR // This will be true for SUPER and ULTRA
     });
   }, []);
 
@@ -1322,12 +1323,12 @@ export const useMatterJs = (
     Matter.Body.set(circle, {
       collisionFilter: {
         group: 0,
-        category: 0x0001,    // Regular category
-        mask: 0xFFFFFFFF     // Collide with everything
+        category: 0x0001,
+        mask: 0xFFFFFFFF
       }
     });
     
-    circle.isSpawnedBall = false;  // No longer a spawned ball
+    circle.isSpawnedBall = false;
     
     const activePowerUp = getActivePowerUp(powerUps);
     
@@ -1346,12 +1347,24 @@ export const useMatterJs = (
         );
       }
 
-      // Apply physics properties
-      if (activePowerUp.group === 'GRAVITY') {
-        applyGravityPowerUp(circle, activePowerUp);
-      } else if (activePowerUp.group === 'VOID') {
+      // Apply physics properties based on power-up type
+      if (activePowerUp.group === 'VOID') {
         applyVoidPowerUp(circle, activePowerUp);
+        
+        // Special handling for super/ultra void balls
+        if (activePowerUp.id === 'SUPER_VOID_BALL' || activePowerUp.id === 'ULTRA_VOID_BALL') {
+          Matter.Body.set(circle, {
+            isSensor: true,
+            collisionFilter: {
+              category: 0x0002,
+              mask: 0x0004  // Only collide with walls
+            }
+          });
+        }
+      } else if (activePowerUp.group === 'GRAVITY') {
+        applyGravityPowerUp(circle, activePowerUp);
       }
+      
       onPowerUpUse();
     }
 
@@ -1721,58 +1734,60 @@ export const useMatterJs = (
       if (!engineRef.current) return;
       
       const bodies = Matter.Composite.allBodies(engineRef.current.world);
-      console.log(`Total bodies in world: ${bodies.length}`);
       
       const voidBalls = bodies.filter(body => {
         const circle = body as CircleBody;
         return circle.isVoidBall && circle.deletionsRemaining && circle.deletionsRemaining > 0;
       }) as CircleBody[];
-      
-      if (voidBalls.length > 0) {
-        console.log(`Active void balls: ${voidBalls.length}`);
-      }
 
       voidBalls.forEach(voidBall => {
-        // Check if ball is either Super or Ultra void ball
-        if (voidBall.isSuperVoid) {
-          const bounds = Matter.Bounds.create([
-            { x: voidBall.position.x - voidBall.circleRadius!, y: voidBall.position.y - voidBall.circleRadius! },
-            { x: voidBall.position.x + voidBall.circleRadius!, y: voidBall.position.y + voidBall.circleRadius! }
-          ]);
+        // Only handle super/ultra void balls here
+        if (!voidBall.isSuperVoid) return;
+
+        // Set velocity to maintain constant downward motion
+        const speed = voidBall.deletionsRemaining === POWER_UP_CONFIG.VOID.ULTRA.DELETIONS
+          ? POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED
+          : POWER_UP_CONFIG.VOID.SUPER.INITIAL_SPEED;
+
+        Matter.Body.setVelocity(voidBall, {
+          x: 0,
+          y: speed
+        });
+
+        const bounds = Matter.Bounds.create([
+          { x: voidBall.position.x - voidBall.circleRadius!, y: voidBall.position.y - voidBall.circleRadius! },
+          { x: voidBall.position.x + voidBall.circleRadius!, y: voidBall.position.y + voidBall.circleRadius! }
+        ]);
+        
+        const overlappingBodies = Matter.Query.region(bodies, bounds);
+        overlappingBodies.forEach(otherBody => {
+          const other = otherBody as CircleBody;
+          const currentTime = Date.now();
           
-          const overlappingBodies = Matter.Query.region(bodies, bounds);
-          overlappingBodies.forEach(otherBody => {
-            const other = otherBody as CircleBody;
-            const currentTime = Date.now();
+          const isProtected = other.spawnTime && 
+            (currentTime - other.spawnTime < POWER_UP_CONFIG.SPAWN_PROTECTION_TIME);
+
+          const isUltraVoid = voidBall.deletionsRemaining === POWER_UP_CONFIG.VOID.ULTRA.DELETIONS;
+
+          if (other !== voidBall && 
+              other.label?.startsWith('circle-') && 
+              !other.isVoidBall && 
+              !other.isMerging &&
+              !isProtected && 
+              Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
             
-            // Add spawn protection check
-            const isProtected = other.spawnTime && 
-              (currentTime - other.spawnTime < POWER_UP_CONFIG.SPAWN_PROTECTION_TIME);
-
-            // Check if this is an Ultra void ball
-            const isUltraVoid = voidBall.deletionsRemaining === POWER_UP_CONFIG.VOID.ULTRA.DELETIONS;
-
-            if (other !== voidBall && 
-                other.label?.startsWith('circle-') && 
-                !other.isVoidBall && 
-                !other.isMerging &&
-                !isProtected && 
-                Matter.Bounds.overlaps(voidBall.bounds, other.bounds)) {
-              
-              cleanupBody(other);
-              voidBall.deletionsRemaining!--;
-              
-              // Only remove the void ball if it's not an Ultra void ball and has no deletions remaining
-              if (voidBall.deletionsRemaining! <= 0 && !isUltraVoid) {
-                setTimeout(() => {
-                  if (engineRef.current) {
-                    cleanupBody(voidBall);
-                  }
-                }, 100);
-              }
+            cleanupBody(other);
+            voidBall.deletionsRemaining!--;
+            
+            if (voidBall.deletionsRemaining! <= 0 && !isUltraVoid) {
+              setTimeout(() => {
+                if (engineRef.current) {
+                  cleanupBody(voidBall);
+                }
+              }, 100);
             }
-          });
-        }
+          }
+        });
       });
     };
 

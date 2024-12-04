@@ -36,7 +36,7 @@ export const POWER_UP_CONFIG = {
     BASIC: {
       DELETIONS: 2,
       BOUNCE_FORCE: 0.015,
-      INITIAL_SPEED: 5,
+      INITIAL_SPEED: 8,
       DENSITY: 0.004,
       FRICTION: 0.00002,
       FRICTION_AIR: 0.000002,
@@ -47,39 +47,42 @@ export const POWER_UP_CONFIG = {
       EDGE_BUFFER: 1.5,
       HORIZONTAL_FORCE: 0.02,
       VELOCITY_DAMPING: 0.8,
-      MIN_BOUNCE_Y: -8
+      MIN_BOUNCE_Y: -8,
+      IS_SENSOR: false
     },
     SUPER: {
       DELETIONS: 2,
       BOUNCE_FORCE: 0,
-      INITIAL_SPEED: 4,
+      INITIAL_SPEED: 12,
       DENSITY: 0.01,
-      FRICTION: 0.00001,
-      FRICTION_AIR: 0.000001,
+      FRICTION: 0,
+      FRICTION_AIR: 0.0001,
       RESTITUTION: 0,
-      FRICTION_STATIC: 0.00001,
+      FRICTION_STATIC: 0,
       BOUNCE_INTERVAL: 0,
       BOUNCE_DURATION: 0,
       EDGE_BUFFER: 1.2,
       HORIZONTAL_FORCE: 0,
       VELOCITY_DAMPING: 1,
-      MIN_BOUNCE_Y: 0
+      MIN_BOUNCE_Y: 0,
+      IS_SENSOR: true
     },
     ULTRA: {
       DELETIONS: 10,
       BOUNCE_FORCE: 0,
-      INITIAL_SPEED: 4,
+      INITIAL_SPEED: 15,
       DENSITY: 0.01,
-      FRICTION: 0.00001,
-      FRICTION_AIR: 0.000001,
+      FRICTION: 0,
+      FRICTION_AIR: 0.0001,
       RESTITUTION: 0,
-      FRICTION_STATIC: 0.00001,
+      FRICTION_STATIC: 0,
       BOUNCE_INTERVAL: 0,
       BOUNCE_DURATION: 0,
       EDGE_BUFFER: 1.2,
       HORIZONTAL_FORCE: 0,
       VELOCITY_DAMPING: 1,
-      MIN_BOUNCE_Y: 0
+      MIN_BOUNCE_Y: 0,
+      IS_SENSOR: true
     }
   },
   SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
@@ -100,6 +103,7 @@ export interface PowerUp {
     frictionAir?: number;
     restitution?: number;
     frictionStatic?: number;
+    isSensor?: boolean;
   };
   visual: {
     strokeColor: string;
@@ -234,6 +238,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
       frictionAir: POWER_UP_CONFIG.VOID.SUPER.FRICTION_AIR,
       restitution: POWER_UP_CONFIG.VOID.SUPER.RESTITUTION,
       frictionStatic: POWER_UP_CONFIG.VOID.SUPER.FRICTION_STATIC,
+      isSensor: POWER_UP_CONFIG.VOID.SUPER.IS_SENSOR
     },
     visual: {
       strokeColor: '#9400D3',
@@ -259,6 +264,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
       frictionAir: POWER_UP_CONFIG.VOID.ULTRA.FRICTION_AIR,
       restitution: POWER_UP_CONFIG.VOID.ULTRA.RESTITUTION,
       frictionStatic: POWER_UP_CONFIG.VOID.ULTRA.FRICTION_STATIC,
+      isSensor: POWER_UP_CONFIG.VOID.ULTRA.IS_SENSOR
     },
     visual: {
       strokeColor: '#4B0082',
