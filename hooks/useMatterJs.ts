@@ -2027,6 +2027,49 @@ export const useMatterJs = (
     }
   }, []); // Empty dependency array since we only want this to run once
 
+  // Update the render creation to handle DPR
+  const createRender = useCallback(() => {
+    if (!containerRef.current || !engineRef.current) return null;
+
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    const render = Matter.Render.create({
+      element: containerRef.current,
+      engine: engineRef.current,
+      options: {
+        width,
+        height,
+        pixelRatio: dpr, // Set the pixel ratio
+        background: 'transparent',
+        wireframes: false,
+        showSleeping: false,
+        showDebug: false,
+        showBroadphase: false,
+        showBounds: false,
+        showVelocity: false,
+        showCollisions: false,
+        showSeparations: false,
+        showAxes: false,
+        showPositions: false,
+        showAngleIndicator: false,
+        showIds: false,
+      }
+    });
+
+    // Scale the canvas for retina displays
+    render.canvas.style.width = `${width}px`;
+    render.canvas.style.height = `${height}px`;
+    render.canvas.width = width * dpr;
+    render.canvas.height = height * dpr;
+    
+    // Scale the rendering context
+    const context = render.context as CanvasRenderingContext2D;
+    context.scale(dpr, dpr);
+
+    return render;
+  }, []);
+
   return {
     engine: engineRef.current,
     startDrag,
