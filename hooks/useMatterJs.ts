@@ -289,7 +289,8 @@ export const useMatterJs = (
   const createCircle = useCallback((
     tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
-    y: number
+    y: number,
+    isStressTest: boolean = false  // Add this parameter
   ) => {
     if (!renderRef.current || !engineRef.current) return null;
 
@@ -318,8 +319,8 @@ export const useMatterJs = (
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
         group: 0,
-        category: 0x0001,
-        mask: 0xFFFFFFFF
+        category: isStressTest ? 0x0001 : 0x0002, // Regular category for stress test, spawn category otherwise
+        mask: isStressTest ? 0xFFFFFFFF : 0x0004  // Full collisions for stress test, walls only otherwise
       },
       render: {
         sprite: {
@@ -365,6 +366,10 @@ export const useMatterJs = (
 
     // Add to world after all properties are set
     Matter.Composite.add(engineRef.current.world, circle);
+    
+    // Set additional properties
+    circle.isSpawnedBall = !isStressTest;  // Not a spawned ball if it's a stress test ball
+    circle.hasBeenDropped = isStressTest;  // Stress test balls are considered dropped immediately
     
     return circle;
   }, [flaskState.activeFlaskId, isMobile]);
@@ -535,10 +540,10 @@ export const useMatterJs = (
         
         bodies.forEach(body => {
           const circle = body as CircleBody;
-          // Clean up bodies that are far off screen
+          // Only clean up bodies that are far below or to the sides
+          // Remove the top boundary check to prevent deleting balls above the visible area
           if (canvas && (
             circle.position.y > canvas.height + 200 || // Too far below
-            circle.position.y < -200 || // Too far above
             circle.position.x < -200 || // Too far left
             circle.position.x > canvas.width + 200 // Too far right
           )) {
@@ -697,7 +702,14 @@ export const useMatterJs = (
       const bodyA = pair.bodyA as CircleBody;
       const bodyB = pair.bodyB as CircleBody;
       
+      // Skip if either body isn't a circle
       if (!bodyA?.label?.startsWith('circle-') || !bodyB?.label?.startsWith('circle-')) {
+        return;
+      }
+
+      // Skip collision handling if either ball is a spawned ball that hasn't been dropped
+      if ((bodyA.isSpawnedBall && !bodyA.hasBeenDropped) || 
+          (bodyB.isSpawnedBall && !bodyB.hasBeenDropped)) {
         return;
       }
 
@@ -709,7 +721,6 @@ export const useMatterJs = (
         const tierB = bodyB.tier;
 
         if (tierA === tierB && tierA !== undefined && tierA < 12) {
-          // Add to queue instead of processing immediately
           collisionQueueRef.current.push([bodyA, bodyB]);
           requestAnimationFrame(processCollisionQueue);
         }
@@ -927,7 +938,8 @@ export const useMatterJs = (
         const bodyA = pair.bodyA as CircleBody;
         const bodyB = pair.bodyB as CircleBody;
         
-        if (!bodyA.label?.startsWith('circle-') || !bodyB.label?.startsWith('circle-')) {
+        // Skip collision handling if either ball is a spawned ball
+        if (bodyA.isSpawnedBall || bodyB.isSpawnedBall) {
           return;
         }
 
@@ -1293,10 +1305,22 @@ export const useMatterJs = (
   }, []);
 
   // Update endDrag to apply both visuals and physics when dropping
-  const endDrag = useCallback((mouseX?: number) => {
-    if (isAnimatingRef.current || !currentCircleRef.current || !engineRef.current) return;
+  const endDrag = useCallback((mouseX: number) => {
+    if (!currentCircleRef.current || !engineRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
+    
+    // Enable collisions with everything when dropped
+    Matter.Body.set(circle, {
+      collisionFilter: {
+        group: 0,
+        category: 0x0001,    // Regular category
+        mask: 0xFFFFFFFF     // Collide with everything
+      }
+    });
+    
+    circle.isSpawnedBall = false;  // No longer a spawned ball
+    
     const activePowerUp = getActivePowerUp(powerUps);
     
     // Apply power-up properties and visuals only when dropping
@@ -1516,10 +1540,8 @@ export const useMatterJs = (
         const y = Math.random() * spawnHeight;
         const tier = getRandomStressTestTier();
         
-        const circle = createCircle(tier, x, y);
+        const circle = createCircle(tier, x, y, true);  // Pass true for isStressTest
         if (circle) {
-          circle.hasBeenDropped = true;
-          // Add random initial velocity
           Matter.Body.setVelocity(circle, {
             x: (Math.random() - 0.5) * 2,
             y: Math.random() * 2

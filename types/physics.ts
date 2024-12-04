@@ -22,4 +22,5 @@ export interface CircleBody extends Matter.Body {
   spawnTime?: number;
   powerUpStats?: PowerUpStats;
   dropTime?: number;
+  isSpawnedBall?: boolean;
 } 
