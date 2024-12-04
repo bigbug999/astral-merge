@@ -90,6 +90,8 @@ interface ExtendedSpriteOptions extends Matter.IBodyRenderOptionsSprite {
 interface ExtendedRenderOptions extends Matter.IBodyRenderOptions {
   sprite?: ExtendedSpriteOptions;
   opacity?: number;
+  width?: number;   // Add width property
+  height?: number;  // Add height property
 }
 
 // Add this interface near the top with the other interfaces
@@ -411,6 +413,13 @@ export const useMatterJs = (
     // Set additional properties
     circle.isSpawnedBall = !isStressTest;  // Not a spawned ball if it's a stress test ball
     circle.hasBeenDropped = isStressTest;  // Stress test balls are considered dropped immediately
+    
+    // Set the circle's bounds to account for the glow
+    const bounds = {
+      min: { x: -collisionRadius - 16, y: -collisionRadius - 16 },
+      max: { x: collisionRadius + 16, y: collisionRadius + 16 }
+    };
+    Matter.Body.setBounds(circle, bounds);
     
     return circle;
   }, [flaskState.activeFlaskId, createCircleTexture]);
