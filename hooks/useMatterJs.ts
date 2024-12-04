@@ -293,7 +293,7 @@ export const useMatterJs = (
 
   // Update createCircle to apply flask physics
   const createCircle = useCallback((
-    tier: TierType,
+    tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
     x: number,
     y: number,
     isStressTest: boolean = false,
@@ -1194,7 +1194,7 @@ export const useMatterJs = (
     // Create the next ball with current power-up state
     isCreatingDropBallRef.current = false;
     const circle = createCircle(
-      nextTier as TierType, 
+      nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
       nextSpawnXRef.current,
       -circleRadius
     );
@@ -1260,7 +1260,7 @@ export const useMatterJs = (
       const spawnY = 30;
       
       const circle = createCircle(
-        nextTier as TierType, 
+        nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
         spawnX,
         spawnY
       );
@@ -1504,24 +1504,20 @@ export const useMatterJs = (
 
   // Add helper function to get random tier for stress test
   const getRandomStressTestTier = (): TierType => {
+    // Weighted distribution favoring smaller tiers but allowing larger ones
     const weights = {
-      1: 30,   // 30% chance
-      2: 25,   // 25% chance
-      3: 15,   // 15% chance
-      4: 10,   // 10% chance
-      5: 8,    // 8% chance
-      6: 5,    // 5% chance
-      7: 3,    // 3% chance
-      8: 2,    // 2% chance
-      9: 1,    // 1% chance
+      1: 30,  // 30% chance
+      2: 25,  // 25% chance
+      3: 15,  // 15% chance
+      4: 10,  // 10% chance
+      5: 8,   // 8% chance
+      6: 5,   // 5% chance
+      7: 3,   // 3% chance
+      8: 2,   // 2% chance
+      9: 1,   // 1% chance
       10: 0.5, // 0.5% chance
       11: 0.3, // 0.3% chance
-      12: 0.2, // 0.2% chance
-      13: 0.1, // 0.1% chance
-      14: 0.1, // 0.1% chance
-      15: 0.1, // 0.1% chance
-      16: 0.1, // 0.1% chance
-      17: 0.1  // 0.1% chance
+      12: 0.2  // 0.2% chance
     };
 
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -2030,58 +2026,6 @@ export const useMatterJs = (
       };
     }
   }, []); // Empty dependency array since we only want this to run once
-
-  const handleCollision = useCallback((event: Matter.IEventCollision<Matter.Engine>) => {
-    // ... existing collision detection code ...
-
-    const handleMerge = (bodyA: Matter.Body, bodyB: Matter.Body) => {
-      const tierA = parseInt(bodyA.label.split('-')[1]);
-      const tierB = parseInt(bodyB.label.split('-')[1]);
-
-      // Only merge if the tiers are the same and both bodies are circles
-      if (
-        tierA === tierB && 
-        bodyA.label.startsWith('circle-') && 
-        bodyB.label.startsWith('circle-')
-      ) {
-        const newTier = tierA + 1;
-        
-        // Allow merging up to tier 17
-        if (newTier <= 17) {
-          const pos = {
-            x: (bodyA.position.x + bodyB.position.x) / 2,
-            y: (bodyA.position.y + bodyB.position.y) / 2,
-          };
-
-          // Remove the collided circles
-          Matter.Composite.remove(engineRef.current!.world, bodyA);
-          Matter.Composite.remove(engineRef.current!.world, bodyB);
-          
-          // Create the new, higher-tier circle
-          const newCircle = createCircle(newTier as TierType, pos.x, pos.y);
-          
-          // Add some upward velocity to prevent immediate stacking
-          if (newCircle && newTier > 12) {
-            Matter.Body.setVelocity(newCircle, {
-              x: (Math.random() - 0.5) * 2, // Small random horizontal velocity
-              y: -2 * Math.min(newTier - 11, 3) // Stronger upward bounce for higher tiers
-            });
-          }
-          
-          // Trigger the new tier callback
-          onNewTier(newTier);
-          
-          // Play merge sound effect
-          playMergeSound();
-          
-          // Create merge particles
-          createMergeParticles(pos.x, pos.y, newTier);
-        }
-      }
-    };
-
-    // ... rest of collision handling code ...
-  }, [/* existing dependencies */]);
 
   return {
     engine: engineRef.current,

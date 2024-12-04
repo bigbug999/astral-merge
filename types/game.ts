@@ -1,6 +1,6 @@
 import { PowerUpState } from './powerups';
 
-export type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
+export type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 export interface CircleProps {
   size: number;
@@ -80,36 +80,6 @@ export const WARM_COLORS = {
   },
 };
 
-// Add new CELESTIAL_COLORS for higher tiers
-export const CELESTIAL_COLORS = {
-  // Celestial colors (Tiers 13-17) - ethereal glows with cosmic effects
-  COSMIC_BLUE: {
-    color: 'rgba(56, 189, 248, 0.15)',
-    strokeColor: '#38bdf8',
-    glowColor: 'rgba(56, 189, 248, 0.8)',
-  },
-  ASTRAL_PURPLE: {
-    color: 'rgba(168, 85, 247, 0.15)',
-    strokeColor: '#a855f7',
-    glowColor: 'rgba(168, 85, 247, 0.8)',
-  },
-  NEBULA_PINK: {
-    color: 'rgba(236, 72, 153, 0.15)',
-    strokeColor: '#ec4899',
-    glowColor: 'rgba(236, 72, 153, 0.8)',
-  },
-  GALAXY_INDIGO: {
-    color: 'rgba(129, 140, 248, 0.15)',
-    strokeColor: '#818cf8',
-    glowColor: 'rgba(129, 140, 248, 0.8)',
-  },
-  CELESTIAL_WHITE: {
-    color: 'rgba(255, 255, 255, 0.15)',
-    strokeColor: '#ffffff',
-    glowColor: 'rgba(255, 255, 255, 0.9)',
-  },
-};
-
 export const CIRCLE_CONFIG: Record<TierType, any> = {
   1: { 
     color: MYSTICAL_COLORS.SLATE.color,
@@ -182,36 +152,6 @@ export const CIRCLE_CONFIG: Record<TierType, any> = {
     strokeColor: WARM_COLORS.WHITE_YELLOW.strokeColor,
     glowColor: WARM_COLORS.WHITE_YELLOW.glowColor,
     radius: 102 
-  },
-  13: { 
-    color: CELESTIAL_COLORS.COSMIC_BLUE.color,
-    strokeColor: CELESTIAL_COLORS.COSMIC_BLUE.strokeColor,
-    glowColor: CELESTIAL_COLORS.COSMIC_BLUE.glowColor,
-    radius: 106 
-  },
-  14: { 
-    color: CELESTIAL_COLORS.ASTRAL_PURPLE.color,
-    strokeColor: CELESTIAL_COLORS.ASTRAL_PURPLE.strokeColor,
-    glowColor: CELESTIAL_COLORS.ASTRAL_PURPLE.glowColor,
-    radius: 110 
-  },
-  15: { 
-    color: CELESTIAL_COLORS.NEBULA_PINK.color,
-    strokeColor: CELESTIAL_COLORS.NEBULA_PINK.strokeColor,
-    glowColor: CELESTIAL_COLORS.NEBULA_PINK.glowColor,
-    radius: 114 
-  },
-  16: { 
-    color: CELESTIAL_COLORS.GALAXY_INDIGO.color,
-    strokeColor: CELESTIAL_COLORS.GALAXY_INDIGO.strokeColor,
-    glowColor: CELESTIAL_COLORS.GALAXY_INDIGO.glowColor,
-    radius: 118 
-  },
-  17: { 
-    color: CELESTIAL_COLORS.CELESTIAL_WHITE.color,
-    strokeColor: CELESTIAL_COLORS.CELESTIAL_WHITE.strokeColor,
-    glowColor: CELESTIAL_COLORS.CELESTIAL_WHITE.glowColor,
-    radius: 122 
   }
 } as const; 
 
