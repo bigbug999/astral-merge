@@ -202,26 +202,53 @@ export const useMatterJs = (
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
-    const padding = 8; // Extra space for glow
+    const padding = 16; // Increased padding for glow
     canvas.width = size + (padding * 2);
     canvas.height = size + (padding * 2);
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
 
-    // Draw glow
+    const centerX = size/2 + padding;
+    const centerY = size/2 + padding;
+    const radius = size/2 - 1;
+
+    // Clear any previous drawings
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Create a clipping path for the glow (slightly larger than the circle)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 8, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Draw outer glow using multiple shadows
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = 15;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // Draw circle with glow
+    // Draw a ring instead of a filled circle for the glow
     ctx.beginPath();
-    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Restore context to remove clipping
+    ctx.restore();
+
+    // Draw the main circle fill
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    // Draw the circle stroke
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
-    ctx.fill();
     ctx.stroke();
 
     return canvas.toDataURL();
@@ -342,7 +369,10 @@ export const useMatterJs = (
           yScale: 1,
           opacity: 1
         },
-        opacity: 1
+        opacity: 1,
+        // Add these properties to ensure proper sprite sizing
+        width: collisionRadius * 2 + 32, // Account for glow padding
+        height: collisionRadius * 2 + 32
       },
       label: `circle-${tier}`
     };
