@@ -79,6 +79,22 @@ const getFlaskIcon = (iconName: string) => {
   }
 };
 
+// Update the getComboColor function
+const getComboColor = (combo: number) => {
+  if (combo === 0) return 'rgba(244, 244, 245, 0.9)'; // Default color
+  
+  // Create a cycling hue based on combo count
+  // Each combo will shift the hue by 30 degrees (12 combos = full rainbow)
+  const hue = (combo * 30) % 360;
+  
+  // Increase saturation and brightness as combo increases
+  const saturation = Math.min(100, 70 + (combo * 2)); // Start at 70%, max 100%
+  const lightness = Math.min(75, 45 + (combo * 1.5)); // Start at 45%, max 75%
+  const alpha = Math.min(1, 0.9 + (combo * 0.01)); // Slight increase in opacity
+  
+  return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+};
+
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [score, setScore] = useState(0);
@@ -212,20 +228,6 @@ export default function Home() {
   const PREVIEW_DIAMETER = 24; // Smaller fixed size for all preview balls
   const PREVIEW_STROKE_WIDTH = 2; // Consistent stroke width
 
-  // Add helper function to get combo color
-  const getComboColor = (combo: number) => {
-    // Get the tier based on combo count (every 2 combos = 1 tier up)
-    const colorTier = Math.min(Math.floor(combo / 2) + 1, 12) as keyof typeof CIRCLE_CONFIG;
-    const config = CIRCLE_CONFIG[colorTier];
-    
-    // For tiers 1-8, use strokeColor
-    if (colorTier <= 8) {
-      return config.strokeColor;
-    }
-    // For tiers 9-12, use color directly
-    return config.color;
-  };
-
   // Add refill power-ups function
   const handleRefillPowerUps = useCallback(() => {
     setPowerUps(createInitialPowerUpState(false));
@@ -271,7 +273,7 @@ export default function Home() {
                 <div 
                   className={`text-[9px] transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
                   style={{
-                    color: combo > 0 ? getComboColor(combo) : 'rgba(244, 244, 245, 0.9)'
+                    color: getComboColor(combo)
                   }}
                 >
                   ×{(1 + (combo * 0.5)).toFixed(1)}

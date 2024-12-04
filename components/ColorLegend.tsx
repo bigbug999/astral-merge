@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MYSTICAL_COLORS, TRANSITION_COLORS, WARM_COLORS } from '@/types/game';
+import { MYSTICAL_COLORS, TRANSITION_COLORS, WARM_COLORS, CELESTIAL_COLORS } from '@/types/game';
 
 // Simple chevron icons
 function ChevronDown({ className = "" }: { className?: string }) {
@@ -109,6 +109,29 @@ export function ColorLegend() {
               <h4 className="text-zinc-400 text-xs font-medium">Warm Colors (Tiers 8-12)</h4>
               <div className="grid grid-cols-5 gap-3">
                 {Object.entries(WARM_COLORS).map(([name, colors]) => (
+                  <div key={name} className="flex flex-col items-center gap-2 p-4 bg-zinc-800/50 rounded-lg">
+                    <div 
+                      className="w-8 h-8 rounded-full border-2"
+                      style={{
+                        backgroundColor: colors.color,
+                        borderColor: colors.strokeColor,
+                        boxShadow: `0 0 15px 5px ${colors.glowColor}`,
+                        filter: 'blur(0px)',
+                      }}
+                    />
+                    <span className="text-zinc-300 text-xs text-center">
+                      {name.replace(/_/g, ' ').toLowerCase()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Celestial Colors */}
+            <div className="space-y-2">
+              <h4 className="text-zinc-400 text-xs font-medium">Celestial Colors (Tiers 13-17)</h4>
+              <div className="grid grid-cols-5 gap-3">
+                {Object.entries(CELESTIAL_COLORS).map(([name, colors]) => (
                   <div key={name} className="flex flex-col items-center gap-2 p-4 bg-zinc-800/50 rounded-lg">
                     <div 
                       className="w-8 h-8 rounded-full border-2"
