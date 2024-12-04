@@ -201,26 +201,42 @@ export const useMatterJs = (
 
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
+    const dpr = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
-    const padding = 8; // Extra space for glow
-    canvas.width = size + (padding * 2);
-    canvas.height = size + (padding * 2);
-    const ctx = canvas.getContext('2d');
+    const padding = Math.ceil(8 * dpr); // Scale padding with DPR
     
+    // Scale canvas dimensions with DPR
+    canvas.width = Math.floor((size + (padding * 2)) * dpr);
+    canvas.height = Math.floor((size + (padding * 2)) * dpr);
+    
+    const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
-    // Draw glow
+    // Scale all drawing operations
+    ctx.scale(dpr, dpr);
+    
+    // Enable high quality image smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Draw glow with scaled values
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 15 * dpr;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // Draw circle with glow
+    // Draw circle with scaled values
     ctx.beginPath();
-    ctx.arc(size/2 + padding, size/2 + padding, size/2 - 1, 0, Math.PI * 2);
+    ctx.arc(
+      (size/2 + padding), 
+      (size/2 + padding), 
+      (size/2 - 1),
+      0, 
+      Math.PI * 2
+    );
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 * dpr;
     ctx.fill();
     ctx.stroke();
 
@@ -2040,34 +2056,63 @@ export const useMatterJs = (
       options: {
         width,
         height,
-        pixelRatio: dpr, // Set the pixel ratio
+        pixelRatio: dpr,
         background: 'transparent',
         wireframes: false,
-        showSleeping: false,
-        showDebug: false,
-        showBroadphase: false,
-        showBounds: false,
-        showVelocity: false,
-        showCollisions: false,
-        showSeparations: false,
-        showAxes: false,
-        showPositions: false,
-        showAngleIndicator: false,
-        showIds: false,
+        // ... other options remain the same
       }
     });
 
-    // Scale the canvas for retina displays
+    // Apply crisp rendering styles
     render.canvas.style.width = `${width}px`;
     render.canvas.style.height = `${height}px`;
-    render.canvas.width = width * dpr;
-    render.canvas.height = height * dpr;
+    render.canvas.width = Math.floor(width * dpr);
+    render.canvas.height = Math.floor(height * dpr);
     
-    // Scale the rendering context
+    // Add these CSS properties for crisp rendering
+    render.canvas.style.imageRendering = 'crisp-edges';
+    render.canvas.style.imageRendering = '-webkit-optimize-contrast';
+    render.canvas.style.transform = 'translateZ(0)';
+    render.canvas.style.backfaceVisibility = 'hidden';
+    
+    // Scale the context
     const context = render.context as CanvasRenderingContext2D;
     context.scale(dpr, dpr);
+    
+    // Set context rendering properties
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
 
     return render;
+  }, []);
+
+  // Add this effect to handle window resizing
+  useEffect(() => {
+    const handleWindowResize = () => {
+      if (!renderRef.current || !containerRef.current) return;
+      
+      const { width, height } = containerRef.current.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Update canvas dimensions
+      renderRef.current.canvas.style.width = `${width}px`;
+      renderRef.current.canvas.style.height = `${height}px`;
+      renderRef.current.canvas.width = Math.floor(width * dpr);
+      renderRef.current.canvas.height = Math.floor(height * dpr);
+      
+      // Update render bounds
+      renderRef.current.bounds.max.x = width;
+      renderRef.current.bounds.max.y = height;
+      renderRef.current.options.width = width;
+      renderRef.current.options.height = height;
+      
+      // Rescale context
+      const context = renderRef.current.context as CanvasRenderingContext2D;
+      context.scale(dpr, dpr);
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
   }, []);
 
   return {
