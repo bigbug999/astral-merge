@@ -80,7 +80,7 @@ const isMobileDevice = () => {
 };
 
 // Near the top of file, add a constant for default slop
-const DEFAULT_SLOP = 0.05;
+const DEFAULT_SLOP = 0.5; // Changed from 0.05 to 0.5
 
 // Add these interface extensions near the top of the file with the other interfaces
 interface ExtendedSpriteOptions extends Matter.IBodyRenderOptionsSprite {
@@ -2053,9 +2053,11 @@ export const useMatterJs = (
         // Store the slop value
         currentSlopRef.current = slopValue;
         
-        // Convert slop (0-2) to iterations (2-12)
-        // Use a more direct conversion that might feel more responsive
-        const iterations = Math.max(2, Math.round(12 - (slopValue * 4)));
+        // Convert slop (0-100) to iterations (2-12)
+        // Use an inverse logarithmic scale to make the slider more responsive at lower values
+        const normalizedSlop = Math.log(slopValue + 1) / Math.log(101); // log scale normalization
+        const iterations = Math.max(2, Math.round(12 - (normalizedSlop * 10)));
+        
         engineRef.current.positionIterations = iterations;
         engineRef.current.velocityIterations = Math.max(2, Math.floor(iterations * 0.8));
       };

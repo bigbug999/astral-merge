@@ -112,8 +112,8 @@ export function PowerUpDebugUI({ currentBall, powerUps, debug }: PowerUpDebugUIP
           <input
             type="range"
             min="0"
-            max="2"
-            step="0.001"
+            max="100"
+            step="0.5"
             value={stats.slop}
             onChange={handleSlopChange}
             className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer 
