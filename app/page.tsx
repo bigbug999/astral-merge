@@ -233,6 +233,39 @@ export default function Home() {
     setPowerUps(createInitialPowerUpState(false));
   }, []);
 
+  // Add touch event handlers
+  const handleTouchStart = useCallback((event: React.TouchEvent) => {
+    event.preventDefault(); // Prevent default touch behavior
+    if (!containerRef.current) return;
+    
+    const touch = event.touches[0];
+    const { left } = containerRef.current.getBoundingClientRect();
+    const relativeX = touch.clientX - left;
+    
+    startDrag(relativeX);
+  }, [startDrag]);
+
+  const handleTouchMove = useCallback((event: React.TouchEvent) => {
+    event.preventDefault(); // Prevent default touch behavior
+    if (!containerRef.current) return;
+    
+    const touch = event.touches[0];
+    const { left } = containerRef.current.getBoundingClientRect();
+    const relativeX = touch.clientX - left;
+    
+    updateDrag(relativeX);
+  }, [updateDrag]);
+
+  const handleTouchEnd = useCallback((event: React.TouchEvent) => {
+    event.preventDefault(); // Prevent default touch behavior
+    if (!containerRef.current) return;
+    
+    const { left } = containerRef.current.getBoundingClientRect();
+    const relativeX = event.changedTouches[0].clientX - left;
+    
+    endDrag(relativeX);
+  }, [endDrag]);
+
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
       <div className="w-full max-w-sm flex flex-col gap-4">
@@ -242,6 +275,9 @@ export default function Home() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           className="relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-1 select-none"
         >
           {/* Ceiling */}

@@ -52,6 +52,7 @@
   * {
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
+    touch-action: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -59,5 +60,11 @@
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    overscroll-behavior: none;
   }
+}
+
+.touch-none {
+  touch-action: none !important;
+  -webkit-touch-callout: none !important;
 }
