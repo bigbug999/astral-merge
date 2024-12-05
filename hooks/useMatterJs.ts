@@ -100,6 +100,12 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
   background?: string;
 }
 
+// Add this helper function near the top of the file
+const getDevicePixelRatio = () => {
+  // Cap the maximum pixel ratio to 3 to prevent performance issues on very high DPI devices
+  return Math.min(window.devicePixelRatio || 1, 3);
+};
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -204,17 +210,24 @@ export const useMatterJs = (
   // Add this helper function to create the circle texture with glow
   const createCircleTexture = (fillColor: string, strokeColor: string, glowColor: string, size: number) => {
     const canvas = document.createElement('canvas');
-    const padding = 16; // Increased padding for glow
-    canvas.width = size + (padding * 2);
-    canvas.height = size + (padding * 2);
+    const pixelRatio = getDevicePixelRatio();
+    const padding = 16 * pixelRatio; // Scale padding with pixel ratio
+    
+    // Scale canvas dimensions
+    canvas.width = (size + (padding * 2)) * pixelRatio;
+    canvas.height = (size + (padding * 2)) * pixelRatio;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return '';
-
-    const centerX = size/2 + padding;
-    const centerY = size/2 + padding;
-    const radius = size/2 - 1;
-
+    
+    // Scale all dimensions
+    const centerX = (size/2 + padding) * pixelRatio;
+    const centerY = (size/2 + padding) * pixelRatio;
+    const radius = (size/2 - 1) * pixelRatio;
+    
+    ctx.scale(pixelRatio, pixelRatio);
+    ctx.imageSmoothingEnabled = false;
+    
     // Clear any previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -878,10 +891,32 @@ export const useMatterJs = (
       options: {
         width,
         height,
-        wireframes: false,
+        pixelRatio: getDevicePixelRatio(), // Apply device pixel ratio
         background: 'transparent',
+        wireframes: false,
         showSleeping: false,
-        sleepOpacity: 1, // Now TypeScript knows about this property
+        showDebug: false,
+        showBroadphase: false,
+        showBounds: false,
+        showVelocity: false,
+        showCollisions: false,
+        showSeparations: false,
+        showAxes: false,
+        showPositions: false,
+        showAngleIndicator: false,
+        showIds: false,
+        showShadows: false,
+        showVertexNumbers: false,
+        showConvexHulls: false,
+        showInternalEdges: false,
+        showMousePosition: false,
+        // Add these for sharper rendering
+        hasBounds: true,
+        enabled: true,
+        wireframeBackground: 'transparent',
+        // Improve text rendering
+        font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        optimizeInactiveObjects: true
       } as ExtendedRendererOptions
     });
 
@@ -1889,17 +1924,27 @@ export const useMatterJs = (
     if (!engineRef.current || !renderRef.current || !containerRef.current) return;
     
     const { width, height } = containerRef.current.getBoundingClientRect();
-    
-    console.log('Handling resize - updating walls');
-    logWorldState(engineRef.current, 'Before resize');
+    const pixelRatio = getDevicePixelRatio();
     
     // Update render bounds
     renderRef.current.bounds.max.x = width;
     renderRef.current.bounds.max.y = height;
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
-    renderRef.current.canvas.width = width;
-    renderRef.current.canvas.height = height;
+    
+    // Update canvas dimensions
+    const canvas = renderRef.current.canvas;
+    canvas.width = width * pixelRatio;
+    canvas.height = height * pixelRatio;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    
+    // Reset context scale for pixel ratio
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.scale(pixelRatio, pixelRatio);
+    }
     
     // Recreate walls with new dimensions
     const newWalls = createOptimizedWalls();
