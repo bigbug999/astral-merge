@@ -268,15 +268,13 @@ export const useMatterJs = (
     const circle = currentCircleRef.current as CircleBody;
     const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
     const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
-    
-    // Apply the same scaling logic as createCircle
-    const scale = (activeFlask?.id === 'SHRINK' || circle.isScaled) ? 0.75 : 1;
-    const baseVisualRadius = visualConfig.radius - 1;
-    const visualRadius = baseVisualRadius * scale;
-    
     const activePowerUp = getActivePowerUp(powerUps);
-
-    // Update the ball's appearance based on active power-up
+    
+    // Preserve the original scaling logic - don't let power-ups affect it
+    const scale = circle.isScaled || activeFlask?.id === 'SHRINK' ? 0.75 : 1;
+    const visualRadius = (visualConfig.radius - 1) * scale;
+    
+    // Update the ball's appearance based on active power-up, maintaining scale
     if (circle.render.sprite) {
       circle.render.sprite.texture = createCircleTexture(
         visualConfig.color,
@@ -1372,16 +1370,19 @@ export const useMatterJs = (
     
     // Apply power-up properties and visuals only when dropping
     if (activePowerUp) {
-      // Apply visuals
+      // Get current scale from flask or existing scale
+      const scale = flaskState.activeFlaskId === 'SHRINK' || circle.isScaled ? 0.75 : 1;
+      
+      // Apply visuals with correct scaling
       const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
-      const visualRadius = (visualConfig.radius - 1);
+      const visualRadius = (visualConfig.radius - 1) * scale;
       
       if (circle.render.sprite) {
         circle.render.sprite.texture = createCircleTexture(
           visualConfig.color,
           activePowerUp.visual.strokeColor,
           activePowerUp.visual.glowColor,
-          visualRadius * 2
+          visualRadius * 2  // Use scaled radius
         );
       }
 
@@ -1389,18 +1390,14 @@ export const useMatterJs = (
       if (activePowerUp.group === 'VOID') {
         applyVoidPowerUp(circle, activePowerUp);
         
-        // Special handling for super/ultra void balls
-        if (activePowerUp.id === 'SUPER_VOID_BALL' || activePowerUp.id === 'ULTRA_VOID_BALL') {
-          Matter.Body.set(circle, {
-            isSensor: true,
-            collisionFilter: {
-              category: 0x0002,
-              mask: 0x0004  // Only collide with walls
-            }
-          });
-        }
+        // Ensure void ball maintains correct scale
+        circle.isScaled = scale !== 1;
+        
       } else if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
+        
+        // Ensure gravity ball maintains correct scale
+        circle.isScaled = scale !== 1;
       }
       
       onPowerUpUse();
