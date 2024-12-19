@@ -152,6 +152,11 @@ interface StormPowerUpEffects {
   duration: number;
 }
 
+// Add this type guard
+const hasTurbulence = (physics: FlaskPhysics): physics is FlaskPhysics & { turbulence: TurbulenceConfig } => {
+  return 'turbulence' in physics;
+};
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -2237,11 +2242,13 @@ export const useMatterJs = (
             (Math.random() < 0.5 ? -0.03 : 0.02) : 0;
           
           // Safely access turbulence properties with defaults
-          const turbulence = effectConfig.physics.turbulence || {
-            strength: 0.025,
-            frequency: 0.9,
-            verticalBias: 0.4
-          };
+          const turbulence = hasTurbulence(effectConfig.physics) ? 
+            effectConfig.physics.turbulence : {
+              strength: 0.025,
+              frequency: 0.9,
+              verticalBias: 0.4,
+              radius: 150
+            };
           
           const force = {
             x: Math.cos(angle) * turbulence.strength * (1 + distanceFromCenter),

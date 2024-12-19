@@ -1,3 +1,11 @@
+// Add the turbulence interface
+interface TurbulenceConfig {
+  strength: number;
+  frequency: number;
+  radius: number;
+  verticalBias: number;
+}
+
 export interface FlaskPhysics {
   gravity?: number;
   timeScale?: number;
@@ -7,6 +15,7 @@ export interface FlaskPhysics {
   restitution?: number;
   density?: number;
   scale?: number;
+  turbulence?: TurbulenceConfig;
 }
 
 export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
