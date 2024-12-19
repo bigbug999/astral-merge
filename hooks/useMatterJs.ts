@@ -4,7 +4,7 @@ import { CIRCLE_CONFIG } from '@/types/game';
 import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
-import type { FlaskState } from '@/types/flasks';
+import type { FlaskState, FlaskPhysics } from '@/types/flasks';  // Add FlaskPhysics
 import { FLASK_SIZES, FLASK_EFFECTS } from '@/types/flasks';
 import { 
   FlaskSizeId,
@@ -156,6 +156,14 @@ interface StormPowerUpEffects {
 const hasTurbulence = (physics: FlaskPhysics): physics is FlaskPhysics & { turbulence: TurbulenceConfig } => {
   return 'turbulence' in physics;
 };
+
+// Add the turbulence interface
+interface TurbulenceConfig {
+  strength: number;
+  frequency: number;
+  radius: number;
+  verticalBias: number;
+}
 
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
