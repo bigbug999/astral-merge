@@ -16,12 +16,21 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   ShrinkIcon,
 };
 
-interface FlaskDropdownProps {
-  value: FlaskId | null;
-  onChange: (value: FlaskId | null) => void;
+interface FlaskOption {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
 }
 
-export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
+interface FlaskDropdownProps {
+  label: string;
+  value: string;
+  options: Record<string, FlaskOption>;
+  onChange: (value: string) => void;
+}
+
+export function FlaskDropdown({ label, value, options, onChange }: FlaskDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -37,8 +46,8 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const currentFlask = value ? FLASKS[value] : FLASKS.DEFAULT;
-  const IconComponent = ICON_COMPONENTS[currentFlask.icon];
+  const currentOption = options[value] || Object.values(options)[0];
+  const IconComponent = ICON_COMPONENTS[currentOption.icon];
 
   // Update click handler to be more robust
   const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
@@ -53,10 +62,10 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
     e.stopPropagation();
   };
 
-  const handleOptionClick = (e: React.MouseEvent | React.TouchEvent, flaskId: FlaskId | null) => {
+  const handleOptionClick = (e: React.MouseEvent | React.TouchEvent, optionId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    onChange(flaskId);
+    onChange(optionId);
     setIsOpen(false);
   };
 
@@ -85,6 +94,7 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
         onPointerUp={(e) => e.stopPropagation()}
       >
         <IconComponent className="w-5 h-5 text-zinc-400" />
+        <span className="text-xs text-zinc-400">{label}</span>
         <svg 
           className={cn(
             "w-4 h-4 text-zinc-400 transition-transform duration-200",
@@ -98,7 +108,6 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
         </svg>
       </button>
 
-      {/* Dropdown content */}
       {isOpen && (
         <div 
           className="absolute right-0 top-full mt-1 w-48 rounded-lg border-2 border-zinc-700 bg-zinc-800/95 backdrop-blur-md shadow-lg z-50"
@@ -106,13 +115,13 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
           onTouchMove={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
         >
-          {Object.values(FLASKS).map((flask) => {
-            const OptionIcon = ICON_COMPONENTS[flask.icon];
+          {Object.values(options).map((option) => {
+            const OptionIcon = ICON_COMPONENTS[option.icon];
             return (
               <button
-                key={flask.id}
+                key={option.id}
                 type="button"
-                onClick={(e) => handleOptionClick(e, flask.id === 'DEFAULT' ? null : flask.id)}
+                onClick={(e) => handleOptionClick(e, option.id)}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchMove={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
@@ -123,27 +132,25 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
                   "w-full px-3 py-1.5 flex items-center gap-2 text-left",
                   "hover:bg-zinc-700/50 transition-colors",
                   "group cursor-pointer touch-none",
-                  flask.id === 'DEFAULT' && "rounded-t-[6px]",
-                  flask.id === 'SHRINK' && "rounded-b-[6px]",
-                  flask.id === (value || 'DEFAULT') && "bg-zinc-700"
+                  option.id === value && "bg-zinc-700"
                 )}
               >
                 <div className="flex items-center gap-2 pointer-events-none">
                   <OptionIcon className={cn(
                     "w-5 h-5",
-                    flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
+                    option.id === value ? "text-zinc-100" : "text-zinc-400",
                     "group-hover:text-zinc-100"
                   )} />
                   <div className="flex flex-col">
                     <span className={cn(
                       "text-xs",
-                      flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
+                      option.id === value ? "text-zinc-100" : "text-zinc-400",
                       "group-hover:text-zinc-100"
                     )}>
-                      {flask.name}
+                      {option.name}
                     </span>
                     <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400">
-                      {flask.description}
+                      {option.description}
                     </span>
                   </div>
                 </div>

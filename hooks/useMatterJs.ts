@@ -7,6 +7,7 @@ import type { TierType } from '@/types/game';
 import type { FlaskState } from '@/types/flasks';
 import { FLASKS } from '@/types/flasks';
 import { CircleBody, PowerUpStats } from '@/types/physics';
+import { FLASK_SIZES, FLASK_EFFECTS } from '@/types/flasks';
 
 // Near the top of the file, add:
 declare global {
@@ -330,31 +331,30 @@ export const useMatterJs = (
     if (!renderRef.current || !engineRef.current) return null;
 
     const visualConfig = CIRCLE_CONFIG[tier];
-    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    const sizeConfig = FLASK_SIZES[flaskState.size];
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
     
-    // Apply scaling if either the flask is active or scaling is forced
-    const shouldScale = forceScale || activeFlask?.id === 'SHRINK';
-    const scale = shouldScale ? 0.75 : 1;
+    // Apply scaling based on size configuration
+    const shouldScale = forceScale || flaskState.size !== 'DEFAULT';
+    const scale = shouldScale ? sizeConfig.physics.scale : 1;
     const collisionRadius = visualConfig.radius * scale;
     
-    // Ensure visual radius is calculated after scaling
     const baseVisualRadius = visualConfig.radius - 1;
     const visualRadius = baseVisualRadius * scale;
     
-    // Create texture with scaled visuals - ensure we're using the scaled radius
     const texture = createCircleTexture(
       visualConfig.color,
       visualConfig.strokeColor,
       visualConfig.glowColor,
-      visualRadius * 2  // This ensures the texture matches the physical size
+      visualRadius * 2
     );
 
-    // Set up options including flask physics if active
+    // Combine physics from both size and effect
     const circleOptions: ExtendedBodyDefinition = {
-      density: tier === 1 ? 0.05 : 0.02,
-      friction: tier === 1 ? 0.001 : (activeFlask?.physics.friction ?? (isMobile ? 0.01 : 0.005)),
-      frictionAir: tier === 1 ? 0.0001 : (activeFlask?.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)),
-      restitution: activeFlask?.physics.restitution ?? 0.3,
+      density: tier === 1 ? 0.05 : (effectConfig.physics.density ?? 0.02),
+      friction: tier === 1 ? 0.001 : (effectConfig.physics.friction ?? (isMobile ? 0.01 : 0.005)),
+      frictionAir: tier === 1 ? 0.0001 : (effectConfig.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)),
+      restitution: effectConfig.physics.restitution ?? 0.3,
       frictionStatic: tier === 1 ? 0.001 : (isMobile ? 0.04 : 0.02),
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
@@ -370,8 +370,7 @@ export const useMatterJs = (
           opacity: 1
         },
         opacity: 1,
-        // Add these properties to ensure proper sprite sizing
-        width: collisionRadius * 2 + 32, // Account for glow padding
+        width: collisionRadius * 2 + 32,
         height: collisionRadius * 2 + 32
       },
       label: `circle-${tier}`
@@ -397,29 +396,11 @@ export const useMatterJs = (
       angularVelocity: 0
     });
 
-    // Cache bounds for larger circles
-    if (tier >= 8) {
-      circle.bounds = Matter.Bounds.create([
-        { x: x - collisionRadius, y: y - collisionRadius },
-        { x: x + collisionRadius, y: y + collisionRadius }
-      ]);
-    }
-
     // Add to world after all properties are set
     Matter.Composite.add(engineRef.current.world, circle);
     
-    // Set additional properties
-    circle.isSpawnedBall = !isStressTest;  // Not a spawned ball if it's a stress test ball
-    circle.hasBeenDropped = isStressTest;  // Stress test balls are considered dropped immediately
-    
-    // Set the circle's bounds to account for the glow
-    circle.bounds = {
-      min: { x: circle.position.x - collisionRadius - 16, y: circle.position.y - collisionRadius - 16 },
-      max: { x: circle.position.x + collisionRadius + 16, y: circle.position.y + collisionRadius + 16 }
-    };
-    
     return circle;
-  }, [flaskState.activeFlaskId, createCircleTexture]);
+  }, [flaskState.size, flaskState.effect, isMobile, createCircleTexture]);
 
   // Add a ref to track wall bodies
   const wallBodiesRef = useRef<Matter.Body[]>([]);
@@ -1359,7 +1340,7 @@ export const useMatterJs = (
       : baseDropVelocity;
 
     // Add higher initial velocity for low gravity flask
-    if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
+    if (flaskState.effect === 'LOW_GRAVITY') {
       initialDropVelocity *= 6;
     }
     
@@ -1414,7 +1395,7 @@ export const useMatterJs = (
       }
     }, 50);
 
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.activeFlaskId]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.effect]);
 
   // Add helper function to get random tier for stress test
   const getRandomStressTestTier = (): TierType => {
@@ -1967,6 +1948,81 @@ export const useMatterJs = (
 
     // ... rest of effect code ...
   }, [prepareNextSpawn]);
+
+  // Add this effect to handle physics changes
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    // Get the effect configuration
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
+    
+    // Reset to default physics
+    engineRef.current.gravity.y = FLASK_EFFECTS.DEFAULT.physics.gravity || 1.75;
+    engineRef.current.timing.timeScale = FLASK_EFFECTS.DEFAULT.physics.timeScale || 1.35;
+
+    // Apply effect physics if not default
+    if (flaskState.effect !== 'DEFAULT' && effectConfig?.physics) {
+      if (effectConfig.physics.gravity !== undefined) {
+        engineRef.current.gravity.y = effectConfig.physics.gravity;
+      }
+      if (effectConfig.physics.timeScale !== undefined) {
+        engineRef.current.timing.timeScale = effectConfig.physics.timeScale;
+      }
+
+      // Special handling for low gravity effect
+      if (flaskState.effect === 'LOW_GRAVITY') {
+        // Increase timeScale for faster movement
+        engineRef.current.timing.timeScale = 2.4;
+
+        const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
+          event.pairs.forEach((pair) => {
+            const bodyA = pair.bodyA as CircleBody;
+            const bodyB = pair.bodyB as CircleBody;
+            
+            if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
+              const collisionAngle = Math.atan2(
+                bodyB.position.y - bodyA.position.y,
+                bodyB.position.x - bodyA.position.x
+              );
+
+              const bounceForce = 0.06;
+              
+              Matter.Body.setVelocity(bodyA, {
+                x: bodyA.velocity.x - Math.cos(collisionAngle) * bounceForce,
+                y: bodyA.velocity.y - Math.sin(collisionAngle) * bounceForce
+              });
+              
+              Matter.Body.setVelocity(bodyB, {
+                x: bodyB.velocity.x + Math.cos(collisionAngle) * bounceForce,
+                y: bodyB.velocity.y + Math.sin(collisionAngle) * bounceForce
+              });
+
+              const randomAngle = Math.random() * Math.PI * 2;
+              const randomForce = 0.03;
+
+              Matter.Body.applyForce(bodyA, bodyA.position, {
+                x: Math.cos(randomAngle) * randomForce,
+                y: Math.sin(randomAngle) * randomForce
+              });
+
+              Matter.Body.applyForce(bodyB, bodyB.position, {
+                x: Math.cos(randomAngle + Math.PI) * randomForce,
+                y: Math.sin(randomAngle + Math.PI) * randomForce
+              });
+            }
+          });
+        };
+
+        Matter.Events.on(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+
+        return () => {
+          if (engineRef.current) {
+            Matter.Events.off(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+          }
+        };
+      }
+    }
+  }, [flaskState.effect]);
 
   return {
     engine: engineRef.current,

@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ColorLegend } from '@/components/ColorLegend';
 import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
 import { FlaskButton } from '@/components/FlaskButton';
-import { FlaskState, FLASKS, createInitialFlaskState } from '@/types/flasks';
+import { FlaskState, FLASK_SIZES, FLASK_EFFECTS, createInitialFlaskState } from '@/types/flasks';
 import { FlaskIcon } from '@/components/icons/FlaskIcon';
 import { FeatherIcon } from '@/components/icons/FeatherIcon';
 import { SparklesIcon } from '@/components/icons/SparklesIcon';
@@ -355,10 +355,24 @@ export default function Home() {
             </div>
 
             {/* Flask Dropdown */}
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto flex gap-2">
               <FlaskDropdown
-                value={flaskState.activeFlaskId}
-                onChange={(value) => setFlaskState({ activeFlaskId: value })}
+                label="Size"
+                value={flaskState.size}
+                options={FLASK_SIZES}
+                onChange={(value) => setFlaskState(prev => ({ 
+                  ...prev, 
+                  size: value as FlaskSizeId 
+                }))}
+              />
+              <FlaskDropdown
+                label="Effect"
+                value={flaskState.effect}
+                options={FLASK_EFFECTS}
+                onChange={(value) => setFlaskState(prev => ({ 
+                  ...prev, 
+                  effect: value as FlaskEffectId 
+                }))}
               />
             </div>
           </div>

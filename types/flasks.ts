@@ -21,10 +21,43 @@ export interface Flask {
   };
 }
 
-export const FLASKS = {
+export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
+export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
+
+export const FLASK_SIZES = {
   DEFAULT: {
     id: 'DEFAULT',
-    name: 'Default Flask',
+    name: 'Default Size',
+    description: 'Standard ball size',
+    icon: 'FlaskIcon',
+    physics: {
+      scale: 1
+    }
+  },
+  SHRINK: {
+    id: 'SHRINK',
+    name: 'Small Size',
+    description: 'Makes all balls 25% smaller',
+    icon: 'ShrinkIcon',
+    physics: {
+      scale: 0.75
+    }
+  },
+  EXTRA_SHRINK: {
+    id: 'EXTRA_SHRINK',
+    name: 'Extra Small',
+    description: 'Makes all balls 50% smaller',
+    icon: 'ShrinkIcon',
+    physics: {
+      scale: 0.5
+    }
+  }
+} as const;
+
+export const FLASK_EFFECTS = {
+  DEFAULT: {
+    id: 'DEFAULT',
+    name: 'Default Effect',
     description: 'Standard physics behavior',
     icon: 'FlaskConicalIcon',
     physics: {
@@ -35,10 +68,6 @@ export const FLASKS = {
       restitution: 0.3,
       frictionStatic: 0.02,
       density: 0.02
-    },
-    visual: {
-      color: '#a78bfa',
-      glowColor: 'rgba(167, 139, 250, 0.5)'
     }
   },
   LOW_GRAVITY: {
@@ -54,10 +83,6 @@ export const FLASKS = {
       restitution: 0.65,
       frictionStatic: 0.001,
       density: 0.015
-    },
-    visual: {
-      color: '#a78bfa',
-      glowColor: 'rgba(167, 139, 250, 0.5)'
     }
   },
   NO_FRICTION: {
@@ -73,40 +98,16 @@ export const FLASKS = {
       frictionStatic: 0.0001,
       restitution: 0.4,
       density: 0.02
-    },
-    visual: {
-      color: '#60a5fa',
-      glowColor: 'rgba(96, 165, 250, 0.5)'
-    }
-  },
-  SHRINK: {
-    id: 'SHRINK',
-    name: 'Large Flask',
-    description: 'Makes all balls 25% smaller',
-    icon: 'ShrinkIcon',
-    physics: {
-      gravity: 1.75,
-      timeScale: 1.35,
-      friction: 0.01,
-      frictionAir: 0.0002,
-      frictionStatic: 0.02,
-      restitution: 0.3,
-      density: 0.02,
-      scale: 0.75
-    },
-    visual: {
-      color: '#4ade80',
-      glowColor: 'rgba(74, 222, 128, 0.5)'
     }
   }
 } as const;
 
-export type FlaskId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'SHRINK';
-
 export interface FlaskState {
-  activeFlaskId: FlaskId | null;
+  size: FlaskSizeId;
+  effect: FlaskEffectId;
 }
 
 export const createInitialFlaskState = (): FlaskState => ({
-  activeFlaskId: null
+  size: 'DEFAULT',
+  effect: 'DEFAULT'
 }); 
