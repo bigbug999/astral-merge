@@ -103,6 +103,40 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
   background?: string;
 }
 
+// Add CircleBody interface
+interface CircleBody extends Matter.Body {
+  tier?: number;
+  isMerging?: boolean;
+  isScaled?: boolean;
+  isSpawnedBall?: boolean;
+  hasBeenDropped?: boolean;
+  spawnTime?: number;
+  inDangerZone?: boolean;
+  dropTime?: number;
+  dangerZoneStartTime?: number;
+  isVoidBall?: boolean;
+  isSuperVoid?: boolean;
+  deletionsRemaining?: number;
+  isHeavyBall?: boolean;
+  powerUpDropTime?: number;
+  powerUpStats?: {
+    density: number;
+    velocity: number;
+    force: number;
+    timeRemaining: number;
+    slop: number;
+  };
+  circleRadius?: number;
+  render: Matter.IBodyRenderOptions & {
+    sprite?: {
+      texture: string;
+      xScale: number;
+      yScale: number;
+      opacity: number;
+    };
+  };
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -260,7 +294,7 @@ export const useMatterJs = (
   };
 
   // Add this helper function to get active power-up
-  const getActivePowerUp = useCallback((powerUpState: PowerUpState) => {
+  const getActivePowerUp = useCallback((powerUpState: PowerUpState): PowerUp | null => {
     return powerUpState.activePowerUpId ? POWER_UPS[powerUpState.activePowerUpId] : null;
   }, []);
 
@@ -458,7 +492,7 @@ export const useMatterJs = (
     }
     
     logWorldState(engineRef.current, 'After cleanup');
-  }, []);
+  }, [/* dependencies */]); // Add missing dependency array
 
   // Then define createOptimizedWalls
   const createOptimizedWalls = useCallback(() => {
