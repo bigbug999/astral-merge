@@ -1769,30 +1769,76 @@ export const useMatterJs = (
     };
   }, [cleanupBody]);
 
-  // Add resize handling to properly recreate walls
+  // Update the initial render creation
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    const render = Matter.Render.create({
+      element: containerRef.current,
+      engine: engineRef.current,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: 'transparent',
+        pixelRatio: pixelRatio,
+      } as ExtendedRendererOptions
+    });
+
+    // Set canvas size accounting for pixel ratio
+    render.canvas.width = width * pixelRatio;
+    render.canvas.height = height * pixelRatio;
+    
+    // Set canvas CSS size
+    render.canvas.style.width = `${width}px`;
+    render.canvas.style.height = `${height}px`;
+    
+    // Scale the rendering context
+    render.context.scale(pixelRatio, pixelRatio);
+    
+    renderRef.current = render;
+    Matter.Render.run(render);
+
+    return () => {
+      Matter.Render.stop(render);
+      render.canvas.remove();
+      renderRef.current = null;
+    };
+  }, []);
+
+  // Update handleResize to properly handle pixel ratio
   const handleResize = useCallback(() => {
     if (!engineRef.current || !renderRef.current || !containerRef.current) return;
     
     const { width, height } = containerRef.current.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
     
-    console.log('Handling resize - updating walls');
-    logWorldState(engineRef.current, 'Before resize');
-    
-    // Update render bounds and pixel ratio
+    // Update render bounds
     renderRef.current.bounds.max.x = width;
     renderRef.current.bounds.max.y = height;
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
-    renderRef.current.options.pixelRatio = window.devicePixelRatio || 1;
-    renderRef.current.canvas.width = width * (window.devicePixelRatio || 1);
-    renderRef.current.canvas.height = height * (window.devicePixelRatio || 1);
-    renderRef.current.context.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    renderRef.current.options.pixelRatio = pixelRatio;
+    
+    // Update canvas size accounting for pixel ratio
+    renderRef.current.canvas.width = width * pixelRatio;
+    renderRef.current.canvas.height = height * pixelRatio;
+    
+    // Update canvas CSS size
+    renderRef.current.canvas.style.width = `${width}px`;
+    renderRef.current.canvas.style.height = `${height}px`;
+    
+    // Reset the scale transform
+    renderRef.current.context.setTransform(1, 0, 0, 1, 0, 0);
+    // Apply the new scale transform
+    renderRef.current.context.scale(pixelRatio, pixelRatio);
     
     // Recreate walls with new dimensions
     const newWalls = createOptimizedWalls();
     Matter.Composite.add(engineRef.current.world, newWalls);
-    
-    logWorldState(engineRef.current, 'After resize');
   }, [createOptimizedWalls]);
 
   // Update the monitoring effect to better handle the danger zone
@@ -2066,37 +2112,6 @@ export const useMatterJs = (
       }
     }
   }, [flaskState.effect]);
-
-  // Update render creation with pixel ratio
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const { width, height } = containerRef.current.getBoundingClientRect();
-
-    const render = Matter.Render.create({
-      element: containerRef.current,
-      engine: engineRef.current,
-      options: {
-        width,
-        height,
-        wireframes: false,
-        background: 'transparent',
-        pixelRatio: window.devicePixelRatio || 1, // Add pixel ratio setting
-      } as ExtendedRendererOptions
-    });
-
-    // Set pixel ratio directly on the renderer
-    render.context.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-    
-    renderRef.current = render;
-    Matter.Render.run(render);
-
-    return () => {
-      Matter.Render.stop(render);
-      render.canvas.remove();
-      renderRef.current = null;
-    };
-  }, []);
 
   return {
     engine: engineRef.current,

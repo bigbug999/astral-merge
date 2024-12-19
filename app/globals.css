@@ -68,3 +68,10 @@
   touch-action: none !important;
   -webkit-touch-callout: none !important;
 }
+
+canvas {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
