@@ -9,20 +9,16 @@ export interface FlaskPhysics {
   scale?: number;
 }
 
+export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
+export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
+
 export interface Flask {
-  id: FlaskId;
+  id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
   icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon';
   physics: FlaskPhysics;
-  visual: {
-    color: string;
-    glowColor: string;
-  };
 }
-
-export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
-export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
 
 export const FLASK_SIZES = {
   DEFAULT: {
