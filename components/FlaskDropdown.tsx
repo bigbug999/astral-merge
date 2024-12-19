@@ -25,7 +25,7 @@ interface FlaskOption {
   id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
-  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon';
+  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon';
 }
 
 interface FlaskDropdownProps {
