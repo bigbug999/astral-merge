@@ -105,7 +105,7 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
 
 // Add CircleBody interface
 interface CircleBody extends Matter.Body {
-  tier?: number;
+  tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;  // Update to match TierType
   isMerging?: boolean;
   isScaled?: boolean;
   isSpawnedBall?: boolean;
@@ -358,7 +358,7 @@ export const useMatterJs = (
 
   // Update createCircle to apply flask physics
   const createCircle = useCallback((
-    tier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12,
+    tier: TierType,  // Use TierType instead of union type
     x: number,
     y: number,
     isStressTest: boolean = false,
@@ -420,7 +420,7 @@ export const useMatterJs = (
     
     // Set basic circle properties
     circle.isMerging = false;
-    circle.tier = tier;
+    circle.tier = tier;  // This will now be correctly typed
     circle.hasBeenDropped = false;
     circle.spawnTime = Date.now();
     circle.inDangerZone = false;
