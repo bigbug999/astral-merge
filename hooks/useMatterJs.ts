@@ -137,6 +137,14 @@ interface CircleBody extends Matter.Body {
   };
 }
 
+// Add these interfaces near the top
+interface StormField {
+  position: Matter.Vector;
+  strength: number;
+  radius: number;
+  timeRemaining: number;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -191,6 +199,58 @@ export const useMatterJs = (
   const lastTimeRef = useRef<number>(Date.now());
   const frameCountRef = useRef<number>(0);
   const FPS_UPDATE_INTERVAL = 500; // Update FPS every 500ms
+
+  // Add to your existing state
+  const stormFields = useRef<StormField[]>([]);
+
+  // Add this function to handle storm field creation
+  const createStormField = useCallback((x: number, y: number, power: PowerUp) => {
+    const stormField: StormField = {
+      position: Matter.Vector.create(x, y),
+      strength: power.effects.strength,
+      radius: power.effects.radius,
+      timeRemaining: power.effects.duration
+    };
+    
+    stormFields.current.push(stormField);
+  }, []);
+
+  // Add storm field update logic in your update function
+  const updateStormFields = useCallback((delta: number) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    stormFields.current = stormFields.current.filter(field => {
+      field.timeRemaining -= delta;
+      
+      if (field.timeRemaining <= 0) return false;
+
+      const bodies = Matter.Composite.allBodies(engine.world);
+      bodies.forEach(body => {
+        if (body.isStatic) return;
+
+        const distance = Matter.Vector.magnitude(
+          Matter.Vector.sub(field.position, body.position)
+        );
+
+        if (distance < field.radius) {
+          const angle = Math.random() * Math.PI * 2;
+          const force = {
+            x: Math.cos(angle) * field.strength,
+            y: Math.sin(angle) * field.strength
+          };
+          
+          Matter.Body.applyForce(
+            body,
+            body.position,
+            force
+          );
+        }
+      });
+
+      return true;
+    });
+  }, []);
 
   // Add FPS calculation effect
   useEffect(() => {
@@ -2110,6 +2170,103 @@ export const useMatterJs = (
           }
         };
       }
+    }
+  }, [flaskState.effect]);
+
+  // Add to your main update loop
+  useEffect(() => {
+    // ... existing update logic
+    
+    const update = (delta: number) => {
+      // ... other updates
+      updateStormFields(delta);
+    };
+    
+    // ... rest of the effect
+  }, [/* existing dependencies */, updateStormFields]);
+
+  // Modify your power-up handling to include storm fields
+  const handlePowerUp = useCallback((power: PowerUp, x: number, y: number) => {
+    if (power.id === 'STORM_FIELD') {
+      createStormField(x, y, power);
+      return;
+    }
+    // ... existing power-up handling
+  }, [createStormField]);
+
+  // Add to existing physics update effect
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
+    
+    // ... existing physics setup ...
+
+    // Add special handling for storm effect
+    if (flaskState.effect === 'STORM') {
+      const stormUpdateHandler = () => {
+        const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+        
+        bodies.forEach(body => {
+          if (body.isStatic || !body.label?.startsWith('circle-')) return;
+          
+          // Create more chaotic turbulence
+          const angle = Math.random() * Math.PI * 2;
+          const distanceFromCenter = Math.random() * 0.8; // Increased from 0.5
+          
+          // Enhanced vertical oscillation
+          const time = Date.now() * 0.005;
+          const verticalOscillation = Math.sin(time) * 0.015 + Math.cos(time * 0.5) * 0.01;
+          
+          // Add occasional strong upward or downward gusts
+          const verticalGust = Math.random() < 0.15 ? 
+            (Math.random() < 0.5 ? -0.03 : 0.02) : 0;
+          
+          const force = {
+            x: Math.cos(angle) * effectConfig.physics.turbulence.strength * (1 + distanceFromCenter),
+            y: (Math.sin(angle) * effectConfig.physics.turbulence.strength * (1 + distanceFromCenter)) + 
+               verticalOscillation + 
+               verticalGust
+          };
+          
+          // Apply force with increased frequency
+          if (Math.random() < effectConfig.physics.turbulence.frequency) {
+            // More extreme burst multiplier
+            const burstMultiplier = Math.random() < 0.15 ? 
+              (Math.random() * 2 + 2.5) : // Random multiplier between 2.5 and 4.5
+              1;
+            
+            // Add vertical bias to create more up/down movement
+            const verticalBias = effectConfig.physics.turbulence.verticalBias;
+            const biasedForce = {
+              x: force.x * burstMultiplier,
+              y: force.y * burstMultiplier * (1 + verticalBias)
+            };
+            
+            Matter.Body.applyForce(
+              body,
+              body.position,
+              biasedForce
+            );
+            
+            // Occasionally add a rotational force for more chaos
+            if (Math.random() < 0.2) {
+              Matter.Body.setAngularVelocity(
+                body, 
+                (Math.random() - 0.5) * 0.2
+              );
+            }
+          }
+        });
+      };
+
+      Matter.Events.on(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+
+      return () => {
+        if (engineRef.current) {
+          Matter.Events.off(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+        }
+      };
     }
   }, [flaskState.effect]);
 

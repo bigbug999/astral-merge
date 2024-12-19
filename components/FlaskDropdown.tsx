@@ -9,6 +9,7 @@ import { ShrinkIcon } from './icons/ShrinkIcon';
 import { TestTubeIcon } from './icons/TestTubeIcon';
 import { BookMarkedIcon } from './icons/BookMarkedIcon';
 import { FlaskRoundIcon } from './icons/FlaskRoundIcon';
+import { StormIcon } from '@/components/icons/StormIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   TestTubeIcon,
@@ -19,13 +20,14 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   ShrinkIcon,
   BookMarkedIcon,
   FlaskRoundIcon,
+  StormIcon,
 };
 
 interface FlaskOption {
   id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
-  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon';
+  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon' | 'StormIcon';
 }
 
 interface FlaskDropdownProps {

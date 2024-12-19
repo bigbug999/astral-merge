@@ -86,6 +86,18 @@ export const POWER_UP_CONFIG = {
     }
   },
   SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
+  STORM: {
+    BASIC: {
+      FREQUENCY: 0.5,
+      STRENGTH: 0.003,
+      RADIUS: 50,
+      DURATION: 5000, // 5 seconds
+      DENSITY: 0.02,
+      FRICTION: 0.05,
+      FRICTION_AIR: 0.001,
+      RESTITUTION: 0.3
+    }
+  }
 };
 
 // Define base power-up interface
@@ -274,6 +286,31 @@ export const POWER_UPS: Record<string, PowerUp> = {
       deletionsRemaining: POWER_UP_CONFIG.VOID.ULTRA.DELETIONS,
       bounceForce: POWER_UP_CONFIG.VOID.ULTRA.BOUNCE_FORCE,
       initialSpeed: POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED,
+    }
+  },
+  STORM_FIELD: {
+    id: 'STORM_FIELD',
+    name: 'Storm Field',
+    description: 'Creates a chaotic storm that randomly pushes balls',
+    maxUses: 2,
+    icon: 'StormIcon',
+    group: 'ENVIRONMENTAL',
+    level: 1,
+    physics: {
+      density: POWER_UP_CONFIG.STORM.BASIC.DENSITY,
+      friction: POWER_UP_CONFIG.STORM.BASIC.FRICTION,
+      frictionAir: POWER_UP_CONFIG.STORM.BASIC.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.STORM.BASIC.RESTITUTION,
+    },
+    visual: {
+      strokeColor: '#4B0082',
+      glowColor: 'rgba(75, 0, 130, 0.5)',
+    },
+    effects: {
+      frequency: POWER_UP_CONFIG.STORM.BASIC.FREQUENCY,
+      strength: POWER_UP_CONFIG.STORM.BASIC.STRENGTH,
+      radius: POWER_UP_CONFIG.STORM.BASIC.RADIUS,
+      duration: POWER_UP_CONFIG.STORM.BASIC.DURATION
     }
   }
 };

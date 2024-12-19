@@ -10,13 +10,13 @@ export interface FlaskPhysics {
 }
 
 export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
-export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
+export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'STORM';
 
 export interface Flask {
   id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
-  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon';
+  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon' | 'StormIcon';
   physics: FlaskPhysics;
 }
 
@@ -94,6 +94,27 @@ export const FLASK_EFFECTS = {
       frictionStatic: 0.0001,
       restitution: 0.4,
       density: 0.02
+    }
+  },
+  STORM: {
+    id: 'STORM',
+    name: 'Storm Field',
+    description: 'Creates chaotic turbulence that affects all balls',
+    icon: 'StormIcon',
+    physics: {
+      gravity: 1.75,
+      timeScale: 1.6,
+      friction: 0.015,
+      frictionAir: 0.0003,
+      restitution: 0.6,
+      frictionStatic: 0.03,
+      density: 0.02,
+      turbulence: {
+        frequency: 0.9,
+        strength: 0.025,
+        radius: 150,
+        verticalBias: 0.4
+      }
     }
   }
 } as const;

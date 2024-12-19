@@ -21,6 +21,8 @@ import { FeatherIcon } from '@/components/icons/FeatherIcon';
 import { SparklesIcon } from '@/components/icons/SparklesIcon';
 import { BounceIcon } from '@/components/icons/BounceIcon';
 import { FlaskDropdown } from '@/components/FlaskDropdown';
+import FlaskEffects from '@/components/FlaskEffects';
+import { StormIcon } from '@/components/icons/StormIcon';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -74,6 +76,8 @@ const getFlaskIcon = (iconName: string) => {
       return SparklesIcon;
     case 'BounceIcon':
       return BounceIcon;
+    case 'StormIcon':
+      return StormIcon;
     default:
       return FlaskIcon;
   }
@@ -469,6 +473,11 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <FlaskEffects 
+        flaskState={flaskState}
+        containerRef={containerRef}
+      />
     </div>
   );
 }
