@@ -21,16 +21,20 @@ const FLASK_COLORS = {
     glowColor: 'rgba(74, 222, 128, 0.5)'
   },
   EXTRA_SHRINK: {
-    color: '#4ade80',
-    glowColor: 'rgba(74, 222, 128, 0.5)'
+    color: '#22c55e',
+    glowColor: 'rgba(34, 197, 94, 0.5)'
   },
   LOW_GRAVITY: {
-    color: '#a78bfa',
-    glowColor: 'rgba(167, 139, 250, 0.5)'
-  },
-  NO_FRICTION: {
     color: '#60a5fa',
     glowColor: 'rgba(96, 165, 250, 0.5)'
+  },
+  NO_FRICTION: {
+    color: '#f472b6',
+    glowColor: 'rgba(244, 114, 182, 0.5)'
+  },
+  STORM: {
+    color: '#9333ea',
+    glowColor: 'rgba(147, 51, 234, 0.5)'
   }
 } as const;
 
