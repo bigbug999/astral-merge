@@ -105,7 +105,7 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
 
 // Add CircleBody interface
 interface CircleBody extends Matter.Body {
-  tier?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;  // Update to match TierType
+  tier?: TierType;  // Use TierType instead of union
   isMerging?: boolean;
   isScaled?: boolean;
   isSpawnedBall?: boolean;
@@ -680,13 +680,21 @@ export const useMatterJs = (
       console.log(`Created new merged circle: Tier ${newTier}, Scaled: ${newCircle.isScaled}`);
       newCircle.hasBeenDropped = true;
       
-      // Reduce the upward boost and add slight random horizontal movement
+      // Add stronger upward boost for low gravity flask
       const randomHorizontal = (Math.random() - 0.5) * 0.5;
-      Matter.Body.setVelocity(newCircle, { 
-        x: randomHorizontal, 
-        y: -1.5  // Reduced from -2.5
-      });
       
+      if (flaskState.effect === 'LOW_GRAVITY') {
+        Matter.Body.setVelocity(newCircle, { 
+          x: randomHorizontal * 1.5,
+          y: -3
+        });
+      } else {
+        Matter.Body.setVelocity(newCircle, { 
+          x: randomHorizontal,
+          y: -1.5
+        });
+      }
+
       // Add a small delay before enabling collisions
       setTimeout(() => {
         if (newCircle && !newCircle.isMerging) {
@@ -714,25 +722,11 @@ export const useMatterJs = (
           onPowerUpEarned(3);
         }
       }
-
-      // Add stronger upward boost for low gravity flask
-      if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
-        Matter.Body.setVelocity(newCircle, { 
-          x: randomHorizontal * 1.5, // Slightly stronger horizontal movement
-          y: -3  // Much stronger upward boost (was -1.5)
-        });
-      } else {
-        // Normal merge velocity
-        Matter.Body.setVelocity(newCircle, { 
-          x: randomHorizontal, 
-          y: -1.5
-        });
-      }
     }
 
     onNewTier(newTier);
     logWorldState(engineRef.current, 'After merge');
-  }, [createCircle, onNewTier, powerUps, onPowerUpEarned, cleanupBody, flaskState.activeFlaskId]);
+  }, [createCircle, onNewTier, powerUps, onPowerUpEarned, cleanupBody, flaskState.effect]);
 
   // Update collision handling
   const processCollisionQueue = useCallback(() => {

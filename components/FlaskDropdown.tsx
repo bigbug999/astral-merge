@@ -15,17 +15,17 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
 };
 
 interface FlaskOption {
-  id: string;
+  id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
-  icon: string;
+  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon';
 }
 
 interface FlaskDropdownProps {
   label: string;
-  value: string;
+  value: FlaskSizeId | FlaskEffectId;
   options: Record<string, FlaskOption>;
-  onChange: (value: string) => void;
+  onChange: (value: FlaskSizeId | FlaskEffectId) => void;
 }
 
 export function FlaskDropdown({ label, value, options, onChange }: FlaskDropdownProps) {
@@ -60,7 +60,7 @@ export function FlaskDropdown({ label, value, options, onChange }: FlaskDropdown
     e.stopPropagation();
   };
 
-  const handleOptionClick = (e: React.MouseEvent | React.TouchEvent, optionId: string) => {
+  const handleOptionClick = (e: React.MouseEvent | React.TouchEvent, optionId: FlaskSizeId | FlaskEffectId) => {
     e.preventDefault();
     e.stopPropagation();
     onChange(optionId);
