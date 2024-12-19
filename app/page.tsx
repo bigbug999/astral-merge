@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ColorLegend } from '@/components/ColorLegend';
 import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
 import { FlaskButton } from '@/components/FlaskButton';
-import { FlaskState, FLASK_SIZES, FLASK_EFFECTS, createInitialFlaskState } from '@/types/flasks';
+import { FlaskState, FLASK_SIZES, FLASK_EFFECTS, createInitialFlaskState, FlaskSizeId, FlaskEffectId } from '@/types/flasks';
 import { FlaskIcon } from '@/components/icons/FlaskIcon';
 import { FeatherIcon } from '@/components/icons/FeatherIcon';
 import { SparklesIcon } from '@/components/icons/SparklesIcon';

@@ -5,9 +5,11 @@ import type { PowerUp, PowerUpState } from '@/types/powerups';
 import { POWER_UPS, POWER_UP_CONFIG } from '@/types/powerups';
 import type { TierType } from '@/types/game';
 import type { FlaskState } from '@/types/flasks';
-import { FLASKS } from '@/types/flasks';
-import { CircleBody, PowerUpStats } from '@/types/physics';
 import { FLASK_SIZES, FLASK_EFFECTS } from '@/types/flasks';
+import { 
+  FlaskSizeId,
+  FlaskEffectId 
+} from '@/types/flasks';
 
 // Near the top of the file, add:
 declare global {
@@ -1302,7 +1304,7 @@ export const useMatterJs = (
     // Apply power-up properties and visuals only when dropping
     if (activePowerUp) {
       // Get current scale from flask or existing scale
-      const scale = flaskState.activeFlaskId === 'SHRINK' || circle.isScaled ? 0.75 : 1;
+      const scale = flaskState.size !== 'DEFAULT' ? FLASK_SIZES[flaskState.size].physics.scale : 1;
       
       // Apply visuals with correct scaling
       const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
