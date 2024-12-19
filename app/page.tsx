@@ -6,7 +6,7 @@ declare global {
 
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
 import { CIRCLE_CONFIG } from '@/types/game';
 import { PowerUpState, POWER_UPS, createInitialPowerUpState, getPowerUpsByGroup } from '@/types/powerups';
@@ -233,63 +233,100 @@ export default function Home() {
     setPowerUps(createInitialPowerUpState(false));
   }, []);
 
-  // Add touch event handlers
-  const handleTouchStart = useCallback((event: React.TouchEvent) => {
-    event.preventDefault(); // Prevent default touch behavior
+  // First, add this effect to set up non-passive touch events
+  useEffect(() => {
     if (!containerRef.current) return;
     
-    const touch = event.touches[0];
-    const { left } = containerRef.current.getBoundingClientRect();
-    const relativeX = touch.clientX - left;
-    
-    startDrag(relativeX);
-  }, [startDrag]);
+    const container = containerRef.current;
+    const options = { passive: false };
 
-  const handleTouchMove = useCallback((event: React.TouchEvent) => {
-    event.preventDefault(); // Prevent default touch behavior
-    if (!containerRef.current) return;
-    
-    const touch = event.touches[0];
-    const { left } = containerRef.current.getBoundingClientRect();
-    const relativeX = touch.clientX - left;
-    
-    updateDrag(relativeX);
-  }, [updateDrag]);
+    const touchStartHandler = (e: TouchEvent) => {
+      // Don't prevent default for touches on the UI area
+      const touch = e.touches[0];
+      const touchY = touch.clientY;
+      const { top } = container.getBoundingClientRect();
+      const relativeY = touchY - top;
 
-  const handleTouchEnd = useCallback((event: React.TouchEvent) => {
-    event.preventDefault(); // Prevent default touch behavior
-    if (!containerRef.current) return;
-    
-    const { left } = containerRef.current.getBoundingClientRect();
-    const relativeX = event.changedTouches[0].clientX - left;
-    
-    endDrag(relativeX);
-  }, [endDrag]);
+      // Only handle touch events below the UI area
+      if (relativeY > 60) {
+        e.preventDefault();
+        const { left } = container.getBoundingClientRect();
+        const relativeX = touch.clientX - left;
+        startDrag(relativeX);
+      }
+    };
+
+    const touchMoveHandler = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const touchY = touch.clientY;
+      const { top } = container.getBoundingClientRect();
+      const relativeY = touchY - top;
+
+      if (relativeY > 60) {
+        e.preventDefault();
+        const { left } = container.getBoundingClientRect();
+        const relativeX = touch.clientX - left;
+        updateDrag(relativeX);
+      }
+    };
+
+    const touchEndHandler = (e: TouchEvent) => {
+      const touch = e.changedTouches[0];
+      const touchY = touch.clientY;
+      const { top } = container.getBoundingClientRect();
+      const relativeY = touchY - top;
+
+      if (relativeY > 60) {
+        e.preventDefault();
+        const { left } = container.getBoundingClientRect();
+        const relativeX = touch.clientX - left;
+        endDrag(relativeX);
+      }
+    };
+
+    container.addEventListener('touchstart', touchStartHandler, options);
+    container.addEventListener('touchmove', touchMoveHandler, options);
+    container.addEventListener('touchend', touchEndHandler, options);
+
+    return () => {
+      container.removeEventListener('touchstart', touchStartHandler);
+      container.removeEventListener('touchmove', touchMoveHandler);
+      container.removeEventListener('touchend', touchEndHandler);
+    };
+  }, [startDrag, updateDrag, endDrag]);
+
+  // Update containerProps to have a more specific touch-none area
+  const containerProps = {
+    ref: containerRef,
+    onPointerDown: handlePointerDown,
+    onPointerMove: handlePointerMove,
+    onPointerUp: handlePointerUp,
+    className: "relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden bg-zinc-800 mb-1 select-none"
+  };
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
       <div className="w-full max-w-sm flex flex-col gap-4">
-        {/* Game Container */}
-        <div 
-          ref={containerRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden touch-none bg-zinc-800 mb-1 select-none"
-        >
-          {/* Ceiling */}
-          <div className="absolute top-0 left-0 right-0 h-1" />
+        {/* Game Container with UI Overlay */}
+        <div className="relative">
+          {/* Game Container */}
+          <div {...containerProps}>
+            {/* Game Canvas Area */}
+            <div className="absolute inset-0">
+              {/* Matter.js renders here */}
+            </div>
 
-          {/* Preview, Score, and Flask Container */}
-          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1.5">
+            {/* Touch Prevention Layer */}
+            <div className="absolute inset-0 touch-none pointer-events-none" />
+          </div>
+
+          {/* Score and Controls Bar - Positioned absolutely over game container */}
+          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1.5 z-50">
             {/* Left side group */}
             <div className="flex items-center gap-1.5">
               {/* Preview Circle */}
               <div className="w-9 h-9 border-2 border-zinc-700/50 rounded-lg flex items-center justify-center bg-zinc-800/30 backdrop-blur-md shrink-0">
-                <div 
+                <div
                   className="rounded-full"
                   style={{
                     width: `${PREVIEW_DIAMETER}px`,
@@ -318,15 +355,17 @@ export default function Home() {
             </div>
 
             {/* Flask Dropdown */}
-            <FlaskDropdown
-              value={flaskState.activeFlaskId}
-              onChange={(value) => setFlaskState({ activeFlaskId: value })}
-            />
+            <div className="pointer-events-auto">
+              <FlaskDropdown
+                value={flaskState.activeFlaskId}
+                onChange={(value) => setFlaskState({ activeFlaskId: value })}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Power-up Section */}
-        <div className="flex flex-col gap-4">
+        {/* Rest of the UI (Power-ups, Debug UI, etc.) */}
+        <div className="w-full flex flex-col gap-4">
           {/* Combined Power-ups Row */}
           <div className="grid grid-cols-7 gap-2 w-full">
             {/* Gravity Power-ups */}

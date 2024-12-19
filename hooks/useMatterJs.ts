@@ -1218,21 +1218,21 @@ export const useMatterJs = (
   }, [containerRef, createCircle, mergeBodies, powerUps]);
 
   const prepareNextSpawn = useCallback((mouseX?: number) => {
-    if (!renderRef.current) return;
+    if (!renderRef.current || isCreatingDropBallRef.current) return;
+    
+    isCreatingDropBallRef.current = true;
     const { width } = renderRef.current.canvas;
     
     const circleRadius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
     const padding = circleRadius + 0.5;
     
-    nextSpawnXRef.current = mouseX !== undefined ? 
+    const spawnX = mouseX !== undefined ? 
       Math.max(padding, Math.min(width - padding, mouseX)) : 
       width / 2;
     
-    // Create the next ball with current power-up state
-    isCreatingDropBallRef.current = false;
     const circle = createCircle(
       nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
-      nextSpawnXRef.current,
+      spawnX,
       -circleRadius
     );
     
@@ -1268,7 +1268,7 @@ export const useMatterJs = (
         const newY = startY + (totalDistance * easedProgress);
         
         Matter.Body.setPosition(circle, {
-          x: nextSpawnXRef.current || width / 2,
+          x: spawnX,
           y: newY
         });
         
@@ -1282,8 +1282,11 @@ export const useMatterJs = (
       
       requestAnimationFrame(animateSlideDown);
     }
+    
+    isCreatingDropBallRef.current = false;
   }, [createCircle, nextTier]);
 
+  // Update the startDrag function
   const startDrag = useCallback((x: number) => {
     // Don't allow starting a new drag while animating
     if (isAnimatingRef.current) return;
@@ -1292,22 +1295,9 @@ export const useMatterJs = (
     const { width } = renderRef.current.canvas;
     
     if (isFirstSpawnRef.current) {
-      // First spawn logic - also moved closer to top
-      const spawnX = width / 2;
-      const spawnY = 30;
-      
-      const circle = createCircle(
-        nextTier as 1|2|3|4|5|6|7|8|9|10|11|12, 
-        spawnX,
-        spawnY
-      );
-      
-      if (circle) {
-        circle.isStatic = true;
-        currentCircleRef.current = circle;
-        isDraggingRef.current = true;
-        isFirstSpawnRef.current = false;
-      }
+      // First spawn logic
+      prepareNextSpawn(width / 2);
+      isFirstSpawnRef.current = false;
     } else if (currentCircleRef.current) {
       // Update position only if not animating
       const radius = CIRCLE_CONFIG[nextTier as keyof typeof CIRCLE_CONFIG].radius;
@@ -1320,38 +1310,28 @@ export const useMatterJs = (
         y: currentCircleRef.current.position.y
       });
     }
-  }, [createCircle, nextTier]);
+  }, [prepareNextSpawn, nextTier]);
 
+  // Update the updateDrag function
   const updateDrag = useCallback((x: number) => {
-    if (!renderRef.current || !currentCircleRef.current) return;
+    // Don't update position if animating or not dragging
+    if (isAnimatingRef.current || !isDraggingRef.current) {
+      return;
+    }
+
+    nextSpawnXRef.current = x;
     
-    const { width } = renderRef.current.canvas;
-    const circle = currentCircleRef.current as CircleBody;
-    
-    const radius = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG || 1].radius;
-    const padding = radius + 0.5;
-    
-    // Update X position regardless of drag state
-    const constrainedX = Math.max(
-        padding, 
-        Math.min(width - padding, x)
-    );
-    
-    // Store the last valid mouse position
-    nextSpawnXRef.current = constrainedX;
-    
-    // Only update the circle position if not animating
-    if (!isAnimatingRef.current) {
-        Matter.Body.setPosition(circle, {
-            x: constrainedX,
-            y: circle.position.y,
-        });
+    if (currentCircleRef.current) {
+      Matter.Body.setPosition(currentCircleRef.current, {
+        x: x,
+        y: currentCircleRef.current.position.y
+      });
     }
   }, []);
 
-  // Update endDrag to apply both visuals and physics when dropping
+  // Update the endDrag function
   const endDrag = useCallback((mouseX: number) => {
-    if (!currentCircleRef.current || !engineRef.current) return;
+    if (!currentCircleRef.current || !engineRef.current || isAnimatingRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
     
@@ -1365,6 +1345,7 @@ export const useMatterJs = (
     });
     
     circle.isSpawnedBall = false;
+    circle.hasBeenDropped = true;
     
     const activePowerUp = getActivePowerUp(powerUps);
     
@@ -1382,31 +1363,27 @@ export const useMatterJs = (
           visualConfig.color,
           activePowerUp.visual.strokeColor,
           activePowerUp.visual.glowColor,
-          visualRadius * 2  // Use scaled radius
+          visualRadius * 2
         );
       }
 
       // Apply physics properties based on power-up type
       if (activePowerUp.group === 'VOID') {
         applyVoidPowerUp(circle, activePowerUp);
-        
-        // Ensure void ball maintains correct scale
         circle.isScaled = scale !== 1;
-        
       } else if (activePowerUp.group === 'GRAVITY') {
         applyGravityPowerUp(circle, activePowerUp);
-        
-        // Ensure gravity ball maintains correct scale
         circle.isScaled = scale !== 1;
       }
       
       onPowerUpUse();
     }
 
-    circle.hasBeenDropped = true;
+    // Make the ball dynamic and apply initial physics
+    circle.isStatic = false;
     Matter.Sleeping.set(circle, false);
     
-    // Calculate initial drop velocity with special case for low gravity
+    // Calculate initial drop velocity
     const baseDropVelocity = engineRef.current.gravity.y * (engineRef.current.timing.timeScale * 0.65);
     let initialDropVelocity = activePowerUp 
       ? baseDropVelocity * (activePowerUp.effects?.forceMultiplier || 1)
@@ -1414,11 +1391,11 @@ export const useMatterJs = (
 
     // Add higher initial velocity for low gravity flask
     if (flaskState.activeFlaskId === 'LOW_GRAVITY') {
-      initialDropVelocity *= 6; // Increased from 3x to 6x for more dramatic initial drop
+      initialDropVelocity *= 6;
     }
     
     // Set initial velocity based on power-up type
-    if (activePowerUp?.id === 'VOID_BALL' || activePowerUp?.id === 'SUPER_VOID_BALL' || activePowerUp?.id === 'ULTRA_VOID_BALL') {
+    if (activePowerUp?.id.includes('VOID_BALL')) {
       let config;
       if (activePowerUp.id === 'SUPER_VOID_BALL') {
         config = POWER_UP_CONFIG.VOID.SUPER;
@@ -1440,114 +1417,34 @@ export const useMatterJs = (
       });
     }
     
-    // Add immediate force based on power-up
+    // Apply immediate force for heavy balls
     if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
-      Matter.Body.applyForce(circle, 
-        circle.position, 
-        { x: 0, y: 0.5 }
-      );
+      Matter.Body.applyForce(circle, circle.position, { x: 0, y: 0.5 });
     } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
-      Matter.Body.applyForce(circle, 
-        circle.position, 
-        { x: 0, y: 0.2 }
-      );
+      Matter.Body.applyForce(circle, circle.position, { x: 0, y: 0.2 });
     } else if (activePowerUp?.id === 'HEAVY_BALL') {
-      Matter.Body.applyForce(circle, 
-        circle.position, 
-        { x: 0, y: 0.05 }
-      );
+      Matter.Body.applyForce(circle, circle.position, { x: 0, y: 0.05 });
     }
-    
-    circle.isStatic = false;
+
     Matter.Body.set(circle, {
       isSleeping: false,
       motion: 1,
       speed: Math.abs(initialDropVelocity)
     });
-    
+
+    // Reset refs and prepare next spawn
     isDraggingRef.current = false;
     currentCircleRef.current = null;
-    
-    setTimeout(() => {
-      if (circle && !circle.isSleeping) {
-        Matter.Body.set(circle, {
-          motion: circle.speed
-        });
-      }
-    }, 50);
     
     onDrop();
     
-    // Important: Reset current circle and prepare next spawn after power-up has been used
-    currentCircleRef.current = null;
-    isDraggingRef.current = false;
-    
-    // Call prepareNextSpawn after power-up effects have been cleared
+    // Prepare next spawn with a slight delay
     setTimeout(() => {
-      prepareNextSpawn(mouseX);
-    }, 0);
+      if (!isAnimatingRef.current) {
+        prepareNextSpawn(mouseX);
+      }
+    }, 50);
 
-    // Special handling for void ball bounce behavior
-    if (activePowerUp?.id === 'VOID_BALL' && !activePowerUp?.id.includes('SUPER') && !activePowerUp?.id.includes('ULTRA')) {
-      const addBounceForce = () => {
-        if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
-          // Get the canvas width for boundary checking
-          const { width } = renderRef.current!.canvas;
-          const radius = circle.circleRadius || 0;
-          
-          // Calculate horizontal force based on position
-          let horizontalForce = (Math.random() - 0.5) * POWER_UP_CONFIG.VOID.BASIC.HORIZONTAL_FORCE;
-          
-          // If near edges, apply force towards center
-          if (circle.position.x < width * 0.2) { // Left 20% of screen
-            horizontalForce = Math.abs(horizontalForce); // Force rightward
-          } else if (circle.position.x > width * 0.8) { // Right 20% of screen
-            horizontalForce = -Math.abs(horizontalForce); // Force leftward
-          }
-          
-          // Apply bounce force with edge correction
-          Matter.Body.applyForce(circle, 
-            circle.position, 
-            { 
-              x: horizontalForce,
-              y: -(POWER_UP_CONFIG.VOID.BASIC.BOUNCE_FORCE + (Math.random() * 0.02))
-            }
-          );
-
-          // If very close to edges, nudge back towards center
-          const edgeBuffer = radius * POWER_UP_CONFIG.VOID.BASIC.EDGE_BUFFER;
-          if (circle.position.x < edgeBuffer) {
-            Matter.Body.setPosition(circle, {
-              x: edgeBuffer,
-              y: circle.position.y
-            });
-            Matter.Body.setVelocity(circle, {
-              x: Math.abs(circle.velocity.x),
-              y: circle.velocity.y
-            });
-          } else if (circle.position.x > width - edgeBuffer) {
-            Matter.Body.setPosition(circle, {
-              x: width - edgeBuffer,
-              y: circle.position.y
-            });
-            Matter.Body.setVelocity(circle, {
-              x: -Math.abs(circle.velocity.x),
-              y: circle.velocity.y
-            });
-          }
-        }
-      };
-
-      const bounceInterval = setInterval(() => {
-        if (circle && !circle.isMerging && circle.deletionsRemaining && circle.deletionsRemaining > 0) {
-          addBounceForce();
-        } else {
-          clearInterval(bounceInterval);
-        }
-      }, POWER_UP_CONFIG.VOID.BASIC.BOUNCE_INTERVAL);
-
-      setTimeout(() => clearInterval(bounceInterval), POWER_UP_CONFIG.VOID.BASIC.BOUNCE_DURATION);
-    }
   }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.activeFlaskId]);
 
   // Add helper function to get random tier for stress test
@@ -2078,6 +1975,29 @@ export const useMatterJs = (
       };
     }
   }, []); // Empty dependency array since we only want this to run once
+
+  useEffect(() => {
+    // ... existing animation setup code ...
+
+    const updateAnimation = () => {
+      if (!isAnimatingRef.current || !animationStartTimeRef.current) return;
+
+      const currentTime = Date.now();
+      const elapsed = currentTime - animationStartTimeRef.current;
+      
+      if (elapsed >= ANIMATION_DURATION) {
+        // Reset animation state when complete
+        isAnimatingRef.current = false;
+        animationStartTimeRef.current = null;
+        
+        // Prepare next spawn only after animation is complete
+        prepareNextSpawn();
+      }
+      // ... rest of animation update code ...
+    };
+
+    // ... rest of effect code ...
+  }, [prepareNextSpawn]);
 
   return {
     engine: engineRef.current,

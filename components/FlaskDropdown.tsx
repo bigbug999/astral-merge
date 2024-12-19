@@ -40,19 +40,35 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
   const currentFlask = value ? FLASKS[value] : FLASKS.DEFAULT;
   const IconComponent = ICON_COMPONENTS[currentFlask.icon];
 
-  const handleClick = (e: React.MouseEvent) => {
+  // Update click handler to be more robust
+  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setIsOpen(!isOpen);
   };
 
+  // Add touch handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleOptionClick = (e: React.MouseEvent | React.TouchEvent, flaskId: FlaskId | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange(flaskId);
+    setIsOpen(false);
+  };
+
   return (
-    <div ref={dropdownRef} className="relative h-9">
-      {/* Selected Option Button */}
+    <div 
+      ref={dropdownRef} 
+      className="relative h-9"
+      onTouchStart={handleTouchStart}
+      onClick={handleButtonClick}
+    >
       <button
-        onClick={handleClick}
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerMove={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
+        type="button"
         className={cn(
           "h-full px-2.5 rounded-lg border-2 flex items-center gap-2",
           "bg-zinc-800/30 backdrop-blur-md",
@@ -61,6 +77,12 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
             ? "border-zinc-600 shadow-lg" 
             : "border-zinc-700/50"
         )}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerMove={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         <IconComponent className="w-5 h-5 text-zinc-400" />
         <svg 
@@ -76,52 +98,54 @@ export function FlaskDropdown({ value, onChange }: FlaskDropdownProps) {
         </svg>
       </button>
 
-      {/* Dropdown Options */}
+      {/* Dropdown content */}
       {isOpen && (
         <div 
-          className="absolute top-full right-0 w-[160px] mt-1 rounded-lg border-2 border-zinc-700/50 bg-zinc-800/95 backdrop-blur-md shadow-xl z-50"
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerMove={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
+          className="absolute right-0 top-full mt-1 w-48 rounded-lg border-2 border-zinc-700 bg-zinc-800/95 backdrop-blur-md shadow-lg z-50"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
         >
           {Object.values(FLASKS).map((flask) => {
             const OptionIcon = ICON_COMPONENTS[flask.icon];
             return (
               <button
                 key={flask.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange(flask.id === 'DEFAULT' ? null : flask.id);
-                  setIsOpen(false);
-                }}
+                type="button"
+                onClick={(e) => handleOptionClick(e, flask.id === 'DEFAULT' ? null : flask.id)}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerMove={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 className={cn(
                   "w-full px-3 py-1.5 flex items-center gap-2 text-left",
                   "hover:bg-zinc-700/50 transition-colors",
-                  "group",
+                  "group cursor-pointer touch-none",
                   flask.id === 'DEFAULT' && "rounded-t-[6px]",
                   flask.id === 'SHRINK' && "rounded-b-[6px]",
                   flask.id === (value || 'DEFAULT') && "bg-zinc-700"
                 )}
               >
-                <OptionIcon className={cn(
-                  "w-5 h-5",
-                  flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
-                  "group-hover:text-zinc-100"
-                )} />
-                <div className="flex flex-col">
-                  <span className={cn(
-                    "text-xs",
+                <div className="flex items-center gap-2 pointer-events-none">
+                  <OptionIcon className={cn(
+                    "w-5 h-5",
                     flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
                     "group-hover:text-zinc-100"
-                  )}>
-                    {flask.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400">
-                    {flask.description}
-                  </span>
+                  )} />
+                  <div className="flex flex-col">
+                    <span className={cn(
+                      "text-xs",
+                      flask.id === (value || 'DEFAULT') ? "text-zinc-100" : "text-zinc-400",
+                      "group-hover:text-zinc-100"
+                    )}>
+                      {flask.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400">
+                      {flask.description}
+                    </span>
+                  </div>
                 </div>
               </button>
             );
