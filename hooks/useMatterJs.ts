@@ -304,11 +304,12 @@ export const useMatterJs = (
     
     const circle = currentCircleRef.current as CircleBody;
     const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
-    const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    const sizeConfig = FLASK_SIZES[flaskState.size];
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
     const activePowerUp = getActivePowerUp(powerUps);
     
-    // Preserve the original scaling logic - don't let power-ups affect it
-    const scale = circle.isScaled || activeFlask?.id === 'SHRINK' ? 0.75 : 1;
+    // Use size configuration for scaling
+    const scale = circle.isScaled || flaskState.size !== 'DEFAULT' ? sizeConfig.physics.scale : 1;
     const visualRadius = (visualConfig.radius - 1) * scale;
     
     // Update the ball's appearance based on active power-up, maintaining scale
@@ -320,7 +321,7 @@ export const useMatterJs = (
         visualRadius * 2  // Use scaled radius
       );
     }
-  }, [powerUps, getActivePowerUp, flaskState.activeFlaskId]);
+  }, [powerUps, getActivePowerUp, flaskState.size, flaskState.effect]);
 
   // Add effect to update appearance when power-ups change
   useEffect(() => {
