@@ -33,19 +33,19 @@ export const FLASK_SIZES = {
   SHRINK: {
     id: 'SHRINK',
     name: 'Small Size',
-    description: 'Makes all balls 25% smaller',
+    description: 'Makes all balls 15% smaller',
     icon: 'FlaskConicalIcon',
     physics: {
-      scale: 0.75
+      scale: 0.85
     }
   },
   EXTRA_SHRINK: {
     id: 'EXTRA_SHRINK',
     name: 'Extra Small',
-    description: 'Makes all balls 50% smaller',
+    description: 'Makes all balls 30% smaller',
     icon: 'FlaskRoundIcon',
     physics: {
-      scale: 0.5
+      scale: 0.7
     }
   }
 } as const;
@@ -59,10 +59,10 @@ export const FLASK_EFFECTS = {
     physics: {
       gravity: 1.75,
       timeScale: 1.35,
-      friction: 0.01,
-      frictionAir: 0.0002,
+      friction: 0.05,
+      frictionAir: 0.001,
       restitution: 0.3,
-      frictionStatic: 0.02,
+      frictionStatic: 0.1,
       density: 0.02
     }
   },
@@ -74,10 +74,10 @@ export const FLASK_EFFECTS = {
     physics: {
       gravity: 0.15,
       timeScale: 1.6,
-      friction: 0.001,
-      frictionAir: 0.00001,
+      friction: 0.08,
+      frictionAir: 0.002,
       restitution: 0.65,
-      frictionStatic: 0.001,
+      frictionStatic: 0.15,
       density: 0.015
     }
   },
@@ -90,7 +90,7 @@ export const FLASK_EFFECTS = {
       gravity: 1.75,
       timeScale: 1.35,
       friction: 0.0001,
-      frictionAir: 0.00001,
+      frictionAir: 0.0003,
       frictionStatic: 0.0001,
       restitution: 0.4,
       density: 0.02

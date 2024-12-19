@@ -1778,13 +1778,15 @@ export const useMatterJs = (
     console.log('Handling resize - updating walls');
     logWorldState(engineRef.current, 'Before resize');
     
-    // Update render bounds
+    // Update render bounds and pixel ratio
     renderRef.current.bounds.max.x = width;
     renderRef.current.bounds.max.y = height;
     renderRef.current.options.width = width;
     renderRef.current.options.height = height;
-    renderRef.current.canvas.width = width;
-    renderRef.current.canvas.height = height;
+    renderRef.current.options.pixelRatio = window.devicePixelRatio || 1;
+    renderRef.current.canvas.width = width * (window.devicePixelRatio || 1);
+    renderRef.current.canvas.height = height * (window.devicePixelRatio || 1);
+    renderRef.current.context.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
     
     // Recreate walls with new dimensions
     const newWalls = createOptimizedWalls();
@@ -2064,6 +2066,37 @@ export const useMatterJs = (
       }
     }
   }, [flaskState.effect]);
+
+  // Update render creation with pixel ratio
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const { width, height } = containerRef.current.getBoundingClientRect();
+
+    const render = Matter.Render.create({
+      element: containerRef.current,
+      engine: engineRef.current,
+      options: {
+        width,
+        height,
+        wireframes: false,
+        background: 'transparent',
+        pixelRatio: window.devicePixelRatio || 1, // Add pixel ratio setting
+      } as ExtendedRendererOptions
+    });
+
+    // Set pixel ratio directly on the renderer
+    render.context.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    
+    renderRef.current = render;
+    Matter.Render.run(render);
+
+    return () => {
+      Matter.Render.stop(render);
+      render.canvas.remove();
+      renderRef.current = null;
+    };
+  }, []);
 
   return {
     engine: engineRef.current,
