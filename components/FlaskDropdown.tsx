@@ -6,13 +6,19 @@ import { FlaskIcon } from './icons/FlaskIcon';
 import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { ShrinkIcon } from './icons/ShrinkIcon';
+import { TestTubeIcon } from './icons/TestTubeIcon';
+import { BookMarkedIcon } from './icons/BookMarkedIcon';
+import { FlaskRoundIcon } from './icons/FlaskRoundIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
+  TestTubeIcon,
   FlaskConicalIcon,
   FlaskIcon,
   FeatherIcon,
   SparklesIcon,
   ShrinkIcon,
+  BookMarkedIcon,
+  FlaskRoundIcon,
 };
 
 interface FlaskOption {
@@ -78,7 +84,7 @@ export function FlaskDropdown({ label, value, options, onChange }: FlaskDropdown
       <button
         type="button"
         className={cn(
-          "h-full px-2.5 rounded-lg border-2 flex items-center gap-2",
+          "h-full w-9 rounded-lg border-2 flex items-center justify-center",
           "bg-zinc-800/30 backdrop-blur-md",
           "hover:bg-zinc-800/50 transition-all duration-200",
           isOpen 
@@ -93,18 +99,6 @@ export function FlaskDropdown({ label, value, options, onChange }: FlaskDropdown
         onPointerUp={(e) => e.stopPropagation()}
       >
         <IconComponent className="w-5 h-5 text-zinc-400" />
-        <span className="text-xs text-zinc-400">{label}</span>
-        <svg 
-          className={cn(
-            "w-4 h-4 text-zinc-400 transition-transform duration-200",
-            isOpen ? "rotate-180" : ""
-          )}
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
-        </svg>
       </button>
 
       {isOpen && (

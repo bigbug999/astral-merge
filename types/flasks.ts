@@ -16,7 +16,7 @@ export interface Flask {
   id: FlaskSizeId | FlaskEffectId;
   name: string;
   description: string;
-  icon: 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon';
+  icon: 'TestTubeIcon' | 'FlaskConicalIcon' | 'FlaskIcon' | 'FeatherIcon' | 'SparklesIcon' | 'BounceIcon' | 'ShrinkIcon' | 'BookMarkedIcon' | 'FlaskRoundIcon';
   physics: FlaskPhysics;
 }
 
@@ -25,7 +25,7 @@ export const FLASK_SIZES = {
     id: 'DEFAULT',
     name: 'Default Size',
     description: 'Standard ball size',
-    icon: 'FlaskIcon',
+    icon: 'TestTubeIcon',
     physics: {
       scale: 1
     }
@@ -34,7 +34,7 @@ export const FLASK_SIZES = {
     id: 'SHRINK',
     name: 'Small Size',
     description: 'Makes all balls 25% smaller',
-    icon: 'ShrinkIcon',
+    icon: 'FlaskConicalIcon',
     physics: {
       scale: 0.75
     }
@@ -43,7 +43,7 @@ export const FLASK_SIZES = {
     id: 'EXTRA_SHRINK',
     name: 'Extra Small',
     description: 'Makes all balls 50% smaller',
-    icon: 'ShrinkIcon',
+    icon: 'FlaskRoundIcon',
     physics: {
       scale: 0.5
     }
@@ -55,7 +55,7 @@ export const FLASK_EFFECTS = {
     id: 'DEFAULT',
     name: 'Default Effect',
     description: 'Standard physics behavior',
-    icon: 'FlaskConicalIcon',
+    icon: 'BookMarkedIcon',
     physics: {
       gravity: 1.75,
       timeScale: 1.35,
