@@ -107,7 +107,7 @@ export interface PowerUp {
   description: string;
   maxUses: number;
   icon: string;
-  group: 'GRAVITY' | 'VOID';
+  group: 'GRAVITY' | 'VOID' | 'ENVIRONMENTAL';
   level: 1 | 2 | 3;
   physics: {
     density?: number;
@@ -128,6 +128,9 @@ export interface PowerUp {
     forceMultiplier?: number;
     duration?: number;
     constantForce?: number;
+    strength?: number;
+    radius?: number;
+    frequency?: number;
   };
 }
 
