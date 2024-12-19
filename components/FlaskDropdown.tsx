@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import type { Flask, FlaskId } from '@/types/flasks';
-import { FLASKS } from '@/types/flasks';
 import { FlaskConicalIcon } from './icons/FlaskConicalIcon';
 import { FlaskIcon } from './icons/FlaskIcon';
 import { FeatherIcon } from './icons/FeatherIcon';
