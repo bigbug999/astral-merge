@@ -145,6 +145,13 @@ interface StormField {
   timeRemaining: number;
 }
 
+// Add this type to ensure power-up effects are properly typed
+interface StormPowerUpEffects {
+  strength: number;
+  radius: number;
+  duration: number;
+}
+
 export const useMatterJs = (
   containerRef: React.RefObject<HTMLDivElement>, 
   onDrop: () => void,
@@ -205,11 +212,18 @@ export const useMatterJs = (
 
   // Add this function to handle storm field creation
   const createStormField = useCallback((x: number, y: number, power: PowerUp) => {
+    if (!power.effects) {
+      console.warn('Power-up effects are undefined');
+      return;
+    }
+
+    const effects = power.effects as StormPowerUpEffects;
+    
     const stormField: StormField = {
       position: Matter.Vector.create(x, y),
-      strength: power.effects.strength,
-      radius: power.effects.radius,
-      timeRemaining: power.effects.duration
+      strength: effects.strength || 0.003, // Provide default values
+      radius: effects.radius || 50,
+      timeRemaining: effects.duration || 5000
     };
     
     stormFields.current.push(stormField);
@@ -2212,7 +2226,7 @@ export const useMatterJs = (
           
           // Create more chaotic turbulence
           const angle = Math.random() * Math.PI * 2;
-          const distanceFromCenter = Math.random() * 0.8; // Increased from 0.5
+          const distanceFromCenter = Math.random() * 0.8;
           
           // Enhanced vertical oscillation
           const time = Date.now() * 0.005;
@@ -2222,22 +2236,28 @@ export const useMatterJs = (
           const verticalGust = Math.random() < 0.15 ? 
             (Math.random() < 0.5 ? -0.03 : 0.02) : 0;
           
+          // Safely access turbulence properties with defaults
+          const turbulence = effectConfig.physics.turbulence || {
+            strength: 0.025,
+            frequency: 0.9,
+            verticalBias: 0.4
+          };
+          
           const force = {
-            x: Math.cos(angle) * effectConfig.physics.turbulence.strength * (1 + distanceFromCenter),
-            y: (Math.sin(angle) * effectConfig.physics.turbulence.strength * (1 + distanceFromCenter)) + 
+            x: Math.cos(angle) * turbulence.strength * (1 + distanceFromCenter),
+            y: (Math.sin(angle) * turbulence.strength * (1 + distanceFromCenter)) + 
                verticalOscillation + 
                verticalGust
           };
           
           // Apply force with increased frequency
-          if (Math.random() < effectConfig.physics.turbulence.frequency) {
+          if (Math.random() < turbulence.frequency) {
             // More extreme burst multiplier
             const burstMultiplier = Math.random() < 0.15 ? 
-              (Math.random() * 2 + 2.5) : // Random multiplier between 2.5 and 4.5
-              1;
+              (Math.random() * 2 + 2.5) : 1;
             
             // Add vertical bias to create more up/down movement
-            const verticalBias = effectConfig.physics.turbulence.verticalBias;
+            const verticalBias = turbulence.verticalBias || 0.4;
             const biasedForce = {
               x: force.x * burstMultiplier,
               y: force.y * burstMultiplier * (1 + verticalBias)
