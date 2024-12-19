@@ -1860,73 +1860,76 @@ export const useMatterJs = (
   useEffect(() => {
     if (!engineRef.current) return;
 
-    const flask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+    // Get the effect configuration
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
     
-    // Reset to default physics
-    engineRef.current.gravity.y = 1.75; // Single gravity value for all devices
-    engineRef.current.timing.timeScale = 1.35;
+    // Reset to default physics first
+    engineRef.current.gravity.y = FLASK_EFFECTS.DEFAULT.physics.gravity || 1.75;
+    engineRef.current.timing.timeScale = FLASK_EFFECTS.DEFAULT.physics.timeScale || 1.35;
 
-    // Apply flask physics if active
-    if (flask?.physics) {
-      if (flask.physics.gravity !== undefined) {
-        engineRef.current.gravity.y = flask.physics.gravity;
-        
-        // For low gravity, add some special handling
-        if (flask.id === 'LOW_GRAVITY') {
-          // Increase timeScale for faster movement
-          engineRef.current.timing.timeScale = 2.4; // Increased from 2.1
+    // Apply effect physics if not default
+    if (flaskState.effect !== 'DEFAULT' && effectConfig?.physics) {
+      if (effectConfig.physics.gravity !== undefined) {
+        engineRef.current.gravity.y = effectConfig.physics.gravity;
+      }
+      if (effectConfig.physics.timeScale !== undefined) {
+        engineRef.current.timing.timeScale = effectConfig.physics.timeScale;
+      }
 
-          const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
-            event.pairs.forEach((pair) => {
-              const bodyA = pair.bodyA as CircleBody;
-              const bodyB = pair.bodyB as CircleBody;
+      // Special handling for low gravity effect
+      if (flaskState.effect === 'LOW_GRAVITY') {
+        // Increase timeScale for faster movement
+        engineRef.current.timing.timeScale = 2.4;
+
+        const lowGravityCollisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
+          event.pairs.forEach((pair) => {
+            const bodyA = pair.bodyA as CircleBody;
+            const bodyB = pair.bodyB as CircleBody;
+            
+            if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
+              const collisionAngle = Math.atan2(
+                bodyB.position.y - bodyA.position.y,
+                bodyB.position.x - bodyA.position.x
+              );
+
+              const bounceForce = 0.06;
               
-              if (bodyA.label?.startsWith('circle-') && bodyB.label?.startsWith('circle-')) {
-                const collisionAngle = Math.atan2(
-                  bodyB.position.y - bodyA.position.y,
-                  bodyB.position.x - bodyA.position.x
-                );
+              Matter.Body.setVelocity(bodyA, {
+                x: bodyA.velocity.x - Math.cos(collisionAngle) * bounceForce,
+                y: bodyA.velocity.y - Math.sin(collisionAngle) * bounceForce
+              });
+              
+              Matter.Body.setVelocity(bodyB, {
+                x: bodyB.velocity.x + Math.cos(collisionAngle) * bounceForce,
+                y: bodyB.velocity.y + Math.sin(collisionAngle) * bounceForce
+              });
 
-                const bounceForce = 0.06; // Slightly reduced from 0.08
-                
-                Matter.Body.setVelocity(bodyA, {
-                  x: bodyA.velocity.x - Math.cos(collisionAngle) * bounceForce,
-                  y: bodyA.velocity.y - Math.sin(collisionAngle) * bounceForce
-                });
-                
-                Matter.Body.setVelocity(bodyB, {
-                  x: bodyB.velocity.x + Math.cos(collisionAngle) * bounceForce,
-                  y: bodyB.velocity.y + Math.sin(collisionAngle) * bounceForce
-                });
+              const randomAngle = Math.random() * Math.PI * 2;
+              const randomForce = 0.03;
 
-                const randomAngle = Math.random() * Math.PI * 2;
-                const randomForce = 0.03; // Keep original
+              Matter.Body.applyForce(bodyA, bodyA.position, {
+                x: Math.cos(randomAngle) * randomForce,
+                y: Math.sin(randomAngle) * randomForce
+              });
 
-                Matter.Body.applyForce(bodyA, bodyA.position, {
-                  x: Math.cos(randomAngle) * randomForce,
-                  y: Math.sin(randomAngle) * randomForce
-                });
-
-                Matter.Body.applyForce(bodyB, bodyB.position, {
-                  x: Math.cos(randomAngle + Math.PI) * randomForce,
-                  y: Math.sin(randomAngle + Math.PI) * randomForce
-                });
-              }
-            });
-          };
-
-          Matter.Events.on(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
-
-          return () => {
-            if (engineRef.current) {
-              Matter.Events.off(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+              Matter.Body.applyForce(bodyB, bodyB.position, {
+                x: Math.cos(randomAngle + Math.PI) * randomForce,
+                y: Math.sin(randomAngle + Math.PI) * randomForce
+              });
             }
-          };
-        }
+          });
+        };
+
+        Matter.Events.on(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+
+        return () => {
+          if (engineRef.current) {
+            Matter.Events.off(engineRef.current, 'collisionStart', lowGravityCollisionHandler);
+          }
+        };
       }
     }
-    // ... rest of the effect code ...
-  }, [flaskState.activeFlaskId, isMobile]);
+  }, [flaskState.effect]);
 
   // Keep only this effect that properly sets up the engine with setSlop
   useEffect(() => {
