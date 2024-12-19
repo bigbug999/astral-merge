@@ -1103,93 +1103,62 @@ export const useMatterJs = (
 
     const POWER_UP_DURATION = 5000; // 5 seconds in milliseconds
 
-    // Update the force interval to handle super heavy balls more effectively
+    // Update the force interval to handle power-up expiration better
     const forceInterval = setInterval(() => {
-      if (engineRef.current) {
-        const bodies = Matter.Composite.allBodies(engineRef.current.world);
-        const currentTime = Date.now();
-
-        bodies.forEach((body) => {
-          const circle = body as CircleBody;
-          if (circle.label?.startsWith('circle-') && circle.hasBeenDropped) {
+      if (!engineRef.current) return;
+      const currentTime = Date.now();
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      
+      bodies.forEach((body) => {
+        const circle = body as CircleBody;
+        if (circle.label?.startsWith('circle-') && circle.hasBeenDropped) {
+          if (circle.powerUpDropTime) {
+            const elapsedTime = currentTime - circle.powerUpDropTime;
+            const activePowerUp = getActivePowerUp(powerUps);
             
-            // Check if power-up is active
-            if (circle.powerUpDropTime) {
-              const elapsedTime = currentTime - circle.powerUpDropTime;
+            if (activePowerUp && activePowerUp.group === 'GRAVITY') {
+              const duration = activePowerUp.effects?.duration || POWER_UP_CONFIG.GRAVITY.HEAVY.DURATION;
               
-              if (elapsedTime > POWER_UP_DURATION) {
-                // Reset physics properties to defaults from POWER_UP_CONFIG
+              if (elapsedTime > duration) {
+                // Get current flask before resetting properties
+                const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
+                const shouldKeepScaled = activeFlask?.id === 'SHRINK';
+                
+                // Reset physics properties to defaults
                 Matter.Body.set(circle, {
                   density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
                   friction: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION,
                   frictionAir: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_AIR,
                   restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
-                  frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC,
-                  slop: 0.02
+                  frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC
                 });
-                circle.isHeavyBall = false;
-                circle.powerUpDropTime = undefined;
+
+                // Update visual appearance while maintaining scale if needed
+                const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+                const scale = shouldKeepScaled ? 0.75 : 1;
+                const visualRadius = (visualConfig.radius - 1) * scale;
                 
-                // Update appearance
+                // Reset to default appearance but maintain scale
                 if (circle.render.sprite) {
-                  const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
                   circle.render.sprite.texture = createCircleTexture(
                     visualConfig.color,
                     visualConfig.strokeColor,
                     visualConfig.glowColor,
-                    (visualConfig.radius - 1) * 2
+                    visualRadius * 2
                   );
                 }
-              } 
-              // Apply continuous forces while power-up is active
-              else if (circle.isHeavyBall) {
-                if (circle.velocity.y < 30) { // Increased velocity cap
-                  const activePowerUp = getActivePowerUp(powerUps);
-                  if (activePowerUp?.id === 'ULTRA_HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: 0.06 }  // Remove mobile-specific value
-                    );
-                    
-                    // Add periodic sideways forces for more dynamic movement
-                    if (Math.random() < 0.1) { // 10% chance each frame
-                      Matter.Body.applyForce(circle,
-                        circle.position,
-                        { 
-                          x: (Math.random() - 0.5) * 0.02,
-                          y: 0
-                        }
-                      );
-                    }
-                  } else if (activePowerUp?.id === 'SUPER_HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: 0.03 }  // Remove mobile-specific value
-                    );
-                    
-                    // Add periodic sideways forces for more dynamic movement
-                    if (Math.random() < 0.1) { // 10% chance each frame
-                      Matter.Body.applyForce(circle,
-                        circle.position,
-                        { 
-                          x: (Math.random() - 0.5) * 0.01,
-                          y: 0
-                        }
-                      );
-                    }
-                  } else if (activePowerUp?.id === 'HEAVY_BALL') {
-                    Matter.Body.applyForce(circle, 
-                      circle.position, 
-                      { x: 0, y: 0.02 }  // Remove mobile-specific value
-                    );
-                  }
-                }
+
+                // Maintain the scale flag if flask is active
+                circle.isScaled = shouldKeepScaled;
+                circle.isHeavyBall = false;
+                circle.powerUpDropTime = undefined;
+                circle.powerUpStats = undefined;
               }
             }
           }
-        });
-      }
-    }, 16); // Run at ~60fps
+        }
+      });
+    }, 100);
 
     return () => {
       collisionQueue = [];
