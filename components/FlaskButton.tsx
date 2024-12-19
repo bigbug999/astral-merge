@@ -10,6 +10,30 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   BounceIcon,
 };
 
+// Add color mapping for flask types
+const FLASK_COLORS = {
+  DEFAULT: {
+    color: '#a78bfa',
+    glowColor: 'rgba(167, 139, 250, 0.5)'
+  },
+  SHRINK: {
+    color: '#4ade80',
+    glowColor: 'rgba(74, 222, 128, 0.5)'
+  },
+  EXTRA_SHRINK: {
+    color: '#4ade80',
+    glowColor: 'rgba(74, 222, 128, 0.5)'
+  },
+  LOW_GRAVITY: {
+    color: '#a78bfa',
+    glowColor: 'rgba(167, 139, 250, 0.5)'
+  },
+  NO_FRICTION: {
+    color: '#60a5fa',
+    glowColor: 'rgba(96, 165, 250, 0.5)'
+  }
+} as const;
+
 interface FlaskButtonProps {
   flask: Flask;
   isActive: boolean;
@@ -19,6 +43,7 @@ interface FlaskButtonProps {
 
 export function FlaskButton({ flask, isActive, onClick, size = 'md' }: FlaskButtonProps) {
   const IconComponent = ICON_COMPONENTS[flask.icon];
+  const colors = FLASK_COLORS[flask.id];
 
   const sizeClasses = {
     xs: "w-9 h-9",
@@ -42,8 +67,8 @@ export function FlaskButton({ flask, isActive, onClick, size = 'md' }: FlaskButt
         isActive ? "bg-zinc-700 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-300"
       )}
       style={{
-        boxShadow: isActive ? `0 0 12px ${flask.visual.glowColor}` : undefined,
-        border: isActive ? `1px solid ${flask.visual.color}` : '1px solid transparent'
+        boxShadow: isActive ? `0 0 12px ${colors.glowColor}` : undefined,
+        border: isActive ? `1px solid ${colors.color}` : '1px solid transparent'
       }}
     >
       {IconComponent && <IconComponent className={iconSizeClasses[size]} />}
