@@ -844,6 +844,10 @@ export const useMatterJs = (
                 const duration = activePowerUp.effects?.duration || POWER_UP_CONFIG.GRAVITY.HEAVY.DURATION;
                 
                 if (elapsedTime > duration) {
+                  // Get current size configuration
+                  const shouldKeepScaled = flaskState.size !== 'DEFAULT';
+                  const scale = shouldKeepScaled ? FLASK_SIZES[flaskState.size].physics.scale : 1;
+                  
                   // Reset physics properties to defaults
                   Matter.Body.set(circle, {
                     density: POWER_UP_CONFIG.GRAVITY.HEAVY.DENSITY,
@@ -852,22 +856,26 @@ export const useMatterJs = (
                     restitution: POWER_UP_CONFIG.GRAVITY.HEAVY.RESTITUTION,
                     frictionStatic: POWER_UP_CONFIG.GRAVITY.HEAVY.FRICTION_STATIC
                   });
+
+                  // Update visual appearance while maintaining scale if needed
+                  const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+                  const visualRadius = (visualConfig.radius - 1) * scale;
+                  
+                  // Reset to default appearance but maintain scale
+                  if (circle.render.sprite) {
+                    circle.render.sprite.texture = createCircleTexture(
+                      visualConfig.color,
+                      visualConfig.strokeColor,
+                      visualConfig.glowColor,
+                      visualRadius * 2
+                    );
+                  }
+
+                  // Maintain the scale flag if size is not default
+                  circle.isScaled = shouldKeepScaled;
                   circle.isHeavyBall = false;
                   circle.powerUpDropTime = undefined;
                   circle.powerUpStats = undefined;
-                } else {
-                  // Apply constant force if velocity is below cap
-                  if (circle.velocity.y < 30) { // Increased velocity cap
-                    const force = activePowerUp.effects?.constantForce || POWER_UP_CONFIG.GRAVITY.HEAVY.CONSTANT_FORCE;
-                    Matter.Body.applyForce(circle, circle.position, { x: 0, y: force });
-                  }
-                  
-                  // Update stats for UI display
-                  if (circle.powerUpStats) {
-                    circle.powerUpStats.velocity = circle.velocity.y;
-                    circle.powerUpStats.timeRemaining = duration - elapsedTime;
-                    circle.powerUpStats.slop = currentSlopRef.current; // Add slop update
-                  }
                 }
               }
             }
@@ -1132,9 +1140,9 @@ export const useMatterJs = (
               const duration = activePowerUp.effects?.duration || POWER_UP_CONFIG.GRAVITY.HEAVY.DURATION;
               
               if (elapsedTime > duration) {
-                // Get current flask before resetting properties
-                const activeFlask = flaskState.activeFlaskId ? FLASKS[flaskState.activeFlaskId] : null;
-                const shouldKeepScaled = activeFlask?.id === 'SHRINK';
+                // Get current size configuration
+                const shouldKeepScaled = flaskState.size !== 'DEFAULT';
+                const scale = shouldKeepScaled ? FLASK_SIZES[flaskState.size].physics.scale : 1;
                 
                 // Reset physics properties to defaults
                 Matter.Body.set(circle, {
@@ -1147,7 +1155,6 @@ export const useMatterJs = (
 
                 // Update visual appearance while maintaining scale if needed
                 const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
-                const scale = shouldKeepScaled ? 0.75 : 1;
                 const visualRadius = (visualConfig.radius - 1) * scale;
                 
                 // Reset to default appearance but maintain scale
@@ -1160,7 +1167,7 @@ export const useMatterJs = (
                   );
                 }
 
-                // Maintain the scale flag if flask is active
+                // Maintain the scale flag if size is not default
                 circle.isScaled = shouldKeepScaled;
                 circle.isHeavyBall = false;
                 circle.powerUpDropTime = undefined;
