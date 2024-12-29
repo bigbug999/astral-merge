@@ -315,13 +315,19 @@ export default function Home() {
         <div className="relative">
           {/* Game Container */}
           <div {...containerProps}>
+            {/* Grid Effect Layer */}
+            <FlaskEffects 
+              flaskState={flaskState}
+              containerRef={containerRef}
+            />
+            
             {/* Game Canvas Area */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 z-10">
               {/* Matter.js renders here */}
             </div>
 
             {/* Touch Prevention Layer */}
-            <div className="absolute inset-0 touch-none pointer-events-none" />
+            <div className="absolute inset-0 touch-none pointer-events-none z-20" />
           </div>
 
           {/* Score and Controls Bar - Positioned absolutely over game container */}
@@ -473,11 +479,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      <FlaskEffects 
-        flaskState={flaskState}
-        containerRef={containerRef}
-      />
     </div>
   );
 }
