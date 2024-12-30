@@ -17,12 +17,22 @@ import { PowerUpDebugUI } from '@/components/PowerUpDebugUI';
 import { FlaskButton } from '@/components/FlaskButton';
 import { FlaskState, FLASK_SIZES, FLASK_EFFECTS, createInitialFlaskState, FlaskSizeId, FlaskEffectId } from '@/types/flasks';
 import { FlaskIcon } from '@/components/icons/FlaskIcon';
+import { FlaskRoundIcon } from '@/components/icons/FlaskRoundIcon';
+import { FlaskConicalIcon } from '@/components/icons/FlaskConicalIcon';
+import { ChemistryFlaskIcon } from '@/components/icons/ChemistryFlaskIcon';
 import { FeatherIcon } from '@/components/icons/FeatherIcon';
 import { SparklesIcon } from '@/components/icons/SparklesIcon';
 import { BounceIcon } from '@/components/icons/BounceIcon';
+import { StormIcon } from '@/components/icons/StormIcon';
+import { WeightIcon } from '@/components/icons/WeightIcon';
+import { SuperWeightIcon } from '@/components/icons/SuperWeightIcon';
+import { UltraWeightIcon } from '@/components/icons/UltraWeightIcon';
+import { NegativeBallIcon } from '@/components/icons/NegativeBallIcon';
+import { SuperNegativeBallIcon } from '@/components/icons/SuperNegativeBallIcon';
+import { UltraNegativeBallIcon } from '@/components/icons/UltraNegativeBallIcon';
 import { FlaskDropdown } from '@/components/FlaskDropdown';
 import FlaskEffects from '@/components/FlaskEffects';
-import { StormIcon } from '@/components/icons/StormIcon';
+import { TestTubeIcon } from '@/components/icons/TestTubeIcon';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -110,6 +120,7 @@ export default function Home() {
   const [flaskState, setFlaskState] = useState<FlaskState>(createInitialFlaskState());
   const [showStartMenu, setShowStartMenu] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [modalView, setModalView] = useState<'menu' | 'collection'>('menu');
 
   const handleDrop = useCallback(() => {
     setNextTier(getRandomTier(maxTierSeen));
@@ -494,58 +505,184 @@ export default function Home() {
       {(showStartMenu || isPaused) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4 transform scale-100 animate-in fade-in duration-200">
-            <h2 className="text-2xl font-bold text-white mb-6 text-center">
-              {showStartMenu ? 'Astral Merge' : 'Game Paused'}
-            </h2>
-            
-            <div className="space-y-3">
-              {showStartMenu ? (
-                <>
-                  <button
-                    onClick={handleNewGame}
-                    className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    New Game
-                  </button>
+            {modalView === 'menu' ? (
+              <>
+                <h2 className="text-2xl font-bold text-white mb-6 text-center">
+                  {showStartMenu ? 'Astral Merge' : 'Game Paused'}
+                </h2>
+                
+                <div className="space-y-3">
+                  {showStartMenu ? (
+                    <>
+                      <button
+                        onClick={handleNewGame}
+                        className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        New Game
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          // TODO: Implement continue game logic
+                          setShowStartMenu(false);
+                        }}
+                        className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        Continue
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setIsPaused(false)}
+                        className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        Resume Game
+                      </button>
+                      
+                      <button
+                        onClick={handleNewGame}
+                        className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        New Game
+                      </button>
+                    </>
+                  )}
                   
                   <button
-                    onClick={() => {
-                      // TODO: Implement continue game logic
-                      setShowStartMenu(false);
-                    }}
-                    className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                    onClick={() => setModalView('collection')}
+                    className="w-full px-4 py-3 border border-zinc-600 hover:bg-zinc-700/50 text-white rounded-lg transition-colors font-semibold"
                   >
-                    Continue
+                    Collection
                   </button>
-                </>
-              ) : (
-                <>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-6">
                   <button
-                    onClick={() => setIsPaused(false)}
-                    className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                    onClick={() => setModalView('menu')}
+                    className="p-1.5 hover:bg-zinc-700/50 rounded-lg transition-colors text-white"
                   >
-                    Resume Game
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                    </svg>
                   </button>
-                  
-                  <button
-                    onClick={handleNewGame}
-                    className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    New Game
-                  </button>
-                </>
-              )}
-              
-              <button
-                onClick={() => {
-                  // TODO: Implement navigation to collection page
-                  window.location.href = '/collection';
-                }}
-                className="w-full px-4 py-3 border border-zinc-600 hover:bg-zinc-700/50 text-white rounded-lg transition-colors font-semibold"
-              >
-                Collection
-              </button>
-            </div>
+                  <h2 className="text-2xl font-bold text-white">Collection</h2>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Flask Sizes */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Flask Sizes</h3>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {[...Array(6)].map((_, index) => {
+                        const entry = Object.entries(FLASK_SIZES)
+                          .filter(([id]) => ['DEFAULT', 'SHRINK', 'EXTRA_SHRINK'].includes(id))[index];
+                        
+                        return (
+                          <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
+                            {entry ? (
+                              <>
+                                {entry[0] === 'DEFAULT' && <TestTubeIcon className="w-4 h-4 text-white" />}
+                                {entry[0] === 'SHRINK' && <FlaskConicalIcon className="w-4 h-4 text-white" />}
+                                {entry[0] === 'EXTRA_SHRINK' && <FlaskRoundIcon className="w-4 h-4 text-white" />}
+                                <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
+                              </>
+                            ) : (
+                              <div className="font-medium text-zinc-500 text-lg">?</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Flask Effects */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Flask Effects</h3>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {[...Array(6)].map((_, index) => {
+                        const entry = Object.entries(FLASK_EFFECTS)[index];
+                        
+                        return (
+                          <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
+                            {entry ? (
+                              <>
+                                {entry[0] === 'DEFAULT' && <FlaskIcon className="w-4 h-4 text-white" />}
+                                {entry[0] === 'LOW_GRAVITY' && <FeatherIcon className="w-4 h-4 text-white" />}
+                                {entry[0] === 'NO_FRICTION' && <SparklesIcon className="w-4 h-4 text-white" />}
+                                {entry[0] === 'STORM' && <StormIcon className="w-4 h-4 text-white" />}
+                                <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
+                              </>
+                            ) : (
+                              <div className="font-medium text-zinc-500 text-lg">?</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Power-ups */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Power-ups</h3>
+                    
+                    {/* Gravity Power-ups */}
+                    <div className="mb-3">
+                      <h4 className="text-md font-medium text-white mb-1.5">Gravity</h4>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {[...Array(6)].map((_, index) => {
+                          const entry = Object.entries(POWER_UPS)
+                            .filter(([_, powerUp]) => powerUp.group === 'GRAVITY')[index];
+                          
+                          return (
+                            <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
+                              {entry ? (
+                                <>
+                                  {entry[0] === 'HEAVY_BALL' && <WeightIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'SUPER_HEAVY_BALL' && <SuperWeightIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'ULTRA_HEAVY_BALL' && <UltraWeightIcon className="w-4 h-4 text-white" />}
+                                  <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
+                                </>
+                              ) : (
+                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Void Power-ups */}
+                    <div>
+                      <h4 className="text-md font-medium text-white mb-1.5">Void</h4>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {[...Array(6)].map((_, index) => {
+                          const entry = Object.entries(POWER_UPS)
+                            .filter(([_, powerUp]) => powerUp.group === 'VOID')[index];
+                          
+                          return (
+                            <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
+                              {entry ? (
+                                <>
+                                  {entry[0] === 'VOID_BALL' && <NegativeBallIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'SUPER_VOID_BALL' && <SuperNegativeBallIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'ULTRA_VOID_BALL' && <UltraNegativeBallIcon className="w-4 h-4 text-white" />}
+                                  <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
+                                </>
+                              ) : (
+                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
