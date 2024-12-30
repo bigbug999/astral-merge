@@ -472,7 +472,7 @@ export default function Home() {
               </div>
 
               {/* Score Display */}
-              <div className="h-9 px-1.5 w-[180px] rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md flex flex-col justify-center">
+              <div className="h-9 px-1.5 w-[140px] rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     <span className="text-xs font-medium text-zinc-100/90">{score}</span>
