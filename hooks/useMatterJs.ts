@@ -2305,6 +2305,30 @@ export const useMatterJs = (
     }
   }, [flaskState.effect]);
 
+  // Update resetEngine function
+  const resetEngine = useCallback(() => {
+    if (!engineRef.current || !renderRef.current) return;
+    
+    // Remove all bodies from the world
+    const bodies = Matter.Composite.allBodies(engineRef.current.world);
+    bodies.forEach(body => {
+      // Don't remove static boundaries and danger zone during reset
+      if (!body.isStatic) {
+        Matter.Composite.remove(engineRef.current!.world, body);
+      }
+    });
+    
+    // Reset engine properties
+    engineRef.current.timing.timeScale = 1;
+    engineRef.current.timing.timestamp = 0;
+    
+    // Clear any active constraints
+    const constraints = Matter.Composite.allConstraints(engineRef.current!.world);
+    constraints.forEach(constraint => {
+      Matter.Composite.remove(engineRef.current!.world, constraint);
+    });
+  }, []);
+
   return {
     engine: engineRef.current,
     startDrag,
@@ -2316,7 +2340,8 @@ export const useMatterJs = (
       fps: fpsRef.current,
       isMobile,
       slop: currentSlopRef.current // Add current slop to debug info
-    }
+    },
+    resetEngine  // Add resetEngine to the return object
   };
 }; 
 

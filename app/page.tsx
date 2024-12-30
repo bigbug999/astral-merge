@@ -108,6 +108,53 @@ export default function Home() {
   const [powerUps, setPowerUps] = useState<PowerUpState>(createInitialPowerUpState(true));
   const [isGameOver, setIsGameOver] = useState(false);
   const [flaskState, setFlaskState] = useState<FlaskState>(createInitialFlaskState());
+  const [showStartMenu, setShowStartMenu] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const handleDrop = useCallback(() => {
+    setNextTier(getRandomTier(maxTierSeen));
+  }, [maxTierSeen]);
+
+  const handlePowerUpUse = useCallback(() => {
+    setPowerUps(prev => {
+      if (prev.activePowerUpId) {
+        return {
+          ...prev,
+          powerUps: {
+            ...prev.powerUps,
+            [prev.activePowerUpId]: prev.powerUps[prev.activePowerUpId] - 1
+          },
+          activePowerUpId: null
+        };
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleGameOver = useCallback(() => {
+    setIsGameOver(true);
+  }, []);
+
+  const handlePowerUpEarned = useCallback((level: 1 | 2 | 3) => {
+    setPowerUps(prev => {
+      const newPowerUps = { ...prev.powerUps };
+      
+      // Give one of each power-up at the earned level
+      Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
+        if (powerUp.level === level) {
+          newPowerUps[id] = Math.min(
+            (newPowerUps[id] || 0) + 1,
+            powerUp.maxUses
+          );
+        }
+      });
+      
+      return {
+        ...prev,
+        powerUps: newPowerUps
+      };
+    });
+  }, []);
 
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
@@ -134,52 +181,6 @@ export default function Home() {
     };
   }, [combo]);
 
-  const handleDrop = useCallback(() => {
-    setNextTier(getRandomTier(maxTierSeen));
-  }, [maxTierSeen]);
-
-  const handlePowerUpUse = useCallback(() => {
-    setPowerUps(prev => {
-      if (prev.activePowerUpId) {
-        return {
-          ...prev,
-          powerUps: {
-            ...prev.powerUps,
-            [prev.activePowerUpId]: prev.powerUps[prev.activePowerUpId] - 1
-          },
-          activePowerUpId: null
-        };
-      }
-      return prev;
-    });
-  }, []);
-
-  const handleGameOver = useCallback(() => {
-    setIsGameOver(true);
-    // Add any additional game over logic here
-  }, []);
-
-  const handlePowerUpEarned = useCallback((level: 1 | 2 | 3) => {
-    setPowerUps(prev => {
-      const newPowerUps = { ...prev.powerUps };
-      
-      // Give one of each power-up at the earned level
-      Object.entries(POWER_UPS).forEach(([id, powerUp]) => {
-        if (powerUp.level === level) {
-          newPowerUps[id] = Math.min(
-            (newPowerUps[id] || 0) + 1,
-            powerUp.maxUses
-          );
-        }
-      });
-      
-      return {
-        ...prev,
-        powerUps: newPowerUps
-      };
-    });
-  }, []);
-
   const { 
     startDrag, 
     updateDrag, 
@@ -187,7 +188,8 @@ export default function Home() {
     spawnStressTestBalls, 
     engine,
     currentBall,
-    debug
+    debug,
+    resetEngine
   } = useMatterJs(
     containerRef, 
     handleDrop, 
@@ -199,6 +201,22 @@ export default function Home() {
     flaskState,
     handlePowerUpEarned
   );
+
+  const handleNewGame = useCallback(() => {
+    // Reset the physics engine first
+    resetEngine();
+    
+    // Then reset all state
+    setScore(0);
+    setCombo(0);
+    setMaxTierSeen(1);
+    setNextTier(getRandomTier(1));
+    setPowerUps(createInitialPowerUpState(true));
+    setIsGameOver(false);
+    setFlaskState(createInitialFlaskState());
+    setShowStartMenu(false);
+    setIsPaused(false);
+  }, [resetEngine]);
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
     if (!containerRef.current) return;
@@ -384,6 +402,14 @@ export default function Home() {
                   effect: value as FlaskEffectId 
                 }))}
               />
+              <button
+                onClick={() => setIsPaused(true)}
+                className="h-9 px-2.5 flex items-center gap-1.5 rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md hover:bg-zinc-700/30 transition-colors text-zinc-100 text-sm font-medium"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9v6m-4.5 0V9M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -463,6 +489,66 @@ export default function Home() {
           <ColorLegend />
         </div>
       </div>
+
+      {/* Menu Modal - Used for both Start and Pause */}
+      {(showStartMenu || isPaused) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4 transform scale-100 animate-in fade-in duration-200">
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">
+              {showStartMenu ? 'Astral Merge' : 'Game Paused'}
+            </h2>
+            
+            <div className="space-y-3">
+              {showStartMenu ? (
+                <>
+                  <button
+                    onClick={handleNewGame}
+                    className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    New Game
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      // TODO: Implement continue game logic
+                      setShowStartMenu(false);
+                    }}
+                    className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    Continue
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsPaused(false)}
+                    className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    Resume Game
+                  </button>
+                  
+                  <button
+                    onClick={handleNewGame}
+                    className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                  >
+                    New Game
+                  </button>
+                </>
+              )}
+              
+              <button
+                onClick={() => {
+                  // TODO: Implement navigation to collection page
+                  window.location.href = '/collection';
+                }}
+                className="w-full px-4 py-3 border border-zinc-600 hover:bg-zinc-700/50 text-white rounded-lg transition-colors font-semibold"
+              >
+                Collection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Game Over Overlay */}
       {isGameOver && (
