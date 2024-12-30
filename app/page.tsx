@@ -113,8 +113,8 @@ const getComboColor = (combo: number) => {
 
 // Add level configuration
 const LEVEL_CONFIG = {
-  BASE_XP: 200,
-  XP_INCREASE_RATE: 1.2,
+  BASE_XP: 1000,
+  XP_INCREASE_RATE: 2,
   POWER_UPS_PER_SELECTION: 2
 };
 
@@ -130,6 +130,11 @@ const getRandomPowerUps = (count: number, maxLevel: number, currentSlots: (strin
     .filter(p => (p.group === 'GRAVITY' || p.group === 'VOID') && 
                  !currentSlots.includes(p.id));
   
+  // If no power-ups are available, return empty array
+  if (availablePowerUps.length === 0) {
+    return [];
+  }
+
   // Ensure we have at least one of each type if possible
   const gravityPowerUps = availablePowerUps.filter(p => p.group === 'GRAVITY');
   const voidPowerUps = availablePowerUps.filter(p => p.group === 'VOID');
@@ -224,6 +229,11 @@ export default function Home() {
     
     setScore(prev => prev + scoreGain);
     setCurrentExp(prev => {
+      // If all slots are filled, don't accumulate more XP
+      if (powerUps.slots.every(slot => slot !== null)) {
+        return 0;
+      }
+
       const newExp = prev + xpGain;
       const requiredExp = calculateRequiredXP(level);
       
@@ -231,6 +241,12 @@ export default function Home() {
       if (newExp >= requiredExp) {
         // Get random power-ups for selection
         const powerUpOptions = getRandomPowerUps(LEVEL_CONFIG.POWER_UPS_PER_SELECTION, Math.ceil(level / 3), powerUps.slots);
+        
+        // If no power-ups are available, don't level up
+        if (powerUpOptions.length === 0) {
+          return prev;
+        }
+
         setAvailablePowerUps(powerUpOptions);
         setShowPowerUpSelection(true);
         
@@ -483,12 +499,18 @@ export default function Home() {
                       ×{(1 + (combo * 0.5)).toFixed(1)}
                     </span>
                   </div>
-                  <span className="text-[9px] text-zinc-400">Level {level}</span>
+                  <span className="text-[9px] text-zinc-400">
+                    {powerUps.slots.every(slot => slot !== null) ? 'MAX' : `Level ${level}`}
+                  </span>
                 </div>
                 <div className="h-1 bg-zinc-700 rounded-full overflow-hidden mt-1.5">
                   <div 
                     className="h-full bg-white/90 transition-all duration-300 ease-out"
-                    style={{ width: `${Math.min((currentExp / calculateRequiredXP(level)) * 100, 100)}%` }}
+                    style={{ 
+                      width: powerUps.slots.every(slot => slot !== null) 
+                        ? '100%' 
+                        : `${Math.min((currentExp / calculateRequiredXP(level)) * 100, 100)}%` 
+                    }}
                   />
                 </div>
               </div>
