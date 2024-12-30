@@ -326,6 +326,7 @@ export const getPowerUpsByGroup = (group: PowerUp['group']) =>
 export interface PowerUpState {
   activePowerUpId: string | null;
   powerUps: Record<string, number>; // Maps power-up ID to remaining uses
+  slots: (string | null)[]; // Array of power-up IDs in slots, null for empty slots
 }
 
 // Initial state factory
@@ -333,5 +334,6 @@ export const createInitialPowerUpState = (startWithZero: boolean = true): PowerU
   activePowerUpId: null,
   powerUps: Object.fromEntries(
     Object.entries(POWER_UPS).map(([id, powerUp]) => [id, startWithZero ? 0 : powerUp.maxUses])
-  )
+  ),
+  slots: Array(6).fill(null) // Initialize with 6 empty slots
 }); 

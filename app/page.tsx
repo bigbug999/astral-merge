@@ -9,7 +9,7 @@ declare global {
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useMatterJs } from '@/hooks/useMatterJs';
 import { CIRCLE_CONFIG } from '@/types/game';
-import { PowerUpState, POWER_UPS, createInitialPowerUpState, getPowerUpsByGroup } from '@/types/powerups';
+import { PowerUp, PowerUpState, POWER_UPS, createInitialPowerUpState, getPowerUpsByGroup } from '@/types/powerups';
 import { PowerUpButton } from '@/components/PowerUpButton';
 import { cn } from '@/lib/utils';
 import { ColorLegend } from '@/components/ColorLegend';
@@ -33,6 +33,8 @@ import { UltraNegativeBallIcon } from '@/components/icons/UltraNegativeBallIcon'
 import { FlaskDropdown } from '@/components/FlaskDropdown';
 import FlaskEffects from '@/components/FlaskEffects';
 import { TestTubeIcon } from '@/components/icons/TestTubeIcon';
+import { PowerUpSelectionModal } from '@/components/PowerUpSelectionModal';
+import { PowerUpSlot } from '@/components/PowerUpSlot';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -109,6 +111,41 @@ const getComboColor = (combo: number) => {
   return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
 };
 
+// Add level configuration
+const LEVEL_CONFIG = {
+  BASE_XP: 200,
+  XP_INCREASE_RATE: 1.2,
+  POWER_UPS_PER_SELECTION: 2
+};
+
+// Calculate required XP for next level
+const calculateRequiredXP = (level: number) => {
+  return Math.floor(LEVEL_CONFIG.BASE_XP * Math.pow(LEVEL_CONFIG.XP_INCREASE_RATE, level - 1));
+};
+
+// Get random power-ups for selection
+const getRandomPowerUps = (count: number, maxLevel: number, currentSlots: (string | null)[]) => {
+  // Get all available power-ups that aren't already in slots
+  const availablePowerUps = Object.values(POWER_UPS)
+    .filter(p => (p.group === 'GRAVITY' || p.group === 'VOID') && 
+                 !currentSlots.includes(p.id));
+  
+  // Ensure we have at least one of each type if possible
+  const gravityPowerUps = availablePowerUps.filter(p => p.group === 'GRAVITY');
+  const voidPowerUps = availablePowerUps.filter(p => p.group === 'VOID');
+  
+  // If we have both types, return one of each
+  if (gravityPowerUps.length > 0 && voidPowerUps.length > 0) {
+    const randomGravity = gravityPowerUps[Math.floor(Math.random() * gravityPowerUps.length)];
+    const randomVoid = voidPowerUps[Math.floor(Math.random() * voidPowerUps.length)];
+    return [randomGravity, randomVoid];
+  }
+  
+  // Otherwise, return random selection from what's available
+  const shuffled = [...availablePowerUps].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+};
+
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [score, setScore] = useState(0);
@@ -127,6 +164,10 @@ export default function Home() {
     name: string;
     description: string;
   } | null>(null);
+  const [level, setLevel] = useState(1);
+  const [currentExp, setCurrentExp] = useState(0);
+  const [showPowerUpSelection, setShowPowerUpSelection] = useState(false);
+  const [availablePowerUps, setAvailablePowerUps] = useState<PowerUp[]>([]);
 
   const handleDrop = useCallback(() => {
     setNextTier(getRandomTier(maxTierSeen));
@@ -176,7 +217,32 @@ export default function Home() {
   const handleNewTier = useCallback((tier: number) => {
     setMaxTierSeen(prev => Math.max(prev, tier));
     setCombo(prev => prev + 1);
-    setScore(prev => prev + calculateScore(tier, combo));
+    
+    // Calculate score and XP
+    const scoreGain = calculateScore(tier, combo);
+    const xpGain = Math.floor(scoreGain * 0.5); // XP is 50% of score
+    
+    setScore(prev => prev + scoreGain);
+    setCurrentExp(prev => {
+      const newExp = prev + xpGain;
+      const requiredExp = calculateRequiredXP(level);
+      
+      // Level up if we have enough XP
+      if (newExp >= requiredExp) {
+        // Get random power-ups for selection
+        const powerUpOptions = getRandomPowerUps(LEVEL_CONFIG.POWER_UPS_PER_SELECTION, Math.ceil(level / 3), powerUps.slots);
+        setAvailablePowerUps(powerUpOptions);
+        setShowPowerUpSelection(true);
+        
+        // Only increment level once
+        const nextLevel = level + 1;
+        setLevel(nextLevel);
+        
+        // Calculate excess XP based on the current level's requirement
+        return newExp - requiredExp;
+      }
+      return newExp;
+    });
 
     // Clear any existing timeout
     if (window.comboTimeoutId) {
@@ -196,7 +262,7 @@ export default function Home() {
         clearTimeout(window.comboTimeoutId);
       }
     };
-  }, [combo]);
+  }, [combo, level, powerUps.slots]);
 
   const { 
     startDrag, 
@@ -343,6 +409,28 @@ export default function Home() {
     className: "relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden bg-zinc-800 mb-1 select-none"
   };
 
+  // Handle power-up selection
+  const handlePowerUpSelect = (powerUp: PowerUp) => {
+    setPowerUps(prev => {
+      // Find the first empty slot
+      const emptySlotIndex = prev.slots.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) return prev; // No empty slots
+
+      // Update the slots array and power-ups
+      const newSlots = [...prev.slots];
+      newSlots[emptySlotIndex] = powerUp.id;
+
+      return {
+        ...prev,
+        powerUps: {
+          ...prev.powerUps,
+          [powerUp.id]: powerUp.maxUses // Always give full charges when acquired
+        },
+        slots: newSlots
+      };
+    });
+  };
+
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
       <div className="w-full max-w-sm flex flex-col gap-4">
@@ -384,17 +472,24 @@ export default function Home() {
               </div>
 
               {/* Score Display */}
-              <div className="h-9 px-1.5 w-[108px] rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md flex flex-col justify-center">
-                <div className="text-xs font-bold text-zinc-100/90">
-                  {score}
+              <div className="h-9 px-1.5 w-[180px] rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md flex flex-col justify-center">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-zinc-100/90">{score}</span>
+                    <span 
+                      className={`text-xs font-bold ${combo > 0 ? 'animate-pulse' : ''}`}
+                      style={{ color: getComboColor(combo) }}
+                    >
+                      ×{(1 + (combo * 0.5)).toFixed(1)}
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-zinc-400">Level {level}</span>
                 </div>
-                <div 
-                  className={`text-[9px] transition-colors ${combo > 0 ? 'animate-pulse' : ''}`}
-                  style={{
-                    color: getComboColor(combo)
-                  }}
-                >
-                  ×{(1 + (combo * 0.5)).toFixed(1)}
+                <div className="h-1 bg-zinc-700 rounded-full overflow-hidden mt-1.5">
+                  <div 
+                    className="h-full bg-white/90 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min((currentExp / calculateRequiredXP(level)) * 100, 100)}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -434,45 +529,27 @@ export default function Home() {
         {/* Rest of the UI (Power-ups, Debug UI, etc.) */}
         <div className="w-full flex flex-col gap-4">
           {/* Combined Power-ups Row */}
-          <div className="grid grid-cols-7 gap-2 w-full">
-            {/* Gravity Power-ups */}
-            {getPowerUpsByGroup('GRAVITY').map(powerUp => (
-              <PowerUpButton
-                key={powerUp.id}
-                powerUp={powerUp}
-                isActive={powerUps.activePowerUpId === powerUp.id}
-                remainingUses={powerUps.powerUps[powerUp.id]}
-                onClick={() => {
-                  setPowerUps(prev => ({
-                    ...prev,
-                    activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                      (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                  }));
-                }}
-              />
-            ))}
-
-            {/* Divider */}
-            <div className="flex items-center justify-center">
-              <div className="h-5 w-px bg-zinc-700" />
-            </div>
-
-            {/* Void Power-ups */}
-            {getPowerUpsByGroup('VOID').map(powerUp => (
-              <PowerUpButton
-                key={powerUp.id}
-                powerUp={powerUp}
-                isActive={powerUps.activePowerUpId === powerUp.id}
-                remainingUses={powerUps.powerUps[powerUp.id]}
-                onClick={() => {
-                  setPowerUps(prev => ({
-                    ...prev,
-                    activePowerUpId: prev.activePowerUpId === powerUp.id ? null : 
-                      (prev.powerUps[powerUp.id] > 0 ? powerUp.id : null)
-                  }));
-                }}
-              />
-            ))}
+          <div className="grid grid-cols-6 gap-2 w-full">
+            {powerUps.slots.map((powerUpId, index) => {
+              const powerUp = powerUpId ? POWER_UPS[powerUpId] : undefined;
+              return (
+                <PowerUpSlot
+                  key={index}
+                  powerUp={powerUp}
+                  isActive={powerUps.activePowerUpId === powerUpId}
+                  remainingUses={powerUpId ? powerUps.powerUps[powerUpId] : 0}
+                  onClick={() => {
+                    if (powerUpId) {
+                      setPowerUps(prev => ({
+                        ...prev,
+                        activePowerUpId: prev.activePowerUpId === powerUpId ? null : 
+                          (prev.powerUps[powerUpId] > 0 ? powerUpId : null)
+                      }));
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
 
           {/* Debug UI */}
@@ -788,6 +865,14 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Add PowerUpSelectionModal */}
+      <PowerUpSelectionModal
+        isOpen={showPowerUpSelection}
+        onClose={() => setShowPowerUpSelection(false)}
+        onSelect={handlePowerUpSelect}
+        availablePowerUps={availablePowerUps}
+      />
     </div>
   );
 }
