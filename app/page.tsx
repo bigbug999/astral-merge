@@ -121,6 +121,12 @@ export default function Home() {
   const [showStartMenu, setShowStartMenu] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [modalView, setModalView] = useState<'menu' | 'collection'>('menu');
+  const [selectedItem, setSelectedItem] = useState<{
+    section: 'size' | 'effect' | 'gravity' | 'void';
+    id: string;
+    name: string;
+    description: string;
+  } | null>(null);
 
   const handleDrop = useCallback(() => {
     setNextTier(getRandomTier(maxTierSeen));
@@ -581,16 +587,36 @@ export default function Home() {
                           .filter(([id]) => ['DEFAULT', 'SHRINK', 'EXTRA_SHRINK'].includes(id))[index];
                         
                         return (
-                          <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
-                            {entry ? (
-                              <>
-                                {entry[0] === 'DEFAULT' && <TestTubeIcon className="w-4 h-4 text-white" />}
-                                {entry[0] === 'SHRINK' && <FlaskConicalIcon className="w-4 h-4 text-white" />}
-                                {entry[0] === 'EXTRA_SHRINK' && <FlaskRoundIcon className="w-4 h-4 text-white" />}
-                                <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
-                              </>
-                            ) : (
-                              <div className="font-medium text-zinc-500 text-lg">?</div>
+                          <div key={index} className="relative">
+                            <div 
+                              className={cn(
+                                "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                                selectedItem?.section === 'size' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                              )}
+                              onClick={() => entry && setSelectedItem(prev => 
+                                prev?.section === 'size' && prev.id === entry[0] ? null : {
+                                  section: 'size',
+                                  id: entry[0],
+                                  name: entry[1].name,
+                                  description: entry[1].description
+                                }
+                              )}
+                            >
+                              {entry ? (
+                                <>
+                                  {entry[0] === 'DEFAULT' && <TestTubeIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'SHRINK' && <FlaskConicalIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'EXTRA_SHRINK' && <FlaskRoundIcon className="w-4 h-4 text-white" />}
+                                </>
+                              ) : (
+                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                              )}
+                            </div>
+                            {selectedItem?.section === 'size' && selectedItem?.id === entry?.[0] && (
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                                <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                                <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                              </div>
                             )}
                           </div>
                         );
@@ -606,17 +632,37 @@ export default function Home() {
                         const entry = Object.entries(FLASK_EFFECTS)[index];
                         
                         return (
-                          <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
-                            {entry ? (
-                              <>
-                                {entry[0] === 'DEFAULT' && <FlaskIcon className="w-4 h-4 text-white" />}
-                                {entry[0] === 'LOW_GRAVITY' && <FeatherIcon className="w-4 h-4 text-white" />}
-                                {entry[0] === 'NO_FRICTION' && <SparklesIcon className="w-4 h-4 text-white" />}
-                                {entry[0] === 'STORM' && <StormIcon className="w-4 h-4 text-white" />}
-                                <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
-                              </>
-                            ) : (
-                              <div className="font-medium text-zinc-500 text-lg">?</div>
+                          <div key={index} className="relative">
+                            <div 
+                              className={cn(
+                                "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                                selectedItem?.section === 'effect' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                              )}
+                              onClick={() => entry && setSelectedItem(prev => 
+                                prev?.section === 'effect' && prev.id === entry[0] ? null : {
+                                  section: 'effect',
+                                  id: entry[0],
+                                  name: entry[1].name,
+                                  description: entry[1].description
+                                }
+                              )}
+                            >
+                              {entry ? (
+                                <>
+                                  {entry[0] === 'DEFAULT' && <FlaskIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'LOW_GRAVITY' && <FeatherIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'NO_FRICTION' && <SparklesIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'STORM' && <StormIcon className="w-4 h-4 text-white" />}
+                                </>
+                              ) : (
+                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                              )}
+                            </div>
+                            {selectedItem?.section === 'effect' && selectedItem?.id === entry?.[0] && (
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                                <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                                <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                              </div>
                             )}
                           </div>
                         );
@@ -637,16 +683,36 @@ export default function Home() {
                             .filter(([_, powerUp]) => powerUp.group === 'GRAVITY')[index];
                           
                           return (
-                            <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
-                              {entry ? (
-                                <>
-                                  {entry[0] === 'HEAVY_BALL' && <WeightIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'SUPER_HEAVY_BALL' && <SuperWeightIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'ULTRA_HEAVY_BALL' && <UltraWeightIcon className="w-4 h-4 text-white" />}
-                                  <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
-                                </>
-                              ) : (
-                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                            <div key={index} className="relative">
+                              <div 
+                                className={cn(
+                                  "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                                  selectedItem?.section === 'gravity' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                                )}
+                                onClick={() => entry && setSelectedItem(prev => 
+                                  prev?.section === 'gravity' && prev.id === entry[0] ? null : {
+                                    section: 'gravity',
+                                    id: entry[0],
+                                    name: entry[1].name,
+                                    description: entry[1].description
+                                  }
+                                )}
+                              >
+                                {entry ? (
+                                  <>
+                                    {entry[0] === 'HEAVY_BALL' && <WeightIcon className="w-4 h-4 text-white" />}
+                                    {entry[0] === 'SUPER_HEAVY_BALL' && <SuperWeightIcon className="w-4 h-4 text-white" />}
+                                    {entry[0] === 'ULTRA_HEAVY_BALL' && <UltraWeightIcon className="w-4 h-4 text-white" />}
+                                  </>
+                                ) : (
+                                  <div className="font-medium text-zinc-500 text-lg">?</div>
+                                )}
+                              </div>
+                              {selectedItem?.section === 'gravity' && selectedItem?.id === entry?.[0] && (
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                                  <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                                  <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                                </div>
                               )}
                             </div>
                           );
@@ -663,16 +729,36 @@ export default function Home() {
                             .filter(([_, powerUp]) => powerUp.group === 'VOID')[index];
                           
                           return (
-                            <div key={index} className="aspect-square p-1.5 bg-zinc-700/50 rounded-lg flex flex-col items-center justify-center gap-1 hover:bg-zinc-600/50 transition-colors border border-zinc-600/50">
-                              {entry ? (
-                                <>
-                                  {entry[0] === 'VOID_BALL' && <NegativeBallIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'SUPER_VOID_BALL' && <SuperNegativeBallIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'ULTRA_VOID_BALL' && <UltraNegativeBallIcon className="w-4 h-4 text-white" />}
-                                  <div className="font-medium text-zinc-300 text-[10px] text-center">{entry[1].name}</div>
-                                </>
-                              ) : (
-                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                            <div key={index} className="relative">
+                              <div 
+                                className={cn(
+                                  "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                                  selectedItem?.section === 'void' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                                )}
+                                onClick={() => entry && setSelectedItem(prev => 
+                                  prev?.section === 'void' && prev.id === entry[0] ? null : {
+                                    section: 'void',
+                                    id: entry[0],
+                                    name: entry[1].name,
+                                    description: entry[1].description
+                                  }
+                                )}
+                              >
+                                {entry ? (
+                                  <>
+                                    {entry[0] === 'VOID_BALL' && <NegativeBallIcon className="w-4 h-4 text-white" />}
+                                    {entry[0] === 'SUPER_VOID_BALL' && <SuperNegativeBallIcon className="w-4 h-4 text-white" />}
+                                    {entry[0] === 'ULTRA_VOID_BALL' && <UltraNegativeBallIcon className="w-4 h-4 text-white" />}
+                                  </>
+                                ) : (
+                                  <div className="font-medium text-zinc-500 text-lg">?</div>
+                                )}
+                              </div>
+                              {selectedItem?.section === 'void' && selectedItem?.id === entry?.[0] && (
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                                  <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                                  <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                                </div>
                               )}
                             </div>
                           );
