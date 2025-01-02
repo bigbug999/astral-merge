@@ -134,7 +134,7 @@ export function PowerUpSlot({
           
           {/* Charges dots */}
           <div className="absolute bottom-1 flex gap-1 justify-center">
-            {[...Array(powerUp.maxUses)].map((_, i) => (
+            {powerUp && [...Array(powerUp.maxUses)].map((_, i) => (
               <div
                 key={i}
                 className={cn(
