@@ -92,7 +92,8 @@ export function PowerUpSlot({
     return 'bg-zinc-800';
   };
 
-  const isDisabled = powerUp ? (remainingUses <= 0 || (cooldownEndTime?.length && cooldownEndTime[0] > Date.now())) : false;
+  const now = Date.now();
+  const isDisabled = powerUp ? (remainingUses <= 0 || (cooldownEndTime?.length && cooldownEndTime[0] > now)) : false;
   const textColor = getLevelColor(powerUp?.level, isActive, isDisabled);
   const bgColor = getLevelBgColor(powerUp?.level, isActive, isDisabled);
   const IconComponent = powerUp ? ICON_COMPONENTS[powerUp.icon] : null;
