@@ -65,7 +65,7 @@ export function PowerUpSlot({
   }, [powerUp, cooldownEndTime, effectEndTime]);
 
   // Get color based on power-up level if it exists
-  const getLevelColor = (level: number | undefined, isActive: boolean, isDisabled: boolean) => {
+  const getLevelColor = (level: number | undefined, isActive: boolean, isDisabled: boolean): string => {
     if (isDisabled) return 'text-zinc-600';
     if (isActive) return 'text-white';
     if (!level) return 'text-zinc-600';
@@ -79,7 +79,7 @@ export function PowerUpSlot({
   };
 
   // Get background color based on power-up level
-  const getLevelBgColor = (level: number | undefined, isActive: boolean, isDisabled: boolean) => {
+  const getLevelBgColor = (level: number | undefined, isActive: boolean, isDisabled: boolean): string => {
     if (isDisabled) return 'bg-zinc-800';
     if (isActive) {
       switch (level) {
@@ -93,7 +93,7 @@ export function PowerUpSlot({
   };
 
   const now = Date.now();
-  const isDisabled = powerUp ? (remainingUses <= 0 || (cooldownEndTime?.length && cooldownEndTime[0] > now)) : false;
+  const isDisabled: boolean = Boolean(powerUp && (remainingUses <= 0 || (cooldownEndTime?.length && cooldownEndTime[0] > now)));
   const textColor = getLevelColor(powerUp?.level, isActive, isDisabled);
   const bgColor = getLevelBgColor(powerUp?.level, isActive, isDisabled);
   const IconComponent = powerUp ? ICON_COMPONENTS[powerUp.icon] : null;
