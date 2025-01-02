@@ -7,19 +7,24 @@ interface TurbulenceConfig {
 }
 
 export interface FlaskPhysics {
-  gravity?: number;
-  timeScale?: number;
-  friction?: number;
-  frictionAir?: number;
-  frictionStatic?: number;
-  restitution?: number;
-  density?: number;
-  scale?: number;
-  turbulence?: TurbulenceConfig;
+  readonly density: number;
+  readonly friction: number;
+  readonly frictionAir: number;
+  readonly restitution: number;
+  readonly frictionStatic: number;
+  readonly gravity?: number;
+  readonly timeScale?: number;
+  readonly isSensor?: boolean;
+  readonly turbulence?: {
+    strength: number;
+    frequency: number;
+    verticalBias: number;
+    radius: number;
+  };
 }
 
 export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
-export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'STORM';
+export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
 
 export interface Flask {
   id: FlaskSizeId | FlaskEffectId;
@@ -62,17 +67,18 @@ export const FLASK_SIZES = {
 export const FLASK_EFFECTS = {
   DEFAULT: {
     id: 'DEFAULT',
-    name: 'Default Effect',
-    description: 'Standard physics behavior',
-    icon: 'BookMarkedIcon',
+    name: 'Default',
+    description: 'Normal flask behavior',
+    icon: 'FlaskIcon',
     physics: {
-      gravity: 1.75,
-      timeScale: 1.35,
-      friction: 0.05,
-      frictionAir: 0.001,
+      density: 0.02,
+      friction: 0.005,
+      frictionAir: 0.0002,
       restitution: 0.3,
-      frictionStatic: 0.1,
-      density: 0.02
+      frictionStatic: 0.02,
+      isSensor: false,
+      gravity: 1,
+      timeScale: 1
     }
   },
   LOW_GRAVITY: {
@@ -103,27 +109,6 @@ export const FLASK_EFFECTS = {
       frictionStatic: 0.0001,
       restitution: 0.4,
       density: 0.02
-    }
-  },
-  STORM: {
-    id: 'STORM',
-    name: 'Storm Field',
-    description: 'Creates chaotic turbulence that affects all balls',
-    icon: 'StormIcon',
-    physics: {
-      gravity: 1.75,
-      timeScale: 1.6,
-      friction: 0.015,
-      frictionAir: 0.0003,
-      restitution: 0.6,
-      frictionStatic: 0.03,
-      density: 0.02,
-      turbulence: {
-        frequency: 0.9,
-        strength: 0.025,
-        radius: 150,
-        verticalBias: 0.4
-      }
     }
   }
 } as const;

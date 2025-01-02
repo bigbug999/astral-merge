@@ -145,7 +145,6 @@ interface StormField {
   timeRemaining: number;
 }
 
-// Add this type to ensure power-up effects are properly typed
 interface StormPowerUpEffects {
   strength: number;
   radius: number;
@@ -244,39 +243,7 @@ export const useMatterJs = (
 
   // Add storm field update logic in your update function
   const updateStormFields = useCallback((delta: number) => {
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    stormFields.current = stormFields.current.filter(field => {
-      field.timeRemaining -= delta;
-      
-      if (field.timeRemaining <= 0) return false;
-
-      const bodies = Matter.Composite.allBodies(engine.world);
-      bodies.forEach(body => {
-        if (body.isStatic) return;
-
-        const distance = Matter.Vector.magnitude(
-          Matter.Vector.sub(field.position, body.position)
-        );
-
-        if (distance < field.radius) {
-          const angle = Math.random() * Math.PI * 2;
-          const force = {
-            x: Math.cos(angle) * field.strength,
-            y: Math.sin(angle) * field.strength
-          };
-          
-          Matter.Body.applyForce(
-            body,
-            body.position,
-            force
-          );
-        }
-      });
-
-      return true;
-    });
+    // ... removing this entire function
   }, []);
 
   // Add FPS calculation effect
@@ -475,10 +442,10 @@ export const useMatterJs = (
 
     // Combine physics from both size and effect
     const circleOptions: ExtendedBodyDefinition = {
-      density: tier === 1 ? 0.05 : (effectConfig.physics.density ?? 0.02),
-      friction: tier === 1 ? 0.001 : (effectConfig.physics.friction ?? (isMobile ? 0.01 : 0.005)),
-      frictionAir: tier === 1 ? 0.0001 : (effectConfig.physics.frictionAir ?? (isMobile ? 0.0004 : 0.0002)),
-      restitution: effectConfig.physics.restitution ?? 0.3,
+      density: tier === 1 ? 0.05 : (effectConfig?.physics?.density ?? 0.02),
+      friction: tier === 1 ? 0.001 : (effectConfig?.physics?.friction ?? (isMobile ? 0.01 : 0.005)),
+      frictionAir: tier === 1 ? 0.0001 : (effectConfig?.physics?.frictionAir ?? (isMobile ? 0.0004 : 0.0002)),
+      restitution: effectConfig?.physics?.restitution ?? 0.3,
       frictionStatic: tier === 1 ? 0.001 : (isMobile ? 0.04 : 0.02),
       sleepThreshold: tier >= 10 ? 30 : (tier >= 8 ? 60 : Infinity),
       collisionFilter: {
@@ -2206,20 +2173,23 @@ export const useMatterJs = (
     
     const update = (delta: number) => {
       // ... other updates
-      updateStormFields(delta);
     };
     
     // ... rest of the effect
-  }, [/* existing dependencies */, updateStormFields]);
+  }, [/* existing dependencies */]);
 
   // Modify your power-up handling to include storm fields
   const handlePowerUp = useCallback((power: PowerUp, x: number, y: number) => {
-    if (power.id === 'STORM_FIELD') {
-      createStormField(x, y, power);
-      return;
+    // Handle power-up effects
+    if (power.effects) {
+      const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+      bodies.forEach(body => {
+        if (!body.isStatic) {
+          Matter.Body.setVelocity(body, { x: 0, y: -10 });
+        }
+      });
     }
-    // ... existing power-up handling
-  }, [createStormField]);
+  }, []);
 
   // Add to existing physics update effect
   useEffect(() => {
@@ -2237,60 +2207,70 @@ export const useMatterJs = (
         bodies.forEach(body => {
           if (body.isStatic || !body.label?.startsWith('circle-')) return;
           
-          // Create more chaotic turbulence
-          const angle = Math.random() * Math.PI * 2;
-          const distanceFromCenter = Math.random() * 0.8;
+          const time = Date.now() * 0.001;
           
-          // Enhanced vertical oscillation
-          const time = Date.now() * 0.005;
-          const verticalOscillation = Math.sin(time) * 0.015 + Math.cos(time * 0.5) * 0.01;
-          
-          // Add occasional strong upward or downward gusts
-          const verticalGust = Math.random() < 0.15 ? 
-            (Math.random() < 0.5 ? -0.03 : 0.02) : 0;
-          
-          // Safely access turbulence properties with defaults
-          const turbulence = hasTurbulence(effectConfig.physics) ? 
-            effectConfig.physics.turbulence : {
-              strength: 0.025,
-              frequency: 0.9,
-              verticalBias: 0.4,
-              radius: 150
-            };
-          
-          const force = {
-            x: Math.cos(angle) * turbulence.strength * (1 + distanceFromCenter),
-            y: (Math.sin(angle) * turbulence.strength * (1 + distanceFromCenter)) + 
-               verticalOscillation + 
-               verticalGust
+          // Aggressive vortex effect
+          const distanceFromCenter = {
+            x: body.position.x - window.innerWidth / 2,
+            y: body.position.y - window.innerHeight / 2
+          };
+          const angle = Math.atan2(distanceFromCenter.y, distanceFromCenter.x);
+          const vortexForce = {
+            x: Math.cos(angle + Math.PI/2) * 50,
+            y: Math.sin(angle + Math.PI/2) * 50
           };
           
-          // Apply force with increased frequency
-          if (Math.random() < turbulence.frequency) {
-            // More extreme burst multiplier
-            const burstMultiplier = Math.random() < 0.15 ? 
-              (Math.random() * 2 + 2.5) : 1;
-            
-            // Add vertical bias to create more up/down movement
-            const verticalBias = turbulence.verticalBias || 0.4;
-            const biasedForce = {
-              x: force.x * burstMultiplier,
-              y: force.y * burstMultiplier * (1 + verticalBias)
-            };
-            
-            Matter.Body.applyForce(
+          // Chaotic pulses
+          const pulse = Math.sin(time * 5) * 30;
+          
+          // Random explosive bursts
+          if (Math.random() < 0.05) {
+            const explosionForce = 80;
+            const explosionAngle = Math.random() * Math.PI * 2;
+            Matter.Body.setVelocity(body, {
+              x: Math.cos(explosionAngle) * explosionForce,
+              y: Math.sin(explosionAngle) * explosionForce
+            });
+            return; // Skip other effects during explosion
+          }
+          
+          // Strong updrafts
+          const updraft = {
+            x: 0,
+            y: -40 + Math.sin(time * 3) * 20
+          };
+          
+          // Random directional changes
+          if (Math.random() < 0.1) {
+            Matter.Body.applyForce(body, body.position, {
+              x: (Math.random() - 0.5) * 0.5,
+              y: (Math.random() - 0.5) * 0.5
+            });
+          }
+          
+          // Combine and apply velocity
+          const newVelocity = {
+            x: vortexForce.x + pulse,
+            y: vortexForce.y + updraft.y + pulse
+          };
+          
+          Matter.Body.setVelocity(body, newVelocity);
+          
+          // Aggressive rotation
+          if (Math.random() < 0.2) {
+            Matter.Body.setAngularVelocity(
               body,
-              body.position,
-              biasedForce
+              (Math.random() - 0.5) * 1.5
             );
-            
-            // Occasionally add a rotational force for more chaos
-            if (Math.random() < 0.2) {
-              Matter.Body.setAngularVelocity(
-                body, 
-                (Math.random() - 0.5) * 0.2
-              );
-            }
+          }
+          
+          // Random teleports for extreme chaos
+          if (Math.random() < 0.01) {
+            const margin = 100;
+            Matter.Body.setPosition(body, {
+              x: margin + Math.random() * (window.innerWidth - margin * 2),
+              y: margin + Math.random() * (window.innerHeight - margin * 2)
+            });
           }
         });
       };
@@ -2328,6 +2308,141 @@ export const useMatterJs = (
       Matter.Composite.remove(engineRef.current!.world, constraint);
     });
   }, []);
+
+  // Add special handling for storm effect
+  useEffect(() => {
+    if (!engineRef.current || flaskState.effect !== 'STORM') return;
+
+    const stormUpdateHandler = () => {
+      const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      
+      bodies.forEach(body => {
+        if (body.isStatic || !body.label?.startsWith('circle-')) return;
+        
+        // Calculate distance from center
+        const dx = body.position.x - centerX;
+        const dy = body.position.y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Create a powerful vortex effect
+        const vortexStrength = 0.015; // Increased vortex strength
+        const vortexForce = {
+          x: -dy * vortexStrength,
+          y: dx * vortexStrength
+        };
+        
+        // Add strong upward force that increases with height
+        const heightFactor = (window.innerHeight - body.position.y) / window.innerHeight;
+        const upwardForce = {
+          x: 0,
+          y: -0.02 * (1 + heightFactor * 2) // Stronger upward force near the top
+        };
+        
+        // Add pulsing outward/inward force
+        const time = Date.now() * 0.001;
+        const pulseStrength = 0.01 * Math.sin(time * 2);
+        const pulseForce = {
+          x: dx * pulseStrength / distance,
+          y: dy * pulseStrength / distance
+        };
+        
+        // Combine all forces
+        const totalForce = {
+          x: vortexForce.x + pulseForce.x,
+          y: vortexForce.y + upwardForce.y + pulseForce.y
+        };
+        
+        // Apply the combined force
+        Matter.Body.applyForce(body, body.position, totalForce);
+        
+        // Add random strong impulses
+        if (Math.random() < 0.05) {
+          const impulseStrength = 0.2;
+          const impulseAngle = Math.random() * Math.PI * 2;
+          Matter.Body.applyForce(body, body.position, {
+            x: Math.cos(impulseAngle) * impulseStrength,
+            y: Math.sin(impulseAngle) * impulseStrength
+          });
+        }
+        
+        // Add rotation based on distance from center
+        const rotationStrength = 0.1 * (1 - Math.min(distance, 500) / 500);
+        Matter.Body.setAngularVelocity(body, rotationStrength);
+      });
+    };
+
+    // Run the storm effect every frame
+    Matter.Events.on(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+
+    return () => {
+      if (engineRef.current) {
+        Matter.Events.off(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+      }
+    };
+  }, [flaskState.effect]);
+
+  // Add to existing physics update effect
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
+    
+    // Apply physics configuration
+    if (effectConfig.physics) {
+      const world = engineRef.current.world;
+      const gravity = world.gravity;
+      
+      // Update gravity if specified
+      if (typeof effectConfig.physics.gravity === 'number') {
+        gravity.y = effectConfig.physics.gravity;
+      }
+      
+      // Update engine timeScale if specified
+      if (typeof effectConfig.physics.timeScale === 'number') {
+        engineRef.current.timing.timeScale = effectConfig.physics.timeScale;
+      }
+      
+      // Update all non-static bodies with new physics properties
+      const bodies = Matter.Composite.allBodies(world);
+      bodies.forEach(body => {
+        if (!body.isStatic) {
+          Object.assign(body, {
+            friction: effectConfig.physics.friction,
+            frictionAir: effectConfig.physics.frictionAir,
+            restitution: effectConfig.physics.restitution,
+            density: effectConfig.physics.density,
+            frictionStatic: effectConfig.physics.frictionStatic
+          });
+        }
+      });
+    }
+
+    return () => {
+      if (engineRef.current) {
+        // Reset physics when effect ends
+        const world = engineRef.current.world;
+        const defaultConfig = FLASK_EFFECTS.DEFAULT.physics;
+        
+        world.gravity.y = defaultConfig.gravity || 1;
+        engineRef.current.timing.timeScale = defaultConfig.timeScale || 1;
+        
+        const bodies = Matter.Composite.allBodies(world);
+        bodies.forEach(body => {
+          if (!body.isStatic) {
+            Object.assign(body, {
+              friction: defaultConfig.friction,
+              frictionAir: defaultConfig.frictionAir,
+              restitution: defaultConfig.restitution,
+              density: defaultConfig.density,
+              frictionStatic: defaultConfig.frictionStatic
+            });
+          }
+        });
+      }
+    };
+  }, [flaskState.effect]);
 
   return {
     engine: engineRef.current,
