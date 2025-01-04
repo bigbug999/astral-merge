@@ -41,6 +41,10 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [progress, setProgress] = useState(100);
   
+  const isFlaskItem = (item: PowerUp | FlaskItem): item is FlaskItem => {
+    return 'type' in item && item.type === 'flask';
+  };
+  
   const getColors = () => {
     if (!powerUp) return {
       text: 'text-zinc-600',
@@ -52,7 +56,7 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
       bg: 'bg-zinc-800'
     };
 
-    if ('type' in powerUp && powerUp.type === 'flask') {
+    if (isFlaskItem(powerUp)) {
       return {
         text: isActive ? 'text-white' : 'text-blue-400 hover:text-blue-300',
         bg: isActive ? 'bg-blue-900/50' : 'bg-zinc-800'
@@ -60,15 +64,14 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
     }
 
     // Power-up colors based on level
-    const level = (powerUp as PowerUp).level;
     return {
       text: isActive ? 'text-white' : 
-        level === 1 ? 'text-green-400 hover:text-green-300' :
-        level === 2 ? 'text-purple-400 hover:text-purple-300' :
+        powerUp.level === 1 ? 'text-green-400 hover:text-green-300' :
+        powerUp.level === 2 ? 'text-purple-400 hover:text-purple-300' :
         'text-orange-400 hover:text-orange-300',
       bg: isActive ? 
-        level === 1 ? 'bg-green-900/50' :
-        level === 2 ? 'bg-purple-900/50' :
+        powerUp.level === 1 ? 'bg-green-900/50' :
+        powerUp.level === 2 ? 'bg-purple-900/50' :
         'bg-orange-900/50' 
         : 'bg-zinc-800'
     };
@@ -79,7 +82,7 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
   const { text, bg } = getColors();
 
   useEffect(() => {
-    if (powerUp?.type === 'flask' && powerUp.activeUntil) {
+    if (powerUp && isFlaskItem(powerUp) && powerUp.activeUntil) {
       const updateTimer = () => {
         const now = Date.now();
         const total = 60000;
