@@ -140,4 +140,15 @@ export function createInitialFlaskState(): FlaskState {
     effect: 'DEFAULT',
     activeUntil: null
   };
+}
+
+// Add this shared interface
+export interface FlaskItem {
+  id: FlaskEffectId;
+  type: 'flask';
+  name: string;
+  description: string;
+  icon: string;
+  maxUses: number;
+  activeUntil: number | null;
 } 

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { PowerUp } from '@/types/powerups';
-import { FlaskEffectId } from '@/types/flasks';
+import { FlaskItem } from '@/types/flasks';
 import { WeightIcon } from './icons/WeightIcon';
 import { SuperWeightIcon } from './icons/SuperWeightIcon';
 import { UltraWeightIcon } from './icons/UltraWeightIcon';
@@ -31,15 +31,7 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
 };
 
 interface PowerUpSlotProps {
-  powerUp?: PowerUp | {
-    id: FlaskEffectId;
-    type: 'flask';
-    name: string;
-    description: string;
-    icon: string;
-    maxUses: number;
-    activeUntil: number | null;
-  };
+  powerUp?: PowerUp | FlaskItem;
   isActive: boolean;
   remainingUses: number;
   onClick: () => void;

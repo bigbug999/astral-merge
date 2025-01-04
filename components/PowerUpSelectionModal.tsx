@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PowerUp, POWER_UPS } from '@/types/powerups';
+import { PowerUp, POWER_UPS, PowerUpState } from '@/types/powerups';
 import { cn } from '@/lib/utils';
 import { WeightIcon } from './icons/WeightIcon';
 import { SuperWeightIcon } from './icons/SuperWeightIcon';
@@ -13,11 +13,12 @@ import { FlaskIcon } from './icons/FlaskIcon';
 import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { StormIcon } from './icons/StormIcon';
+import { FlaskItem } from '@/types/flasks';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (powerUp: PowerUp | { id: FlaskEffectId; type: 'flask' }) => void;
+  onSelect: (powerUp: PowerUp | FlaskItem) => void;
   availablePowerUps: PowerUp[];
   powerUps: PowerUpState;
 }
@@ -37,8 +38,8 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
 };
 
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
-  const [selectedItem, setSelectedItem] = useState<PowerUp | { id: FlaskEffectId; type: 'flask' } | null>(null);
-  const [options, setOptions] = useState<(PowerUp | { id: FlaskEffectId; type: 'flask'; name: string; description: string; icon: string })[]>([]);
+  const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
+  const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
 
   // Generate options when modal opens
   useEffect(() => {
@@ -58,7 +59,9 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
           type: 'flask' as const,
           name: effect.name,
           description: effect.description,
-          icon: effect.icon
+          icon: effect.icon,
+          maxUses: 3,
+          activeUntil: null
         }));
 
       // Combine all available options

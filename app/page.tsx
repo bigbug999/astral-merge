@@ -35,18 +35,12 @@ import FlaskEffects from '@/components/FlaskEffects';
 import { TestTubeIcon } from '@/components/icons/TestTubeIcon';
 import { PowerUpSelectionModal } from '@/components/PowerUpSelectionModal';
 import { PowerUpSlot } from '@/components/PowerUpSlot';
+import { FlaskItem } from '@/types/flasks';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 // Add this type near the top of the file
-type SelectedItem = PowerUp | { 
-  id: FlaskEffectId; 
-  type: 'flask';
-  name: string;
-  description: string;
-  icon: string;
-  maxUses: number;
-};
+type SelectedItem = PowerUp | FlaskItem;
 
 // Helper function to get random tier with weights
 const getRandomTier = (maxTierSeen: number): TierType => {
