@@ -80,6 +80,11 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
     }
   }, [isOpen, availablePowerUps, powerUps.slots]);
 
+  // Add type guard function
+  const isFlaskItem = (item: PowerUp | FlaskItem): item is FlaskItem => {
+    return 'type' in item && item.type === 'flask';
+  };
+
   if (!isOpen) return null;
 
   const handleSelect = () => {
@@ -103,7 +108,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
             const IconComponent = ICON_COMPONENTS[option.icon];
             return (
               <button
-                key={'id' in option ? option.id : option.type + option.id}
+                key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
                 onClick={() => setSelectedItem(option)}
                 className={cn(
                   "p-4 rounded-lg border transition-all",
