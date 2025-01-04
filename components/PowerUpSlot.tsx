@@ -82,11 +82,11 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
   const { text, bg } = getColors();
 
   useEffect(() => {
-    if (powerUp && isFlaskItem(powerUp) && powerUp.activeUntil) {
+    if (powerUp && isFlaskItem(powerUp) && powerUp.activeUntil !== null) {
       const updateTimer = () => {
         const now = Date.now();
         const total = 60000;
-        const elapsed = powerUp.activeUntil - now;
+        const elapsed = powerUp.activeUntil! - now;
         const remaining = Math.ceil(elapsed / 1000);
         
         if (remaining > 0) {
