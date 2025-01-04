@@ -7,24 +7,19 @@ interface TurbulenceConfig {
 }
 
 export interface FlaskPhysics {
-  readonly density: number;
-  readonly friction: number;
-  readonly frictionAir: number;
-  readonly restitution: number;
-  readonly frictionStatic: number;
-  readonly gravity?: number;
-  readonly timeScale?: number;
-  readonly isSensor?: boolean;
-  readonly turbulence?: {
-    strength: number;
-    frequency: number;
-    verticalBias: number;
-    radius: number;
-  };
+  gravity?: number;
+  timeScale?: number;
+  friction?: number;
+  frictionAir?: number;
+  frictionStatic?: number;
+  restitution?: number;
+  density?: number;
+  scale?: number;
+  turbulence?: TurbulenceConfig;
 }
 
 export type FlaskSizeId = 'DEFAULT' | 'SHRINK' | 'EXTRA_SHRINK';
-export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION';
+export type FlaskEffectId = 'DEFAULT' | 'LOW_GRAVITY' | 'NO_FRICTION' | 'STORM';
 
 export interface Flask {
   id: FlaskSizeId | FlaskEffectId;
@@ -67,24 +62,23 @@ export const FLASK_SIZES = {
 export const FLASK_EFFECTS = {
   DEFAULT: {
     id: 'DEFAULT',
-    name: 'Default',
-    description: 'Normal flask behavior',
-    icon: 'FlaskIcon',
+    name: 'Default Effect',
+    description: 'Standard physics: 1.75 gravity, 0.05 friction, 0.3 restitution',
+    icon: 'BookMarkedIcon',
     physics: {
-      density: 0.02,
-      friction: 0.005,
-      frictionAir: 0.0002,
+      gravity: 1.75,
+      timeScale: 1.35,
+      friction: 0.05,
+      frictionAir: 0.001,
       restitution: 0.3,
-      frictionStatic: 0.02,
-      isSensor: false,
-      gravity: 1,
-      timeScale: 1
+      frictionStatic: 0.1,
+      density: 0.02
     }
   },
   LOW_GRAVITY: {
     id: 'LOW_GRAVITY',
     name: 'Low Gravity',
-    description: 'Reduces gravity for all objects',
+    description: 'Reduces gravity to 0.15, increases restitution to 0.65. Lasts 60s, 3 uses.',
     icon: 'FeatherIcon',
     physics: {
       gravity: 0.15,
@@ -99,7 +93,7 @@ export const FLASK_EFFECTS = {
   NO_FRICTION: {
     id: 'NO_FRICTION',
     name: 'Frictionless',
-    description: 'Removes friction from all surfaces',
+    description: 'Near-zero friction (0.0001) and air resistance. Lasts 60s, 3 uses.',
     icon: 'SparklesIcon',
     physics: {
       gravity: 1.75,
@@ -110,15 +104,40 @@ export const FLASK_EFFECTS = {
       restitution: 0.4,
       density: 0.02
     }
+  },
+  STORM: {
+    id: 'STORM',
+    name: 'Storm Field',
+    description: 'Creates turbulence (0.025 strength, 150px radius). Lasts 60s, 3 uses.',
+    icon: 'StormIcon',
+    physics: {
+      gravity: 1.75,
+      timeScale: 1.6,
+      friction: 0.015,
+      frictionAir: 0.0003,
+      restitution: 0.6,
+      frictionStatic: 0.03,
+      density: 0.02,
+      turbulence: {
+        frequency: 0.9,
+        strength: 0.025,
+        radius: 150,
+        verticalBias: 0.4
+      }
+    }
   }
 } as const;
 
 export interface FlaskState {
   size: FlaskSizeId;
   effect: FlaskEffectId;
+  activeUntil: number | null; // Timestamp when effect ends
 }
 
-export const createInitialFlaskState = (): FlaskState => ({
-  size: 'DEFAULT',
-  effect: 'DEFAULT'
-}); 
+export function createInitialFlaskState(): FlaskState {
+  return {
+    size: 'DEFAULT',
+    effect: 'DEFAULT',
+    activeUntil: null
+  };
+} 

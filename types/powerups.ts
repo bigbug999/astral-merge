@@ -86,18 +86,6 @@ export const POWER_UP_CONFIG = {
     }
   },
   SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
-  STORM: {
-    BASIC: {
-      FREQUENCY: 0.5,
-      STRENGTH: 0.003,
-      RADIUS: 50,
-      DURATION: 5000, // 5 seconds
-      DENSITY: 0.02,
-      FRICTION: 0.05,
-      FRICTION_AIR: 0.001,
-      RESTITUTION: 0.3
-    }
-  }
 };
 
 // Define base power-up interface
@@ -107,7 +95,7 @@ export interface PowerUp {
   description: string;
   maxUses: number;
   icon: string;
-  group: 'GRAVITY' | 'VOID' | 'FLASK';
+  group: 'GRAVITY' | 'VOID' | 'ENVIRONMENTAL';
   level: 1 | 2 | 3;
   physics: {
     density?: number;
@@ -127,7 +115,6 @@ export interface PowerUp {
     initialSpeed?: number;
     forceMultiplier?: number;
     duration?: number;
-    cooldown?: number;
     constantForce?: number;
     strength?: number;
     radius?: number;
@@ -141,8 +128,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
   HEAVY_BALL: {
     id: 'HEAVY_BALL',
     name: 'Heavy Ball',
-    description: 'Increases density by 2x and adds constant downward force (0.02) for 5s. Recharges on tier 4+ merges',
-    maxUses: 5,
+    description: 'Increases ball mass by 300%. Recharges every 3 merges.',
+    maxUses: 3,
     icon: 'WeightIcon',
     group: 'GRAVITY',
     level: 1,
@@ -166,7 +153,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   SUPER_HEAVY_BALL: {
     id: 'SUPER_HEAVY_BALL',
     name: 'Super Heavy Ball',
-    description: 'Increases density by 4x and adds strong downward force (0.03) for 6s. Recharges on tier 6+ merges',
+    description: 'Increases ball mass by 600%. Recharges every 4 merges.',
     maxUses: 3,
     icon: 'SuperWeightIcon',
     group: 'GRAVITY',
@@ -191,8 +178,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
   ULTRA_HEAVY_BALL: {
     id: 'ULTRA_HEAVY_BALL',
     name: 'Ultra Heavy Ball',
-    description: 'Increases density by 12x and adds massive downward force (0.06) for 6s. Recharges on tier 8+ merges',
-    maxUses: 2,
+    description: 'Increases ball mass by 1000%. Recharges every 5 merges.',
+    maxUses: 3,
     icon: 'UltraWeightIcon',
     group: 'GRAVITY',
     level: 3,
@@ -218,7 +205,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   VOID_BALL: {
     id: 'VOID_BALL',
     name: 'Void Ball',
-    description: 'Creates a bouncy ball (restitution 0.8) that removes 2 balls on contact. Lasts 10s. Recharges on tier 4+ merges',
+    description: 'Creates a ball that absorbs same-tier balls within 100px. Recharges every 3 merges.',
     maxUses: 3,
     icon: 'NegativeBallIcon',
     group: 'VOID',
@@ -243,8 +230,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
   SUPER_VOID_BALL: {
     id: 'SUPER_VOID_BALL',
     name: 'Super Void Ball',
-    description: 'Creates a phase-through ball (isSensor: true) that removes 2 balls in its path. Lasts 10s. Recharges on tier 6+ merges',
-    maxUses: 2,
+    description: 'Creates a ball that absorbs same-tier balls within 150px. Recharges every 4 merges.',
+    maxUses: 3,
     icon: 'SuperNegativeBallIcon',
     group: 'VOID',
     level: 2,
@@ -269,8 +256,8 @@ export const POWER_UPS: Record<string, PowerUp> = {
   ULTRA_VOID_BALL: {
     id: 'ULTRA_VOID_BALL',
     name: 'Ultra Void Ball',
-    description: 'Creates a phase-through ball (isSensor: true) that removes up to 10 balls in its path. Lasts 10s. Recharges on tier 8+ merges',
-    maxUses: 1,
+    description: 'Creates a ball that absorbs same-tier balls within 200px. Recharges every 5 merges.',
+    maxUses: 3,
     icon: 'UltraNegativeBallIcon',
     group: 'VOID',
     level: 3,
@@ -291,85 +278,6 @@ export const POWER_UPS: Record<string, PowerUp> = {
       bounceForce: POWER_UP_CONFIG.VOID.ULTRA.BOUNCE_FORCE,
       initialSpeed: POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED,
     }
-  },
-  STORM_FIELD: {
-    id: 'STORM_FIELD',
-    name: 'Storm Field',
-    description: 'Creates a chaotic storm that randomly pushes balls',
-    maxUses: 3,
-    icon: 'StormIcon',
-    group: 'FLASK',
-    level: 2,
-    physics: {
-      density: 0.01,
-      friction: 0.05,
-      frictionAir: 0.001,
-      restitution: 0.3,
-      frictionStatic: 0.05,
-      isSensor: false
-    },
-    visual: {
-      strokeColor: '#4B0082',
-      glowColor: 'rgba(75, 0, 130, 0.5)',
-    },
-    effects: {
-      frequency: POWER_UP_CONFIG.STORM.BASIC.FREQUENCY,
-      strength: POWER_UP_CONFIG.STORM.BASIC.STRENGTH,
-      radius: POWER_UP_CONFIG.STORM.BASIC.RADIUS,
-      duration: 30000, // 30 seconds
-      cooldown: 60000, // 1 minute
-    }
-  },
-  // FLASK EFFECTS GROUP
-  LOW_GRAVITY: {
-    id: 'LOW_GRAVITY',
-    name: 'Low Gravity',
-    description: 'Reduces gravity to 0.15 and increases restitution to 0.65 for 30s. Each charge has 60s cooldown. Recharges on tier 4+ merges',
-    maxUses: 3,
-    icon: 'FeatherIcon',
-    group: 'FLASK',
-    level: 1,
-    physics: {
-      density: 0.01,
-      friction: 0.05,
-      frictionAir: 0.001,
-      restitution: 0.3,
-      frictionStatic: 0.05,
-      isSensor: false
-    },
-    visual: {
-      strokeColor: '#22c55e',
-      glowColor: 'rgba(34, 197, 94, 0.3)',
-    },
-    effects: {
-      duration: 30000, // 30 seconds
-      cooldown: 60000, // 1 minute
-    }
-  },
-  NO_FRICTION: {
-    id: 'NO_FRICTION',
-    name: 'No Friction',
-    description: 'Sets friction to 0.0001 and increases gravity to 1.75 for 30s. Each charge has 60s cooldown. Recharges on tier 4+ merges',
-    maxUses: 3,
-    icon: 'SparklesIcon',
-    group: 'FLASK',
-    level: 1,
-    physics: {
-      density: 0.01,
-      friction: 0.05,
-      frictionAir: 0.001,
-      restitution: 0.3,
-      frictionStatic: 0.05,
-      isSensor: false
-    },
-    visual: {
-      strokeColor: '#22c55e',
-      glowColor: 'rgba(34, 197, 94, 0.3)',
-    },
-    effects: {
-      duration: 30000, // 30 seconds
-      cooldown: 60000, // 1 minute
-    }
   }
 };
 
@@ -382,8 +290,6 @@ export interface PowerUpState {
   activePowerUpId: string | null;
   powerUps: Record<string, number>; // Maps power-up ID to remaining uses
   slots: (string | null)[]; // Array of power-up IDs in slots, null for empty slots
-  cooldowns: Record<string, number[]>; // Maps power-up ID to array of cooldown end timestamps for each charge
-  activeEffects: Record<string, number>; // Maps power-up ID to effect end timestamp
 }
 
 // Initial state factory
@@ -392,9 +298,5 @@ export const createInitialPowerUpState = (startWithZero: boolean = true): PowerU
   powerUps: Object.fromEntries(
     Object.entries(POWER_UPS).map(([id, powerUp]) => [id, startWithZero ? 0 : powerUp.maxUses])
   ),
-  slots: Array(6).fill(null),
-  cooldowns: Object.fromEntries(
-    Object.entries(POWER_UPS).map(([id]) => [id, []])
-  ),
-  activeEffects: {}
+  slots: Array(6).fill(null) // Initialize with 6 empty slots
 }); 

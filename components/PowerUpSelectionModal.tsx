@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PowerUp, POWER_UPS } from '@/types/powerups';
 import { cn } from '@/lib/utils';
 import { WeightIcon } from './icons/WeightIcon';
@@ -7,12 +7,19 @@ import { UltraWeightIcon } from './icons/UltraWeightIcon';
 import { NegativeBallIcon } from './icons/NegativeBallIcon';
 import { SuperNegativeBallIcon } from './icons/SuperNegativeBallIcon';
 import { UltraNegativeBallIcon } from './icons/UltraNegativeBallIcon';
+import { FLASK_EFFECTS, FlaskEffectId } from '@/types/flasks';
+import { TestTubeIcon } from './icons/TestTubeIcon';
+import { FlaskIcon } from './icons/FlaskIcon';
+import { FeatherIcon } from './icons/FeatherIcon';
+import { SparklesIcon } from './icons/SparklesIcon';
+import { StormIcon } from './icons/StormIcon';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (powerUp: PowerUp) => void;
+  onSelect: (powerUp: PowerUp | { id: FlaskEffectId; type: 'flask' }) => void;
   availablePowerUps: PowerUp[];
+  powerUps: PowerUpState;
 }
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -22,35 +29,82 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   NegativeBallIcon,
   SuperNegativeBallIcon,
   UltraNegativeBallIcon,
+  TestTubeIcon,
+  FlaskIcon,
+  FeatherIcon,
+  SparklesIcon,
+  StormIcon,
 };
 
-export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps }: PowerUpSelectionModalProps) {
-  const [selectedPowerUp, setSelectedPowerUp] = useState<PowerUp | null>(null);
+export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
+  const [selectedItem, setSelectedItem] = useState<PowerUp | { id: FlaskEffectId; type: 'flask' } | null>(null);
+  const [options, setOptions] = useState<(PowerUp | { id: FlaskEffectId; type: 'flask'; name: string; description: string; icon: string })[]>([]);
+
+  // Generate options when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Get currently used flask effects from power-up slots
+      const usedFlaskEffects = new Set(
+        powerUps.slots
+          .filter(slotId => slotId?.startsWith('FLASK_'))
+          .map(slotId => slotId?.replace('FLASK_', ''))
+      );
+
+      // Get all available items (both power-ups and unused flasks)
+      const availableFlaskEffects = Object.entries(FLASK_EFFECTS)
+        .filter(([id]) => id !== 'DEFAULT' && !usedFlaskEffects.has(id))
+        .map(([id, effect]) => ({
+          id: id as FlaskEffectId,
+          type: 'flask' as const,
+          name: effect.name,
+          description: effect.description,
+          icon: effect.icon
+        }));
+
+      // Combine all available options
+      const allAvailableOptions = [...availablePowerUps, ...availableFlaskEffects];
+
+      // If we have less than 3 total options, show all of them
+      if (allAvailableOptions.length <= 3) {
+        setOptions(allAvailableOptions);
+      } else {
+        // Otherwise, randomly select exactly 3 options
+        const shuffled = [...allAvailableOptions].sort(() => Math.random() - 0.5);
+        setOptions(shuffled.slice(0, 3));
+      }
+
+      setSelectedItem(null);
+    }
+  }, [isOpen, availablePowerUps, powerUps.slots]);
 
   if (!isOpen) return null;
 
   const handleSelect = () => {
-    if (selectedPowerUp) {
-      onSelect(selectedPowerUp);
+    if (selectedItem) {
+      onSelect(selectedItem);
       onClose();
     }
+  };
+
+  const handleSkip = () => {
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4">
-        <h2 className="text-xl font-semibold text-zinc-100 mb-6 text-center">Level Up! Choose a Power-Up</h2>
+        <h2 className="text-xl font-semibold text-zinc-100 mb-6 text-center">Level Up! Choose a Power-Up or Flask</h2>
         
-        <div className="flex justify-center gap-4 mb-6">
-          {availablePowerUps.map((powerUp) => {
-            const IconComponent = ICON_COMPONENTS[powerUp.icon];
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {options.map((option) => {
+            const IconComponent = ICON_COMPONENTS[option.icon];
             return (
               <button
-                key={powerUp.id}
-                onClick={() => setSelectedPowerUp(powerUp)}
+                key={'id' in option ? option.id : option.type + option.id}
+                onClick={() => setSelectedItem(option)}
                 className={cn(
-                  "w-[160px] p-4 rounded-lg border transition-all",
-                  selectedPowerUp?.id === powerUp.id
+                  "p-4 rounded-lg border transition-all",
+                  selectedItem?.id === option.id
                     ? "bg-zinc-800 border-violet-500"
                     : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
                 )}
@@ -62,8 +116,8 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                     </div>
                   )}
                   <div className="text-center">
-                    <div className="font-medium text-zinc-200">{powerUp.name}</div>
-                    <div className="text-xs text-zinc-400 mt-1">{powerUp.description}</div>
+                    <div className="font-medium text-zinc-200 text-sm">{option.name}</div>
+                    <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">{option.description}</div>
                   </div>
                 </div>
               </button>
@@ -71,20 +125,21 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
           })}
         </div>
 
-        <div className="flex justify-center gap-3">
+        <div className="flex gap-3">
           <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+            onClick={handleSkip}
+            className="w-1/3 px-4 py-3 rounded-lg font-semibold transition-colors bg-zinc-700 hover:bg-zinc-600 text-zinc-300"
           >
             Skip
           </button>
+          
           <button
             onClick={handleSelect}
-            disabled={!selectedPowerUp}
+            disabled={!selectedItem}
             className={cn(
-              "px-6 py-2 rounded-lg transition-colors",
-              selectedPowerUp
-                ? "bg-violet-600 text-white hover:bg-violet-500"
+              "w-2/3 px-4 py-3 rounded-lg font-semibold transition-colors",
+              selectedItem
+                ? "bg-violet-500 hover:bg-violet-600 text-white"
                 : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
             )}
           >

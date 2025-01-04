@@ -23,6 +23,7 @@ import { ChemistryFlaskIcon } from '@/components/icons/ChemistryFlaskIcon';
 import { FeatherIcon } from '@/components/icons/FeatherIcon';
 import { SparklesIcon } from '@/components/icons/SparklesIcon';
 import { BounceIcon } from '@/components/icons/BounceIcon';
+import { StormIcon } from '@/components/icons/StormIcon';
 import { WeightIcon } from '@/components/icons/WeightIcon';
 import { SuperWeightIcon } from '@/components/icons/SuperWeightIcon';
 import { UltraWeightIcon } from '@/components/icons/UltraWeightIcon';
@@ -36,6 +37,16 @@ import { PowerUpSelectionModal } from '@/components/PowerUpSelectionModal';
 import { PowerUpSlot } from '@/components/PowerUpSlot';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+
+// Add this type near the top of the file
+type SelectedItem = PowerUp | { 
+  id: FlaskEffectId; 
+  type: 'flask';
+  name: string;
+  description: string;
+  icon: string;
+  maxUses: number;
+};
 
 // Helper function to get random tier with weights
 const getRandomTier = (maxTierSeen: number): TierType => {
@@ -87,6 +98,8 @@ const getFlaskIcon = (iconName: string) => {
       return SparklesIcon;
     case 'BounceIcon':
       return BounceIcon;
+    case 'StormIcon':
+      return StormIcon;
     default:
       return FlaskIcon;
   }
@@ -112,7 +125,7 @@ const getComboColor = (combo: number) => {
 const LEVEL_CONFIG = {
   BASE_XP: 1000,
   XP_INCREASE_RATE: 2,
-  POWER_UPS_PER_SELECTION: 2
+  POWER_UPS_PER_SELECTION: 3
 };
 
 // Calculate required XP for next level
@@ -124,48 +137,16 @@ const calculateRequiredXP = (level: number) => {
 const getRandomPowerUps = (count: number, maxLevel: number, currentSlots: (string | null)[]) => {
   // Get all available power-ups that aren't already in slots
   const availablePowerUps = Object.values(POWER_UPS)
-    .filter(p => (p.group === 'GRAVITY' || p.group === 'VOID' || p.group === 'FLASK') && 
-                 !currentSlots.includes(p.id));
+    .filter(p => !currentSlots.includes(p.id));
   
   // If no power-ups are available, return empty array
   if (availablePowerUps.length === 0) {
     return [];
   }
-
-  // Get power-ups by group
-  const gravityPowerUps = availablePowerUps.filter(p => p.group === 'GRAVITY');
-  const voidPowerUps = availablePowerUps.filter(p => p.group === 'VOID');
-  const flaskPowerUps = availablePowerUps.filter(p => p.group === 'FLASK');
   
-  // Randomly select which types to show
-  const availableTypes = [
-    { type: 'GRAVITY', powerUps: gravityPowerUps },
-    { type: 'VOID', powerUps: voidPowerUps },
-    { type: 'FLASK', powerUps: flaskPowerUps }
-  ].filter(t => t.powerUps.length > 0);
-
-  if (availableTypes.length === 0) return [];
-
-  // Randomly select two different types if possible
-  const shuffledTypes = [...availableTypes].sort(() => Math.random() - 0.5);
-  const selectedTypes = shuffledTypes.slice(0, Math.min(2, shuffledTypes.length));
-
-  // Get one random power-up from each selected type
-  return selectedTypes.map(type => {
-    const powerUps = type.powerUps;
-    return powerUps[Math.floor(Math.random() * powerUps.length)];
-  });
-};
-
-const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
-  WeightIcon,
-  SuperWeightIcon,
-  UltraWeightIcon,
-  NegativeBallIcon,
-  SuperNegativeBallIcon,
-  UltraNegativeBallIcon,
-  FeatherIcon,
-  SparklesIcon,
+  // Return random selection from what's available
+  const shuffled = [...availablePowerUps].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 };
 
 export default function Home() {
@@ -198,54 +179,13 @@ export default function Home() {
   const handlePowerUpUse = useCallback(() => {
     setPowerUps(prev => {
       if (prev.activePowerUpId) {
-        const powerUp = POWER_UPS[prev.activePowerUpId];
-        const now = Date.now();
-        
-        // Set cooldown and effect timers for flask effects
-        const newCooldowns = { ...prev.cooldowns };
-        const newActiveEffects = { ...prev.activeEffects };
-        
-        if (powerUp.effects?.duration) {
-          newActiveEffects[prev.activePowerUpId] = now + powerUp.effects.duration;
-          if (powerUp.effects.cooldown) {
-            // Initialize cooldown array if it doesn't exist
-            if (!newCooldowns[prev.activePowerUpId]) {
-              newCooldowns[prev.activePowerUpId] = [];
-            }
-            // Add new cooldown timestamp for this charge
-            newCooldowns[prev.activePowerUpId] = [
-              ...newCooldowns[prev.activePowerUpId],
-              now + powerUp.effects.cooldown
-            ].sort((a, b) => a - b) // Sort cooldowns
-              .filter(timestamp => timestamp > now); // Remove expired cooldowns
-          }
-        }
-
-        // If it's a flask effect, update the flask state
-        if (powerUp.group === 'FLASK') {
-          setFlaskState(prev => ({
-            ...prev,
-            effect: powerUp.id as FlaskEffectId
-          }));
-
-          // Reset flask effect after duration
-          setTimeout(() => {
-            setFlaskState(prev => ({
-              ...prev,
-              effect: 'DEFAULT'
-            }));
-          }, powerUp.effects?.duration || 0);
-        }
-
         return {
           ...prev,
           powerUps: {
             ...prev.powerUps,
             [prev.activePowerUpId]: prev.powerUps[prev.activePowerUpId] - 1
           },
-          activePowerUpId: null,
-          cooldowns: newCooldowns,
-          activeEffects: newActiveEffects
+          activePowerUpId: null
         };
       }
       return prev;
@@ -483,27 +423,51 @@ export default function Home() {
     className: "relative w-full aspect-[2/3] outline outline-2 outline-zinc-700 rounded-lg overflow-hidden bg-zinc-800 mb-1 select-none"
   };
 
-  // Handle power-up selection
-  const handlePowerUpSelect = (powerUp: PowerUp) => {
+  // Update the handlePowerUpSelect function
+  const handlePowerUpSelect = useCallback((selection: SelectedItem) => {
     setPowerUps(prev => {
-      // Find the first empty slot
-      const emptySlotIndex = prev.slots.findIndex(slot => slot === null);
-      if (emptySlotIndex === -1) return prev; // No empty slots
+      const firstEmptySlot = prev.slots.findIndex(slot => slot === null);
+      if (firstEmptySlot === -1) return prev;
 
-      // Update the slots array and power-ups
       const newSlots = [...prev.slots];
-      newSlots[emptySlotIndex] = powerUp.id;
+      const newPowerUps = { ...prev.powerUps };
+
+      if ('type' in selection && selection.type === 'flask') {
+        const flaskId = `FLASK_${selection.id}`;
+        newSlots[firstEmptySlot] = flaskId;
+        newPowerUps[flaskId] = selection.maxUses || 3;
+      } else {
+        newSlots[firstEmptySlot] = selection.id;
+        newPowerUps[selection.id] = selection.maxUses;
+      }
 
       return {
         ...prev,
-        powerUps: {
-          ...prev.powerUps,
-          [powerUp.id]: powerUp.maxUses // Always give full charges when acquired
-        },
-        slots: newSlots
+        slots: newSlots,
+        powerUps: newPowerUps
       };
     });
-  };
+    
+    setShowPowerUpSelection(false);
+  }, []);
+
+  // Add an effect to clear expired flask effects
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFlaskState(prev => {
+        if (prev.activeUntil && Date.now() >= prev.activeUntil) {
+          return {
+            ...prev,
+            effect: 'DEFAULT',
+            activeUntil: null
+          };
+        }
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
@@ -514,10 +478,7 @@ export default function Home() {
           <div {...containerProps}>
             {/* Grid Effect Layer */}
             <FlaskEffects 
-              flaskState={{
-                size: flaskState.size,
-                effect: (powerUps.activePowerUpId || 'DEFAULT') as FlaskEffectId
-              }}
+              flaskState={flaskState}
               containerRef={containerRef}
             />
             
@@ -577,9 +538,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right side controls */}
-            <div className="flex items-center gap-2">
-              {/* Flask Size Dropdown */}
+            {/* Flask Dropdown */}
+            <div className="pointer-events-auto flex gap-2">
               <FlaskDropdown
                 label="Size"
                 value={flaskState.size}
@@ -589,8 +549,6 @@ export default function Home() {
                   size: value as FlaskSizeId 
                 }))}
               />
-
-              {/* Pause Button */}
               <button
                 onClick={() => setIsPaused(true)}
                 className="h-9 px-2.5 flex items-center gap-1.5 rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md hover:bg-zinc-700/30 transition-colors text-zinc-100 text-sm font-medium"
@@ -603,44 +561,78 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Power-ups Row */}
-        <div className="grid grid-cols-6 gap-2 w-full">
-          {powerUps.slots.map((powerUpId, index) => {
-            const powerUp = powerUpId ? POWER_UPS[powerUpId] : undefined;
-            return (
-              <PowerUpSlot
-                key={index}
-                powerUp={powerUp}
-                isActive={powerUps.activePowerUpId === powerUpId}
-                remainingUses={powerUpId ? powerUps.powerUps[powerUpId] : 0}
-                cooldownEndTime={powerUpId ? powerUps.cooldowns[powerUpId] : undefined}
-                effectEndTime={powerUpId ? powerUps.activeEffects[powerUpId] : undefined}
-                onClick={() => {
-                  if (powerUpId) {
-                    const now = Date.now();
-                    const cooldownEnd = powerUps.cooldowns[powerUpId];
-                    if (cooldownEnd?.length > 0 && cooldownEnd[0] > now) return;
+        {/* Rest of the UI (Power-ups, Debug UI, etc.) */}
+        <div className="w-full flex flex-col gap-4">
+          {/* Combined Power-ups Row */}
+          <div className="grid grid-cols-6 gap-2 w-full">
+            {powerUps.slots.map((slotId, index) => {
+              let item: SelectedItem | undefined;
+              
+              if (slotId?.startsWith('FLASK_')) {
+                const flaskId = slotId.replace('FLASK_', '') as FlaskEffectId;
+                const flaskEffect = FLASK_EFFECTS[flaskId];
+                item = {
+                  id: flaskId,
+                  type: 'flask',
+                  name: flaskEffect.name,
+                  description: flaskEffect.description,
+                  icon: flaskEffect.icon,
+                  maxUses: 3,
+                  activeUntil: flaskState.effect === flaskId ? flaskState.activeUntil : null
+                };
+              } else if (slotId) {
+                item = POWER_UPS[slotId];
+              }
 
-                    setPowerUps(prev => ({
-                      ...prev,
-                      activePowerUpId: prev.activePowerUpId === powerUpId ? null : 
-                        (prev.powerUps[powerUpId] > 0 ? powerUpId : null)
-                    }));
-                  }
-                }}
-              />
-            );
-          })}
+              return (
+                <PowerUpSlot
+                  key={index}
+                  powerUp={item}
+                  isActive={powerUps.activePowerUpId === slotId}
+                  remainingUses={slotId ? powerUps.powerUps[slotId] : 0}
+                  onClick={() => {
+                    if (slotId) {
+                      if (slotId.startsWith('FLASK_')) {
+                        const flaskId = slotId.replace('FLASK_', '') as FlaskEffectId;
+                        if (powerUps.powerUps[slotId] > 0) {
+                          // Set flask effect with 60 second timer
+                          setFlaskState(prev => ({
+                            ...prev,
+                            effect: flaskId,
+                            activeUntil: Date.now() + 60000 // 60 seconds from now
+                          }));
+                          
+                          // Reduce remaining uses
+                          setPowerUps(prev => ({
+                            ...prev,
+                            powerUps: {
+                              ...prev.powerUps,
+                              [slotId]: prev.powerUps[slotId] - 1
+                            }
+                          }));
+                        }
+                      }
+                      setPowerUps(prev => ({
+                        ...prev,
+                        activePowerUpId: prev.activePowerUpId === slotId ? null : 
+                          (prev.powerUps[slotId] > 0 ? slotId : null)
+                      }));
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Debug UI */}
+          <PowerUpDebugUI 
+            currentBall={currentBall} 
+            powerUps={powerUps} 
+            debug={debug}
+          />
         </div>
 
-        {/* Debug UI */}
-        <PowerUpDebugUI 
-          currentBall={currentBall} 
-          powerUps={powerUps} 
-          debug={debug}
-        />
-
-        {/* Debug Buttons */}
+        {/* Stress Test Button */}
         <div className="w-full flex flex-col gap-2 select-none">
           <button 
             className="w-full p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors select-none"
@@ -649,6 +641,7 @@ export default function Home() {
             Stress Test (Spawn 25 Balls)
           </button>
           
+          {/* Add Refill Power-ups Button */}
           <button 
             className="w-full p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:text-blue-400 transition-colors select-none"
             onClick={handleRefillPowerUps}
@@ -656,18 +649,16 @@ export default function Home() {
             Refill Power-ups (Debug)
           </button>
 
+          {/* Add this new button */}
           <button 
-            className="w-full p-2 rounded-lg bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 hover:text-violet-400 transition-colors select-none"
+            className="w-full p-2 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 hover:text-purple-400 transition-colors select-none"
             onClick={() => {
               const powerUpOptions = getRandomPowerUps(LEVEL_CONFIG.POWER_UPS_PER_SELECTION, Math.ceil(level / 3), powerUps.slots);
-              if (powerUpOptions.length > 0) {
-                setAvailablePowerUps(powerUpOptions);
-                setShowPowerUpSelection(true);
-                setLevel(l => l + 1);
-              }
+              setAvailablePowerUps(powerUpOptions);
+              setShowPowerUpSelection(true);
             }}
           >
-            Level Up (Debug)
+            Trigger Level Up (Debug)
           </button>
         </div>
 
@@ -799,18 +790,14 @@ export default function Home() {
                     <h3 className="text-lg font-semibold text-white mb-2">Flask Effects</h3>
                     <div className="grid grid-cols-6 gap-1.5">
                       {[...Array(6)].map((_, index) => {
-                        const entry = Object.entries(POWER_UPS)
-                          .filter(([id, powerUp]) => powerUp.group === 'FLASK' && id !== 'STORM_FIELD')[index];
+                        const entry = Object.entries(FLASK_EFFECTS)[index];
                         
                         return (
                           <div key={index} className="relative">
                             <div 
                               className={cn(
                                 "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
-                                selectedItem?.section === 'effect' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50",
-                                entry && entry[1].level === 1 && "text-green-400 hover:text-green-300",
-                                entry && entry[1].level === 2 && "text-purple-400 hover:text-purple-300",
-                                entry && entry[1].level === 3 && "text-orange-400 hover:text-orange-300"
+                                selectedItem?.section === 'effect' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
                               )}
                               onClick={() => entry && setSelectedItem(prev => 
                                 prev?.section === 'effect' && prev.id === entry[0] ? null : {
@@ -822,16 +809,18 @@ export default function Home() {
                               )}
                             >
                               {entry ? (
-                                <div className="w-6 h-6 flex items-center justify-center">
-                                  {entry[0] === 'LOW_GRAVITY' && <FeatherIcon className="w-4 h-4" />}
-                                  {entry[0] === 'NO_FRICTION' && <SparklesIcon className="w-4 h-4" />}
-                                </div>
+                                <>
+                                  {entry[0] === 'DEFAULT' && <FlaskIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'LOW_GRAVITY' && <FeatherIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'NO_FRICTION' && <SparklesIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'STORM' && <StormIcon className="w-4 h-4 text-white" />}
+                                </>
                               ) : (
                                 <div className="font-medium text-zinc-500 text-lg">?</div>
                               )}
                             </div>
                             {selectedItem?.section === 'effect' && selectedItem?.id === entry?.[0] && (
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
                                 <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
                                 <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
                               </div>
@@ -967,6 +956,7 @@ export default function Home() {
         onClose={() => setShowPowerUpSelection(false)}
         onSelect={handlePowerUpSelect}
         availablePowerUps={availablePowerUps}
+        powerUps={powerUps}
       />
     </div>
   );
