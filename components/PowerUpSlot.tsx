@@ -35,9 +35,10 @@ interface PowerUpSlotProps {
   isActive: boolean;
   remainingUses: number;
   onClick: () => void;
+  isDoubleWidth?: boolean;
 }
 
-export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: PowerUpSlotProps) {
+export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick, isDoubleWidth }: PowerUpSlotProps) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [progress, setProgress] = useState(100);
   
@@ -154,34 +155,30 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
       disabled={isDisabled}
       title={powerUp ? `${powerUp.name}: ${powerUp.description}` : 'Empty Slot'}
       className={cn(
-        "w-full aspect-square rounded-lg flex items-center justify-center transition-colors relative",
-        !powerUp ? "bg-zinc-800/50 border-2 border-dashed border-zinc-700/50" : bg,
+        "h-[56px] rounded-lg flex items-center justify-center transition-colors relative overflow-hidden",
+        isDoubleWidth ? "col-span-2 w-full" : "w-[56px]",
+        !powerUp 
+          ? "bg-zinc-800/50 border-2 border-dashed border-zinc-700/50" 
+          : cn(bg, "border-2", 
+              isFlaskItem(powerUp)
+                ? isActive ? "border-blue-500/50" : "border-blue-500/20"
+                : isActive 
+                  ? powerUp.level === 1 ? "border-green-500/50"
+                  : powerUp.level === 2 ? "border-purple-500/50"
+                  : "border-orange-500/50"
+                  : "border-zinc-700/50"
+            ),
         text
       )}
     >
-      {/* Circular Progress Indicator */}
+      {/* Linear Progress Bar */}
       {timeLeft && (
-        <svg 
-          className="absolute inset-0 w-full h-full -rotate-90"
-          viewBox="0 0 100 100"
-        >
-          <circle
-            className="stroke-blue-500/20 fill-none"
-            cx="50"
-            cy="50"
-            r="45"
-            strokeWidth="10"
+        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500/20 rounded-full">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-100 rounded-full"
+            style={{ width: `${progress}%` }}
           />
-          <circle
-            className="stroke-blue-500 fill-none transition-all duration-100"
-            cx="50"
-            cy="50"
-            r="45"
-            strokeWidth="10"
-            strokeDasharray={`${2 * Math.PI * 45}`}
-            strokeDashoffset={`${2 * Math.PI * 45 * (1 - progress / 100)}`}
-          />
-        </svg>
+        </div>
       )}
 
       {/* Icon */}

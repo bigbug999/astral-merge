@@ -444,7 +444,25 @@ export default function Home() {
   // Update the handlePowerUpSelect function
   const handlePowerUpSelect = useCallback((selection: SelectedItem) => {
     setPowerUps(prev => {
-      const firstEmptySlot = prev.slots.findIndex(slot => slot === null);
+      // Find first valid empty slot
+      let firstEmptySlot = -1;
+      for (let i = 0; i < prev.slots.length; i++) {
+        // Skip if this slot is covered by a flask from previous slot
+        if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
+          continue;
+        }
+        // Skip if this slot would cover a non-empty slot (for flasks)
+        if ('type' in selection && selection.type === 'flask' && 
+            i < prev.slots.length - 1 && prev.slots[i + 1] !== null) {
+          continue;
+        }
+        // Found valid empty slot
+        if (prev.slots[i] === null) {
+          firstEmptySlot = i;
+          break;
+        }
+      }
+
       if (firstEmptySlot === -1) return prev;
 
       const newSlots = [...prev.slots];
@@ -453,7 +471,7 @@ export default function Home() {
       if ('type' in selection && selection.type === 'flask') {
         const flaskId = `FLASK_${selection.id}`;
         newSlots[firstEmptySlot] = flaskId;
-        newPowerUps[flaskId] = selection.maxUses || 3;
+        newPowerUps[flaskId] = selection.maxUses || 1;
       } else {
         newSlots[firstEmptySlot] = selection.id;
         newPowerUps[selection.id] = selection.maxUses;
@@ -581,9 +599,10 @@ export default function Home() {
         {/* Rest of the UI (Power-ups, Debug UI, etc.) */}
         <div className="w-full flex flex-col gap-4">
           {/* Combined Power-ups Row */}
-          <div className="grid grid-cols-6 gap-2 w-full">
+          <div className="grid grid-cols-6 gap-2 w-full px-0">
             {powerUps.slots.map((slotId, index) => {
               let item: SelectedItem | undefined;
+              let isDoubleWidth = false; // Add this flag
               
               if (slotId?.startsWith('FLASK_')) {
                 const flaskId = slotId.replace('FLASK_', '') as FlaskEffectId;
@@ -594,11 +613,17 @@ export default function Home() {
                   name: flaskEffect.name,
                   description: flaskEffect.description,
                   icon: flaskEffect.icon,
-                  maxUses: 3,
+                  maxUses: 1,
                   activeUntil: flaskState.effect === flaskId ? flaskState.activeUntil : null
                 };
+                isDoubleWidth = true; // Set double width for flasks
               } else if (slotId) {
                 item = POWER_UPS[slotId];
+              }
+
+              // Skip rendering empty slots that would be covered by double-width items
+              if (index > 0 && powerUps.slots[index - 1]?.startsWith('FLASK_')) {
+                return null;
               }
 
               return (
@@ -607,6 +632,7 @@ export default function Home() {
                   powerUp={item}
                   isActive={powerUps.activePowerUpId === slotId}
                   remainingUses={slotId ? powerUps.powerUps[slotId] : 0}
+                  isDoubleWidth={isDoubleWidth}
                   onClick={() => {
                     if (slotId) {
                       if (slotId.startsWith('FLASK_')) {

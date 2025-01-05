@@ -103,9 +103,12 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
       <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4">
         <h2 className="text-xl font-semibold text-zinc-100 mb-6 text-center">Level Up! Choose a Power-Up or Flask</h2>
         
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-rows-3 gap-3 mb-6">
           {options.map((option) => {
             const IconComponent = ICON_COMPONENTS[option.icon];
+            const isFlask = isFlaskItem(option);
+            const powerUpLevel = !isFlask ? (option as PowerUp).level : null;
+
             return (
               <button
                 key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
@@ -117,15 +120,55 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                     : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
                 )}
               >
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-4">
                   {IconComponent && (
-                    <div className="w-12 h-12 rounded-lg bg-zinc-700 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
                   )}
-                  <div className="text-center">
-                    <div className="font-medium text-zinc-200 text-sm">{option.name}</div>
-                    <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">{option.description}</div>
+                  
+                  <div className="flex-1">
+                    <div className="text-left mb-2">
+                      <div className="font-medium text-zinc-200 text-sm">{option.name}</div>
+                      <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                        {isFlask 
+                          ? option.description.replace('Takes 2 slots. ', '').replace(', recharges on tier 7+ merges', '')
+                          : option.description.replace('. Recharges every 3 merges', '')}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-1">
+                        <div className="text-[10px] text-zinc-500 mr-1">Slots:</div>
+                        <div className="flex gap-0.5">
+                          {isFlask ? (
+                            <>
+                              <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                              <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                            </>
+                          ) : (
+                            <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <div className="text-[10px] text-zinc-500 mr-1">Recharges:</div>
+                        {isFlask ? (
+                          <div className="w-2 h-2 rounded-full bg-orange-500" title="Tier 7+ merges" />
+                        ) : (
+                          <div 
+                            className={cn(
+                              "w-2 h-2 rounded-full",
+                              powerUpLevel === 1 ? "bg-green-500" :
+                              powerUpLevel === 2 ? "bg-purple-500" :
+                              "bg-yellow-500"
+                            )}
+                            title={`Tier ${powerUpLevel} merges`}
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </button>
