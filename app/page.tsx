@@ -297,14 +297,17 @@ export default function Home() {
     // Reset the physics engine first
     resetEngine();
     
-    // Then reset all state
+    // Then reset all state, but keep the selected flask size
     setScore(0);
     setCombo(0);
     setMaxTierSeen(1);
     setNextTier(getRandomTier(1));
     setPowerUps(createInitialPowerUpState(true));
     setIsGameOver(false);
-    setFlaskState(createInitialFlaskState());
+    setFlaskState(prev => ({
+      ...createInitialFlaskState(),
+      size: prev.size // Preserve the selected size
+    }));
     setShowStartMenu(false);
     setIsPaused(false);
   }, [resetEngine]);
@@ -532,17 +535,16 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Flask Dropdown */}
+            {/* Flask Size and Pause Buttons */}
             <div className="pointer-events-auto flex gap-2">
-              <FlaskDropdown
-                label="Size"
-                value={flaskState.size}
-                options={FLASK_SIZES}
-                onChange={(value) => setFlaskState(prev => ({ 
-                  ...prev, 
-                  size: value as FlaskSizeId 
-                }))}
-              />
+              {/* Selected Flask Size Icon */}
+              <div className="h-9 px-2.5 flex items-center gap-1.5 rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md text-zinc-100">
+                {flaskState.size === 'DEFAULT' && <TestTubeIcon className="w-5 h-5" />}
+                {flaskState.size === 'SHRINK' && <FlaskConicalIcon className="w-5 h-5" />}
+                {flaskState.size === 'EXTRA_SHRINK' && <FlaskRoundIcon className="w-5 h-5" />}
+              </div>
+
+              {/* Pause Button */}
               <button
                 onClick={() => setIsPaused(true)}
                 className="h-9 px-2.5 flex items-center gap-1.5 rounded-lg border-2 border-zinc-700/50 bg-zinc-800/30 backdrop-blur-md hover:bg-zinc-700/30 transition-colors text-zinc-100 text-sm font-medium"
@@ -682,14 +684,34 @@ export default function Home() {
                         New Game
                       </button>
                       
+                      <div className="grid grid-cols-3 gap-2 mt-3">
+                        {Object.entries(FLASK_SIZES).map(([id, flask]) => {
+                          const IconComponent = id === 'DEFAULT' ? TestTubeIcon :
+                                            id === 'SHRINK' ? FlaskConicalIcon :
+                                            FlaskRoundIcon;
+                          return (
+                            <button
+                              key={id}
+                              onClick={() => setFlaskState(prev => ({ ...prev, size: id as FlaskSizeId }))}
+                              className={cn(
+                                "p-3 rounded-lg border transition-colors flex flex-col items-center gap-1.5",
+                                flaskState.size === id
+                                  ? "bg-zinc-700/80 border-zinc-500 text-white"
+                                  : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-300"
+                              )}
+                            >
+                              <IconComponent className="w-5 h-5" />
+                              <span className="text-xs font-medium">{flask.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       <button
-                        onClick={() => {
-                          // TODO: Implement continue game logic
-                          setShowStartMenu(false);
-                        }}
-                        className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                        onClick={() => setModalView('collection')}
+                        className="w-full px-4 py-3 border border-zinc-600 hover:bg-zinc-700/50 text-white rounded-lg transition-colors font-semibold mt-3"
                       >
-                        Continue
+                        Collection
                       </button>
                     </>
                   ) : (
@@ -709,13 +731,6 @@ export default function Home() {
                       </button>
                     </>
                   )}
-                  
-                  <button
-                    onClick={() => setModalView('collection')}
-                    className="w-full px-4 py-3 border border-zinc-600 hover:bg-zinc-700/50 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    Collection
-                  </button>
                 </div>
               </>
             ) : (
