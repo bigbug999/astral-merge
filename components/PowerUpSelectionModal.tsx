@@ -38,6 +38,10 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   StormIcon,
 };
 
+// Add type-safe array of tiers
+const VALID_TIERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+type ValidTier = (typeof VALID_TIERS)[number];
+
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
   const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
@@ -143,7 +147,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
           {options.map((option) => {
             const IconComponent = ICON_COMPONENTS[option.icon];
             const isFlask = isFlaskItem(option);
-            const powerUpLevel = !isFlask ? (option as PowerUp).level : null;
+            const powerUpLevel = !isFlask && 'level' in option ? option.level : null;
 
             return (
               <button
@@ -196,10 +200,14 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1">Recharges:</div>
                         <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map((tier: TierType) => {
+                          {VALID_TIERS.map((tier) => {
                             const isRechargeLevel = isFlask 
                               ? tier === 7 
-                              : tier === (powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7);
+                              : powerUpLevel !== null && tier === (
+                                  powerUpLevel === 1 ? 5 : 
+                                  powerUpLevel === 2 ? 6 : 
+                                  7
+                                );
 
                             return (
                               <div 

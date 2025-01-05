@@ -80,7 +80,12 @@ export const WARM_COLORS = {
   },
 };
 
-export const CIRCLE_CONFIG: Record<TierType, any> = {
+export const CIRCLE_CONFIG: Record<TierType, {
+  color: string;
+  strokeColor: string;
+  glowColor: string;
+  radius: number;
+}> = {
   1: { 
     color: MYSTICAL_COLORS.SLATE.color,
     strokeColor: MYSTICAL_COLORS.SLATE.strokeColor,

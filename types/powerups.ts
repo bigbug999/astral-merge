@@ -93,10 +93,10 @@ export interface PowerUp {
   id: string;
   name: string;
   description: string;
-  maxUses: number;
   icon: string;
-  group: 'GRAVITY' | 'VOID' | 'ENVIRONMENTAL';
   level: 1 | 2 | 3;
+  maxUses: number;
+  group: 'GRAVITY' | 'VOID' | 'ENVIRONMENTAL';
   physics: {
     density?: number;
     friction?: number;
