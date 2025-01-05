@@ -14,7 +14,7 @@ import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { StormIcon } from './icons/StormIcon';
 import { FlaskItem } from '@/types/flasks';
-import { CIRCLE_CONFIG, TierType } from '@/types/game';
+import { CIRCLE_CONFIG } from '@/types/game';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
@@ -38,8 +38,8 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   StormIcon,
 };
 
-const getTierKey = (tier: number): TierType => {
-  const tierMap: Record<number, TierType> = {
+const getTierKey = (tier: number): keyof typeof CIRCLE_CONFIG => {
+  const tierMap: Record<number, keyof typeof CIRCLE_CONFIG> = {
     1: 'TIER_1',
     2: 'TIER_2',
     3: 'TIER_3',
@@ -48,7 +48,7 @@ const getTierKey = (tier: number): TierType => {
     6: 'TIER_6',
     7: 'TIER_7',
     8: 'TIER_8'
-  } as const;
+  };
   
   return tierMap[tier];
 };
