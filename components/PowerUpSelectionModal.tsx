@@ -38,21 +38,6 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   StormIcon,
 };
 
-const getTierKey = (tier: number): keyof typeof CIRCLE_CONFIG => {
-  const tierMap: Record<number, keyof typeof CIRCLE_CONFIG> = {
-    1: 'TIER_1',
-    2: 'TIER_2',
-    3: 'TIER_3',
-    4: 'TIER_4',
-    5: 'TIER_5',
-    6: 'TIER_6',
-    7: 'TIER_7',
-    8: 'TIER_8'
-  };
-  
-  return tierMap[tier];
-};
-
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
   const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
@@ -216,16 +201,14 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                               ? tier === 7 
                               : tier === (powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7);
 
-                            const tierKey = getTierKey(tier);
-
                             return (
                               <div 
                                 key={tier}
                                 className="w-2 h-2 rounded-full"
                                 style={{
-                                  backgroundColor: CIRCLE_CONFIG[tierKey].color,
-                                  border: `1px solid ${CIRCLE_CONFIG[tierKey].strokeColor}`,
-                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tierKey].glowColor}` : 'none',
+                                  backgroundColor: CIRCLE_CONFIG[tier].color,
+                                  border: `1px solid ${CIRCLE_CONFIG[tier].strokeColor}`,
+                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tier].glowColor}` : 'none',
                                   opacity: isRechargeLevel ? 1 : 0.3,
                                   ...(isRechargeLevel && {
                                     outline: '1px solid rgba(255, 255, 255, 0.5)',
