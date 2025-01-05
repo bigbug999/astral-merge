@@ -154,7 +154,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                 key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
                 onClick={() => setSelectedItem(option)}
                 className={cn(
-                  "p-3 rounded-lg border-2 transition-all",
+                  "p-2 rounded-lg border-2 transition-all",
                   selectedItem?.id === option.id
                     ? "bg-zinc-800 border-white"
                     : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
@@ -162,15 +162,15 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
               >
                 <div className="flex items-center gap-2">
                   {IconComponent && (
-                    <div className="w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
-                      <IconComponent className="w-5 h-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
+                      <IconComponent className="w-4 h-4 text-white" />
                     </div>
                   )}
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="text-left mb-2">
-                      <div className="font-medium text-zinc-200 text-sm">{option.name}</div>
-                      <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                  <div className="flex-1">
+                    <div className="text-left mb-1">
+                      <div className="font-medium text-zinc-200 text-xs truncate">{option.name}</div>
+                      <div className="text-[9px] text-zinc-400 leading-tight mt-0.5 line-clamp-2">
                         {isFlask 
                           ? option.description.replace('Takes 2 slots. ', '').replace(', recharges on tier 7+ merges', '')
                           : option.description.replace(
@@ -182,10 +182,10 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1">Slots:</div>
-                        <div className="w-14 flex">
+                        <div className="flex">
                           <div className="flex gap-1 mx-auto">
                             {isFlask ? (
                               <>
@@ -199,8 +199,8 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <div className="text-[10px] text-zinc-500 mr-1">Recharges:</div>
+                      <div className="flex items-center gap-1 overflow-x-auto">
+                        <div className="text-[10px] text-zinc-500 mr-1 whitespace-nowrap">Recharges:</div>
                         <div className="flex gap-1">
                           {VALID_TIERS.map((tier) => {
                             const isRechargeLevel = isFlask 
