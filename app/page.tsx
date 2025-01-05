@@ -43,7 +43,12 @@ import { UltraTierUpIcon } from '@/components/icons/UltraTierUpIcon';
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 // Add this type near the top of the file
-type SelectedItem = PowerUp | FlaskItem;
+type SelectedItem = {
+  section: 'gravity' | 'void' | 'upgrade' | 'size' | 'effect';
+  id: string;
+  name: string;
+  description: string;
+} | null;
 
 // Helper function to get random tier with weights
 const getRandomTier = (maxTierSeen: number): TierType => {
@@ -1043,7 +1048,7 @@ export default function Home() {
                               )}
                               onClick={() => entry && setSelectedItem(prev => 
                                 prev?.section === 'upgrade' && prev.id === entry[0] ? null : {
-                                  section: 'upgrade',
+                                  section: 'upgrade' as const,
                                   id: entry[0],
                                   name: entry[1].name,
                                   description: entry[1].description

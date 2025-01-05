@@ -27,6 +27,14 @@ interface PowerUpSelectionModalProps {
   powerUps: PowerUpState;
 }
 
+// Add this type at the top of the file
+type SelectedModalItem = {
+  section: 'gravity' | 'void' | 'upgrade' | 'size' | 'effect';
+  id: string;
+  name: string;
+  description: string;
+} | null;
+
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   WeightIcon,
   SuperWeightIcon,
@@ -97,9 +105,13 @@ const getAvailableOptions = (powerUps: PowerUpState, availablePowerUps: PowerUp[
 };
 
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
-  const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SelectedModalItem>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
   const [rerollsLeft, setRerollsLeft] = useState(3);
+
+  // Calculate remaining slots
+  const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+  const remainingSlots = 6 - filledSlots;
 
   // Generate options when modal opens
   useEffect(() => {
@@ -139,14 +151,24 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
 
   const handleSelect = () => {
     if (selectedItem) {
-      const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
-      const remainingSlots = 6 - filledSlots;
-      const isFlask = isFlaskItem(selectedItem);
-      const slotsNeeded = isFlask ? 2 : 1;
+      // Find the actual power-up or flask item from the options
+      const selectedOption = options.find(option => {
+        if (isFlaskItem(option)) {
+          return option.id === selectedItem.id;
+        }
+        return option.id === selectedItem.id;
+      });
 
-      if (remainingSlots >= slotsNeeded) {
-        onSelect(selectedItem);
-        onClose();
+      if (selectedOption) {
+        const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+        const remainingSlots = 6 - filledSlots;
+        const isFlask = isFlaskItem(selectedOption);
+        const slotsNeeded = isFlask ? 2 : 1;
+
+        if (remainingSlots >= slotsNeeded) {
+          onSelect(selectedOption);
+          onClose();
+        }
       }
     }
   };
@@ -164,39 +186,28 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
         
         <div className="grid grid-rows-3 gap-3 mb-6">
           {options.map((option) => {
-            const IconComponent = ICON_COMPONENTS[option.icon];
+            const powerUpLevel = !isFlaskItem(option) ? option.level : null;
+            const canFit = canFitOption(option, remainingSlots);
             const isFlask = isFlaskItem(option);
-            const powerUpLevel = !isFlask && 'level' in option ? option.level : null;
-            
-            // Calculate if we have enough slots
-            const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
-            const remainingSlots = 6 - filledSlots;
-            const slotsNeeded = isFlask ? 2 : 1;
-            const canFit = remainingSlots >= slotsNeeded;
+            const IconComponent = ICON_COMPONENTS[option.icon];
 
             return (
               <button
-                key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
-                onClick={() => {
-                  if (!canFit) return;
-                  setSelectedItem(option);
-                }}
+                key={option.id}
+                disabled={!canFit}
+                onClick={() => setSelectedItem({
+                  section: isFlask ? 'effect' : option.group.toLowerCase() as 'gravity' | 'void' | 'upgrade',
+                  id: option.id,
+                  name: option.name,
+                  description: option.description
+                })}
                 className={cn(
-                  "p-2 rounded-lg border-2 transition-all relative",
-                  !canFit && "opacity-50 cursor-not-allowed",
+                  "w-full p-3 rounded-lg transition-colors relative border-2",
                   selectedItem?.id === option.id
-                    ? "bg-zinc-800 border-white"
-                    : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
+                    ? "bg-zinc-700/80 border-white/20"
+                    : "bg-zinc-800/50 border-zinc-700/50 hover:border-zinc-600/50"
                 )}
               >
-                {!canFit && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-10">
-                    <span className="text-xs font-medium text-white">
-                      {isFlask ? "Needs 2 slots" : "Not enough slots"}
-                    </span>
-                  </div>
-                )}
-
                 <div className="flex items-center gap-2">
                   {IconComponent && (
                     <div className={cn(
