@@ -32,7 +32,7 @@ export interface Flask {
 export const FLASK_SIZES = {
   DEFAULT: {
     id: 'DEFAULT',
-    name: 'Normal Size',
+    name: 'Default Size',
     description: 'Standard ball size',
     icon: 'TestTubeIcon',
     physics: {
@@ -41,20 +41,20 @@ export const FLASK_SIZES = {
   },
   SHRINK: {
     id: 'SHRINK',
-    name: 'Large Size',
-    description: 'Makes all balls 15% larger',
+    name: 'Small Size',
+    description: 'Makes all balls 15% smaller',
     icon: 'FlaskConicalIcon',
     physics: {
-      scale: 1.15
+      scale: 0.85
     }
   },
   EXTRA_SHRINK: {
     id: 'EXTRA_SHRINK',
-    name: 'Extra Large',
-    description: 'Makes all balls 30% larger',
+    name: 'Extra Small',
+    description: 'Makes all balls 30% smaller',
     icon: 'FlaskRoundIcon',
     physics: {
-      scale: 1.3
+      scale: 0.7
     }
   }
 } as const;

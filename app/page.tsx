@@ -701,7 +701,11 @@ export default function Home() {
                               )}
                             >
                               <IconComponent className="w-5 h-5" />
-                              <span className="text-xs font-medium">{flask.name}</span>
+                              <span className="text-xs font-medium">
+                                {id === 'DEFAULT' ? 'Default Size' :
+                                 id === 'SHRINK' ? 'Large Size' :
+                                 'Extra Large'}
+                              </span>
                             </button>
                           );
                         })}
