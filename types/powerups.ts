@@ -86,6 +86,35 @@ export const POWER_UP_CONFIG = {
     }
   },
   SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
+  TIER_UP: {
+    BASIC: {
+      TIER_INCREASE: 1,
+      DURATION: 5000,
+      DENSITY: 0.001,
+      FRICTION: 0.1,
+      FRICTION_AIR: 0.001,
+      RESTITUTION: 0.5,
+      FRICTION_STATIC: 0.5,
+    },
+    SUPER: {
+      TIER_INCREASE: 2,
+      DURATION: 5000,
+      DENSITY: 0.001,
+      FRICTION: 0.1,
+      FRICTION_AIR: 0.001,
+      RESTITUTION: 0.5,
+      FRICTION_STATIC: 0.5,
+    },
+    ULTRA: {
+      TIER_INCREASE: 3,
+      DURATION: 5000,
+      DENSITY: 0.001,
+      FRICTION: 0.1,
+      FRICTION_AIR: 0.001,
+      RESTITUTION: 0.5,
+      FRICTION_STATIC: 0.5,
+    }
+  },
 };
 
 // Define base power-up interface
@@ -96,7 +125,7 @@ export interface PowerUp {
   icon: string;
   level: 1 | 2 | 3;
   maxUses: number;
-  group: 'GRAVITY' | 'VOID' | 'ENVIRONMENTAL';
+  group: 'GRAVITY' | 'VOID' | 'UPGRADE';
   physics: {
     density?: number;
     friction?: number;
@@ -119,6 +148,7 @@ export interface PowerUp {
     strength?: number;
     radius?: number;
     frequency?: number;
+    tierIncrease?: number;
   };
 }
 
@@ -278,7 +308,82 @@ export const POWER_UPS: Record<string, PowerUp> = {
       bounceForce: POWER_UP_CONFIG.VOID.ULTRA.BOUNCE_FORCE,
       initialSpeed: POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED,
     }
-  }
+  },
+
+  TIER_UP: {
+    id: 'TIER_UP',
+    name: 'Tier Up',
+    description: 'Upgrades ball by 1 tier. Recharges every 5 merges.',
+    maxUses: 3,
+    icon: 'TierUpIcon',
+    group: 'UPGRADE',
+    level: 1,
+    physics: {
+      density: POWER_UP_CONFIG.TIER_UP.BASIC.DENSITY,
+      friction: POWER_UP_CONFIG.TIER_UP.BASIC.FRICTION,
+      frictionAir: POWER_UP_CONFIG.TIER_UP.BASIC.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.TIER_UP.BASIC.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.TIER_UP.BASIC.FRICTION_STATIC,
+    },
+    visual: {
+      strokeColor: '#22c55e',
+      glowColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    effects: {
+      tierIncrease: POWER_UP_CONFIG.TIER_UP.BASIC.TIER_INCREASE,
+      duration: POWER_UP_CONFIG.TIER_UP.BASIC.DURATION,
+    }
+  },
+
+  SUPER_TIER_UP: {
+    id: 'SUPER_TIER_UP',
+    name: 'Super Tier Up',
+    description: 'Upgrades ball by 2 tiers. Recharges every 6 merges.',
+    maxUses: 3,
+    icon: 'SuperTierUpIcon',
+    group: 'UPGRADE',
+    level: 2,
+    physics: {
+      density: POWER_UP_CONFIG.TIER_UP.SUPER.DENSITY,
+      friction: POWER_UP_CONFIG.TIER_UP.SUPER.FRICTION,
+      frictionAir: POWER_UP_CONFIG.TIER_UP.SUPER.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.TIER_UP.SUPER.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.TIER_UP.SUPER.FRICTION_STATIC,
+    },
+    visual: {
+      strokeColor: '#a855f7',
+      glowColor: 'rgba(168, 85, 247, 0.3)',
+    },
+    effects: {
+      tierIncrease: POWER_UP_CONFIG.TIER_UP.SUPER.TIER_INCREASE,
+      duration: POWER_UP_CONFIG.TIER_UP.SUPER.DURATION,
+    }
+  },
+
+  ULTRA_TIER_UP: {
+    id: 'ULTRA_TIER_UP',
+    name: 'Ultra Tier Up',
+    description: 'Upgrades ball by 3 tiers. Recharges every 7 merges.',
+    maxUses: 3,
+    icon: 'UltraTierUpIcon',
+    group: 'UPGRADE',
+    level: 3,
+    physics: {
+      density: POWER_UP_CONFIG.TIER_UP.ULTRA.DENSITY,
+      friction: POWER_UP_CONFIG.TIER_UP.ULTRA.FRICTION,
+      frictionAir: POWER_UP_CONFIG.TIER_UP.ULTRA.FRICTION_AIR,
+      restitution: POWER_UP_CONFIG.TIER_UP.ULTRA.RESTITUTION,
+      frictionStatic: POWER_UP_CONFIG.TIER_UP.ULTRA.FRICTION_STATIC,
+    },
+    visual: {
+      strokeColor: '#f97316',
+      glowColor: 'rgba(249, 115, 22, 0.4)',
+    },
+    effects: {
+      tierIncrease: POWER_UP_CONFIG.TIER_UP.ULTRA.TIER_INCREASE,
+      duration: POWER_UP_CONFIG.TIER_UP.ULTRA.DURATION,
+    }
+  },
 };
 
 // Helper function to get power-ups by group

@@ -13,6 +13,9 @@ import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BounceIcon } from './icons/BounceIcon';
 import { StormIcon } from './icons/StormIcon';
+import { TierUpIcon } from './icons/TierUpIcon';
+import { SuperTierUpIcon } from './icons/SuperTierUpIcon';
+import { UltraTierUpIcon } from './icons/UltraTierUpIcon';
 import { useEffect, useState } from 'react';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -22,6 +25,9 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   NegativeBallIcon,
   SuperNegativeBallIcon,
   UltraNegativeBallIcon,
+  TierUpIcon,
+  SuperTierUpIcon,
+  UltraTierUpIcon,
   TestTubeIcon,
   FlaskIcon,
   FeatherIcon,

@@ -36,6 +36,9 @@ import { TestTubeIcon } from '@/components/icons/TestTubeIcon';
 import { PowerUpSelectionModal } from '@/components/PowerUpSelectionModal';
 import { PowerUpSlot } from '@/components/PowerUpSlot';
 import { FlaskItem } from '@/types/flasks';
+import { TierUpIcon } from '@/components/icons/TierUpIcon';
+import { SuperTierUpIcon } from '@/components/icons/SuperTierUpIcon';
+import { UltraTierUpIcon } from '@/components/icons/UltraTierUpIcon';
 
 type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -1020,6 +1023,52 @@ export default function Home() {
                           );
                         })}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Upgrade Power-ups */}
+                  <div>
+                    <h4 className="text-md font-medium text-white mb-1.5">Upgrade</h4>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {[...Array(6)].map((_, index) => {
+                        const entry = Object.entries(POWER_UPS)
+                          .filter(([_, powerUp]) => powerUp.group === 'UPGRADE')[index];
+                        
+                        return (
+                          <div key={index} className="relative">
+                            <div 
+                              className={cn(
+                                "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                                selectedItem?.section === 'upgrade' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                              )}
+                              onClick={() => entry && setSelectedItem(prev => 
+                                prev?.section === 'upgrade' && prev.id === entry[0] ? null : {
+                                  section: 'upgrade',
+                                  id: entry[0],
+                                  name: entry[1].name,
+                                  description: entry[1].description
+                                }
+                              )}
+                            >
+                              {entry ? (
+                                <>
+                                  {entry[0] === 'TIER_UP' && <TierUpIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'SUPER_TIER_UP' && <SuperTierUpIcon className="w-4 h-4 text-white" />}
+                                  {entry[0] === 'ULTRA_TIER_UP' && <UltraTierUpIcon className="w-4 h-4 text-white" />}
+                                </>
+                              ) : (
+                                <div className="font-medium text-zinc-500 text-lg">?</div>
+                              )}
+                            </div>
+                            {selectedItem?.section === 'upgrade' && selectedItem?.id === entry?.[0] && (
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                                <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                                <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
