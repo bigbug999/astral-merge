@@ -679,7 +679,7 @@ export default function Home() {
                     <>
                       <button
                         onClick={handleNewGame}
-                        className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-semibold"
+                        className="w-full px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition-colors font-semibold border-2 border-zinc-700"
                       >
                         New Game
                       </button>
@@ -729,7 +729,7 @@ export default function Home() {
                       
                       <button
                         onClick={handleNewGame}
-                        className="w-full px-4 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-semibold"
+                        className="w-full px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg transition-colors font-semibold border-2 border-zinc-700"
                       >
                         New Game
                       </button>
