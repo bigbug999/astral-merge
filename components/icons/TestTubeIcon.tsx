@@ -12,9 +12,10 @@ export function TestTubeIcon(props: SVGProps<SVGSVGElement>) {
       strokeLinejoin="round"
       {...props}
     >
-      <path d="M9 3h6" />
-      <path d="M10 3v4c0 1.5-.43 2.93-1.2 4.14l-4.6 7.38c-1.1 1.76.2 4.48 2.3 4.48h11c2.1 0 3.4-2.72 2.3-4.48l-4.6-7.38C14.43 9.93 14 8.5 14 7V3" />
-      <path d="M8 14h8" />
+      <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <path d="m15 11.25-3-3m0 0-3 3m3-3v7.5" />
+      <path d="m15 8.25-3-3m0 0-3 3" />
+      <path d="m15 5.25-3-3m0 0-3 3" />
     </svg>
   );
 } 

@@ -48,6 +48,8 @@ type SelectedItem = {
   id: string;
   name: string;
   description: string;
+  type?: 'flask';  // Make type optional to handle both power-ups and flasks
+  icon?: string;    // Add icon for flask items
 } | null;
 
 // Helper function to get random tier with weights
@@ -538,6 +540,22 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Update the handleFlaskSelect function
+  const handleFlaskSelect = (flaskId: string, flaskEffect: typeof FLASK_EFFECTS[keyof typeof FLASK_EFFECTS]) => {
+    const item: SelectedItem = {
+      section: 'effect',
+      id: flaskId,
+      name: flaskEffect.name,
+      description: flaskEffect.description,
+      type: 'flask',
+      icon: flaskEffect.icon
+    };
+    
+    setSelectedItem(prev => 
+      prev?.section === 'effect' && prev.id === flaskId ? null : item
+    );
+  };
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
