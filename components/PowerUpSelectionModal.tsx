@@ -154,9 +154,9 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                 key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
                 onClick={() => setSelectedItem(option)}
                 className={cn(
-                  "p-4 rounded-lg border transition-all",
+                  "p-4 rounded-lg border-2 transition-all",
                   selectedItem?.id === option.id
-                    ? "bg-zinc-800 border-white/20"
+                    ? "bg-zinc-800 border-white"
                     : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
                 )}
               >
