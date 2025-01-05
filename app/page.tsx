@@ -752,8 +752,8 @@ export default function Home() {
           <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4 transform scale-100 animate-in fade-in duration-200">
             {modalView === 'menu' ? (
               <>
-                <h2 className="text-2xl font-bold text-white mb-6 text-center">
-                  {showStartMenu ? 'Astral Merge' : 'Game Paused'}
+                <h2 className="text-2xl font-bold text-white mb-6 text-center font-daydream tracking-wider">
+                  Al-Khem
                 </h2>
                 
                 <div className="space-y-3">

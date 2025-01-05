@@ -150,9 +150,11 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 w-[min(400px,calc(100vw-32px))]">
-        <h2 className="text-xl font-semibold text-zinc-100 mb-6">Level Up! Choose a Power-Up or Flask</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 max-w-sm w-full mx-4">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center font-daydream tracking-wider">
+          Level Up
+        </h2>
         
         <div className="grid grid-rows-3 gap-3 mb-6">
           {options.map((option) => {
