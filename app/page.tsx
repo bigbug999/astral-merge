@@ -462,73 +462,64 @@ export default function Home() {
   };
 
   // Update the handlePowerUpSelect function
-  const handlePowerUpSelect = useCallback((selection: SelectedItem) => {
-    setPowerUps(prev => {
-      // Count current filled slots
-      const filledSlots = prev.slots.filter(slot => slot !== null).length;
-      
-      // Check if we have room for this selection
-      const isFlask = 'type' in selection && selection.type === 'flask';
-      const slotsNeeded = isFlask ? 2 : 1;
-      const remainingSlots = 6 - filledSlots;
+  const handlePowerUpSelect = (selection: PowerUp | FlaskItem) => {
+    // Calculate filled slots
+    const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+    
+    // Check if we have room for this selection
+    const isFlask = 'type' in selection && selection.type === 'flask';
+    const slotsNeeded = isFlask ? 2 : 1;
+    const remainingSlots = 6 - filledSlots;
 
-      // If not enough slots, return unchanged state
-      if (remainingSlots < slotsNeeded) {
-        return prev;
-      }
+    if (remainingSlots >= slotsNeeded) {
+      setPowerUps(prev => {
+        const newState = { ...prev };
+        
+        // Find first valid empty slot
+        let firstEmptySlot = -1;
+        for (let i = 0; i < prev.slots.length; i++) {
+          // Skip if this slot is covered by a flask from previous slot
+          if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
+            continue;
+          }
+          
+          // For flasks, ensure we have two consecutive empty slots
+          if (isFlask) {
+            if (i < prev.slots.length - 1 && 
+                prev.slots[i] === null && 
+                prev.slots[i + 1] === null) {
+              firstEmptySlot = i;
+              break;
+            }
+          } else {
+            // For regular power-ups, just need one empty slot
+            if (prev.slots[i] === null) {
+              firstEmptySlot = i;
+              break;
+            }
+          }
+        }
 
-      // Find first valid empty slot
-      let firstEmptySlot = -1;
-      for (let i = 0; i < prev.slots.length; i++) {
-        // Skip if this slot is covered by a flask from previous slot
-        if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
-          continue;
+        if (firstEmptySlot !== -1) {
+          if (isFlask) {
+            // For flasks, we need two slots
+            const flaskId = `FLASK_${selection.id}`;
+            newState.slots[firstEmptySlot] = flaskId;
+            newState.slots[firstEmptySlot + 1] = flaskId; // Mark both slots with the flask ID
+            newState.powerUps[flaskId] = selection.maxUses;
+          } else {
+            // For power-ups, just use one slot
+            newState.slots[firstEmptySlot] = selection.id;
+            newState.powerUps[selection.id] = selection.maxUses;
+          }
         }
         
-        // For flasks, ensure we have two consecutive empty slots
-        if (isFlask) {
-          if (i < prev.slots.length - 1 && 
-              prev.slots[i] === null && 
-              prev.slots[i + 1] === null) {
-            firstEmptySlot = i;
-            break;
-          }
-        } else {
-          // For regular power-ups, just need one empty slot
-          if (prev.slots[i] === null) {
-            firstEmptySlot = i;
-            break;
-          }
-        }
-      }
-
-      // If no valid slot found, return unchanged state
-      if (firstEmptySlot === -1) {
-        return prev;
-      }
-
-      const newSlots = [...prev.slots];
-      const newPowerUps = { ...prev.powerUps };
-
-      if (isFlask) {
-        const flaskId = `FLASK_${selection.id}`;
-        newSlots[firstEmptySlot] = flaskId;
-        newSlots[firstEmptySlot + 1] = null; // Mark next slot as reserved
-        newPowerUps[flaskId] = selection.maxUses || 1;
-      } else {
-        newSlots[firstEmptySlot] = selection.id;
-        newPowerUps[selection.id] = selection.maxUses;
-      }
-
-      return {
-        ...prev,
-        slots: newSlots,
-        powerUps: newPowerUps
-      };
-    });
+        return newState;
+      });
+    }
     
     setShowPowerUpSelection(false);
-  }, []);
+  };
 
   // Add an effect to clear expired flask effects
   useEffect(() => {
