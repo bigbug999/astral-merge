@@ -14,7 +14,7 @@ import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { StormIcon } from './icons/StormIcon';
 import { FlaskItem } from '@/types/flasks';
-import { CIRCLE_CONFIG } from '@/types/game';
+import { CIRCLE_CONFIG, TierType } from '@/types/game';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
@@ -196,7 +196,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1">Recharges:</div>
                         <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map((tier) => {
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map((tier: TierType) => {
                             const isRechargeLevel = isFlask 
                               ? tier === 7 
                               : tier === (powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7);
@@ -206,9 +206,9 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                                 key={tier}
                                 className="w-2 h-2 rounded-full"
                                 style={{
-                                  backgroundColor: CIRCLE_CONFIG[tier as TierType].color,
-                                  border: `1px solid ${CIRCLE_CONFIG[tier as TierType].strokeColor}`,
-                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tier as TierType].glowColor}` : 'none',
+                                  backgroundColor: CIRCLE_CONFIG[tier].color,
+                                  border: `1px solid ${CIRCLE_CONFIG[tier].strokeColor}`,
+                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tier].glowColor}` : 'none',
                                   opacity: isRechargeLevel ? 1 : 0.3,
                                   ...(isRechargeLevel && {
                                     outline: '1px solid rgba(255, 255, 255, 0.5)',
