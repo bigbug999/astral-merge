@@ -14,6 +14,7 @@ import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { StormIcon } from './icons/StormIcon';
 import { FlaskItem } from '@/types/flasks';
+import { CIRCLE_CONFIG } from '@/types/game';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
@@ -133,7 +134,12 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
                         {isFlask 
                           ? option.description.replace('Takes 2 slots. ', '').replace(', recharges on tier 7+ merges', '')
-                          : option.description.replace('. Recharges every 3 merges', '')}
+                          : option.description.replace(
+                              powerUpLevel === 1 ? ', recharges on tier 5 merges' :
+                              powerUpLevel === 2 ? ', recharges on tier 6 merges' :
+                              ', recharges on tier 7 merges',
+                              ''
+                            )}
                       </div>
                     </div>
 
@@ -155,16 +161,24 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1">Recharges:</div>
                         {isFlask ? (
-                          <div className="w-2 h-2 rounded-full bg-orange-500" title="Tier 7+ merges" />
+                          <div 
+                            className="w-2 h-2 rounded-full"
+                            style={{
+                              backgroundColor: CIRCLE_CONFIG[7].color,
+                              border: `1px solid ${CIRCLE_CONFIG[7].strokeColor}`,
+                              boxShadow: `0 0 4px ${CIRCLE_CONFIG[7].glowColor}`
+                            }}
+                            title="Tier 7+ merges" 
+                          />
                         ) : (
                           <div 
-                            className={cn(
-                              "w-2 h-2 rounded-full",
-                              powerUpLevel === 1 ? "bg-green-500" :
-                              powerUpLevel === 2 ? "bg-purple-500" :
-                              "bg-yellow-500"
-                            )}
-                            title={`Tier ${powerUpLevel} merges`}
+                            className="w-2 h-2 rounded-full"
+                            style={{
+                              backgroundColor: CIRCLE_CONFIG[powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7].color,
+                              border: `1px solid ${CIRCLE_CONFIG[powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7].strokeColor}`,
+                              boxShadow: `0 0 4px ${CIRCLE_CONFIG[powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7].glowColor}`
+                            }}
+                            title={`Tier ${powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7} merges`}
                           />
                         )}
                       </div>
