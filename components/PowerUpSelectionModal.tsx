@@ -140,7 +140,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 w-[400px]">
+      <div className="bg-zinc-800/90 p-6 rounded-lg shadow-xl border border-zinc-700 w-[min(400px,calc(100vw-32px))]">
         <h2 className="text-xl font-semibold text-zinc-100 mb-6">Level Up! Choose a Power-Up or Flask</h2>
         
         <div className="grid grid-rows-3 gap-3 mb-6">
@@ -185,15 +185,17 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                     <div className="flex items-center gap-4 mt-2">
                       <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1">Slots:</div>
-                        <div className="w-14 flex gap-0.5">
-                          {isFlask ? (
-                            <>
+                        <div className="w-14 flex">
+                          <div className="flex gap-1 mx-auto">
+                            {isFlask ? (
+                              <>
+                                <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                                <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                              </>
+                            ) : (
                               <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                              <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                            </>
-                          ) : (
-                            <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
 
