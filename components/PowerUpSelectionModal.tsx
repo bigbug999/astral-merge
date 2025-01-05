@@ -206,9 +206,9 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                                 key={tier}
                                 className="w-2 h-2 rounded-full"
                                 style={{
-                                  backgroundColor: CIRCLE_CONFIG[tier].color,
-                                  border: `1px solid ${CIRCLE_CONFIG[tier].strokeColor}`,
-                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tier].glowColor}` : 'none',
+                                  backgroundColor: CIRCLE_CONFIG[tier as TierType].color,
+                                  border: `1px solid ${CIRCLE_CONFIG[tier as TierType].strokeColor}`,
+                                  boxShadow: isRechargeLevel ? `0 0 4px ${CIRCLE_CONFIG[tier as TierType].glowColor}` : 'none',
                                   opacity: isRechargeLevel ? 1 : 0.3,
                                   ...(isRechargeLevel && {
                                     outline: '1px solid rgba(255, 255, 255, 0.5)',
