@@ -129,9 +129,21 @@ const calculateRequiredXP = (level: number) => {
 
 // Get random power-ups for selection
 const getRandomPowerUps = (count: number, maxLevel: number, currentSlots: (string | null)[]) => {
+  // Calculate remaining slots
+  const filledSlots = currentSlots.filter(slot => slot !== null).length;
+  const remainingSlots = 6 - filledSlots; // Max 6 slots
+  
+  if (remainingSlots <= 0) return []; // No slots available
+  
   // Get all available power-ups that aren't already in slots
   const availablePowerUps = Object.values(POWER_UPS)
-    .filter(p => !currentSlots.includes(p.id));
+    .filter(p => {
+      // Check if power-up is already in slots
+      const notInSlots = !currentSlots.includes(p.id);
+      // Check if power-up would fit in remaining slots (all power-ups take 1 slot)
+      const fitsInSlots = true; // Regular power-ups always fit as they take 1 slot
+      return notInSlots && fitsInSlots;
+    });
   
   // If no power-ups are available, return empty array
   if (availablePowerUps.length === 0) {
@@ -444,6 +456,19 @@ export default function Home() {
   // Update the handlePowerUpSelect function
   const handlePowerUpSelect = useCallback((selection: SelectedItem) => {
     setPowerUps(prev => {
+      // Count current filled slots
+      const filledSlots = prev.slots.filter(slot => slot !== null).length;
+      
+      // Check if we have room for this selection
+      const isFlask = 'type' in selection && selection.type === 'flask';
+      const slotsNeeded = isFlask ? 2 : 1;
+      const remainingSlots = 6 - filledSlots;
+
+      // If not enough slots, return unchanged state
+      if (remainingSlots < slotsNeeded) {
+        return prev;
+      }
+
       // Find first valid empty slot
       let firstEmptySlot = -1;
       for (let i = 0; i < prev.slots.length; i++) {
@@ -451,26 +476,36 @@ export default function Home() {
         if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
           continue;
         }
-        // Skip if this slot would cover a non-empty slot (for flasks)
-        if ('type' in selection && selection.type === 'flask' && 
-            i < prev.slots.length - 1 && prev.slots[i + 1] !== null) {
-          continue;
-        }
-        // Found valid empty slot
-        if (prev.slots[i] === null) {
-          firstEmptySlot = i;
-          break;
+        
+        // For flasks, ensure we have two consecutive empty slots
+        if (isFlask) {
+          if (i < prev.slots.length - 1 && 
+              prev.slots[i] === null && 
+              prev.slots[i + 1] === null) {
+            firstEmptySlot = i;
+            break;
+          }
+        } else {
+          // For regular power-ups, just need one empty slot
+          if (prev.slots[i] === null) {
+            firstEmptySlot = i;
+            break;
+          }
         }
       }
 
-      if (firstEmptySlot === -1) return prev;
+      // If no valid slot found, return unchanged state
+      if (firstEmptySlot === -1) {
+        return prev;
+      }
 
       const newSlots = [...prev.slots];
       const newPowerUps = { ...prev.powerUps };
 
-      if ('type' in selection && selection.type === 'flask') {
+      if (isFlask) {
         const flaskId = `FLASK_${selection.id}`;
         newSlots[firstEmptySlot] = flaskId;
+        newSlots[firstEmptySlot + 1] = null; // Mark next slot as reserved
         newPowerUps[flaskId] = selection.maxUses || 1;
       } else {
         newSlots[firstEmptySlot] = selection.id;

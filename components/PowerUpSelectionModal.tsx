@@ -42,6 +42,54 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
 const VALID_TIERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 type ValidTier = (typeof VALID_TIERS)[number];
 
+// Add this helper function to check if an option can fit
+const canFitOption = (option: PowerUp | FlaskItem, remainingSlots: number) => {
+  const isFlask = 'type' in option && option.type === 'flask';
+  const slotsNeeded = isFlask ? 2 : 1;
+  return remainingSlots >= slotsNeeded;
+};
+
+const getAvailableOptions = (powerUps: PowerUpState, availablePowerUps: PowerUp[]) => {
+  // Calculate remaining slots
+  const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+  const remainingSlots = 6 - filledSlots;
+
+  // Get used flask effects
+  const usedFlaskEffects = new Set(
+    powerUps.slots
+      .filter(slotId => slotId?.startsWith('FLASK_'))
+      .map(slotId => slotId?.replace('FLASK_', ''))
+  );
+
+  // Filter power-ups that will fit
+  const validPowerUps = availablePowerUps.filter(powerUp => {
+    // Check if power-up is already in slots
+    const notInSlots = !powerUps.slots.includes(powerUp.id);
+    // All power-ups take 1 slot
+    return notInSlots && remainingSlots >= 1;
+  });
+
+  // Filter flasks that will fit
+  const validFlasks = Object.entries(FLASK_EFFECTS)
+    .filter(([id]) => {
+      if (id === 'DEFAULT') return false;
+      if (usedFlaskEffects.has(id)) return false;
+      // Flasks need 2 slots
+      return remainingSlots >= 2;
+    })
+    .map(([id, effect]) => ({
+      id: id as FlaskEffectId,
+      type: 'flask' as const,
+      name: effect.name,
+      description: effect.description,
+      icon: effect.icon,
+      maxUses: 1,
+      activeUntil: null
+    }));
+
+  return [...validPowerUps, ...validFlasks];
+};
+
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
   const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
@@ -50,41 +98,17 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
   // Generate options when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Get currently used flask effects from power-up slots
-      const usedFlaskEffects = new Set(
-        powerUps.slots
-          .filter(slotId => slotId?.startsWith('FLASK_'))
-          .map(slotId => slotId?.replace('FLASK_', ''))
-      );
-
-      // Get all available items (both power-ups and unused flasks)
-      const availableFlaskEffects = Object.entries(FLASK_EFFECTS)
-        .filter(([id]) => id !== 'DEFAULT' && !usedFlaskEffects.has(id))
-        .map(([id, effect]) => ({
-          id: id as FlaskEffectId,
-          type: 'flask' as const,
-          name: effect.name,
-          description: effect.description,
-          icon: effect.icon,
-          maxUses: 1,
-          activeUntil: null
-        }));
-
-      // Combine all available options
-      const allAvailableOptions = [...availablePowerUps, ...availableFlaskEffects];
-
-      // If we have less than 3 total options, show all of them
-      if (allAvailableOptions.length <= 3) {
-        setOptions(allAvailableOptions);
+      const validOptions = getAvailableOptions(powerUps, availablePowerUps);
+      
+      if (validOptions.length <= 3) {
+        setOptions(validOptions);
       } else {
-        // Otherwise, randomly select exactly 3 options
-        const shuffled = [...allAvailableOptions].sort(() => Math.random() - 0.5);
+        const shuffled = [...validOptions].sort(() => Math.random() - 0.5);
         setOptions(shuffled.slice(0, 3));
       }
-
       setSelectedItem(null);
     }
-  }, [isOpen, availablePowerUps, powerUps.slots]);
+  }, [isOpen, availablePowerUps, powerUps]);
 
   // Add type guard function
   const isFlaskItem = (item: PowerUp | FlaskItem): item is FlaskItem => {
@@ -94,34 +118,14 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
   // Add reroll handler
   const handleReroll = () => {
     if (rerollsLeft > 0) {
-      // Get currently used flask effects from power-up slots
-      const usedFlaskEffects = new Set(
-        powerUps.slots
-          .filter(slotId => slotId?.startsWith('FLASK_'))
-          .map(slotId => slotId?.replace('FLASK_', ''))
-      );
-
-      // Get all available items (both power-ups and unused flasks)
-      const availableFlaskEffects = Object.entries(FLASK_EFFECTS)
-        .filter(([id]) => id !== 'DEFAULT' && !usedFlaskEffects.has(id))
-        .map(([id, effect]) => ({
-          id: id as FlaskEffectId,
-          type: 'flask' as const,
-          name: effect.name,
-          description: effect.description,
-          icon: effect.icon,
-          maxUses: 1,
-          activeUntil: null
-        }));
-
-      // Combine all available options
-      const allAvailableOptions = [...availablePowerUps, ...availableFlaskEffects];
-
-      // Randomly select exactly 3 options
-      const shuffled = [...allAvailableOptions].sort(() => Math.random() - 0.5);
-      setOptions(shuffled.slice(0, 3));
-      setSelectedItem(null);
-      setRerollsLeft(prev => prev - 1);
+      const validOptions = getAvailableOptions(powerUps, availablePowerUps);
+      
+      if (validOptions.length > 0) {
+        const shuffled = [...validOptions].sort(() => Math.random() - 0.5);
+        setOptions(shuffled.slice(0, 3));
+        setSelectedItem(null);
+        setRerollsLeft(prev => prev - 1);
+      }
     }
   };
 
@@ -129,8 +133,15 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
 
   const handleSelect = () => {
     if (selectedItem) {
-      onSelect(selectedItem);
-      onClose();
+      const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+      const remainingSlots = 6 - filledSlots;
+      const isFlask = isFlaskItem(selectedItem);
+      const slotsNeeded = isFlask ? 2 : 1;
+
+      if (remainingSlots >= slotsNeeded) {
+        onSelect(selectedItem);
+        onClose();
+      }
     }
   };
 
@@ -148,29 +159,59 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
             const IconComponent = ICON_COMPONENTS[option.icon];
             const isFlask = isFlaskItem(option);
             const powerUpLevel = !isFlask && 'level' in option ? option.level : null;
+            
+            // Calculate if we have enough slots
+            const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
+            const remainingSlots = 6 - filledSlots;
+            const slotsNeeded = isFlask ? 2 : 1;
+            const canFit = remainingSlots >= slotsNeeded;
 
             return (
               <button
                 key={isFlaskItem(option) ? `flask-${option.id}` : `powerup-${option.id}`}
-                onClick={() => setSelectedItem(option)}
+                onClick={() => {
+                  if (!canFit) return;
+                  setSelectedItem(option);
+                }}
                 className={cn(
-                  "p-2 rounded-lg border-2 transition-all",
+                  "p-2 rounded-lg border-2 transition-all relative",
+                  !canFit && "opacity-50 cursor-not-allowed",
                   selectedItem?.id === option.id
                     ? "bg-zinc-800 border-white"
                     : "bg-zinc-800/50 border-zinc-700 hover:border-zinc-600"
                 )}
               >
+                {!canFit && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-10">
+                    <span className="text-xs font-medium text-white">
+                      {isFlask ? "Needs 2 slots" : "Not enough slots"}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   {IconComponent && (
-                    <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0",
+                      !canFit && "opacity-50"
+                    )}>
                       <IconComponent className="w-4 h-4 text-white" />
                     </div>
                   )}
                   
                   <div className="flex-1">
                     <div className="text-left mb-1">
-                      <div className="font-medium text-zinc-200 text-xs truncate">{option.name}</div>
-                      <div className="text-[9px] text-zinc-400 leading-tight mt-0.5 line-clamp-2">
+                      <div className={cn(
+                        "font-medium text-zinc-200 text-xs truncate",
+                        !canFit && "text-zinc-400"
+                      )}>
+                        {option.name}
+                        {!canFit && isFlask && " (Needs 2 slots)"}
+                      </div>
+                      <div className={cn(
+                        "text-[9px] text-zinc-400 leading-tight mt-0.5 line-clamp-2",
+                        !canFit && "text-zinc-500"
+                      )}>
                         {isFlask 
                           ? option.description.replace('Takes 2 slots. ', '').replace(', recharges on tier 7+ merges', '')
                           : option.description.replace(
