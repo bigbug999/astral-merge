@@ -127,6 +127,27 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
     );
   };
 
+  // Helper to render usage indicator for flasks
+  const renderUsageIndicator = () => {
+    if (!powerUp) return null;
+    
+    if (isFlaskItem(powerUp)) {
+      return (
+        <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full",
+              remainingUses > 0 ? "bg-blue-400" : "bg-zinc-600"
+            )}
+          />
+        </div>
+      );
+    }
+    
+    // Existing usage dots for regular power-ups
+    return renderUsageDots();
+  };
+
   return (
     <button
       onClick={onClick}
@@ -182,7 +203,7 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick }: Power
       )}
 
       {/* Usage Dots */}
-      {powerUp && !timeLeft && renderUsageDots()}
+      {renderUsageIndicator()}
     </button>
   );
 } 

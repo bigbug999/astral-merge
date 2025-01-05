@@ -60,7 +60,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
           name: effect.name,
           description: effect.description,
           icon: effect.icon,
-          maxUses: 3,
+          maxUses: 1,
           activeUntil: null
         }));
 

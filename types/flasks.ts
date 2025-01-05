@@ -78,8 +78,9 @@ export const FLASK_EFFECTS = {
   LOW_GRAVITY: {
     id: 'LOW_GRAVITY',
     name: 'Low Gravity',
-    description: 'Reduces gravity to 0.15, increases restitution to 0.65. Lasts 60s, 3 uses.',
+    description: 'Reduces gravity to 0.15, increases restitution to 0.65. Lasts 60s, recharges on tier 7+ merges.',
     icon: 'FeatherIcon',
+    maxUses: 1,
     physics: {
       gravity: 0.15,
       timeScale: 1.6,
@@ -93,8 +94,9 @@ export const FLASK_EFFECTS = {
   NO_FRICTION: {
     id: 'NO_FRICTION',
     name: 'Frictionless',
-    description: 'Near-zero friction (0.0001) and air resistance. Lasts 60s, 3 uses.',
+    description: 'Near-zero friction (0.0001) and air resistance. Lasts 60s, recharges on tier 7+ merges.',
     icon: 'SparklesIcon',
+    maxUses: 1,
     physics: {
       gravity: 1.75,
       timeScale: 1.35,
@@ -108,8 +110,9 @@ export const FLASK_EFFECTS = {
   STORM: {
     id: 'STORM',
     name: 'Storm Field',
-    description: 'Creates turbulence (0.025 strength, 150px radius). Lasts 60s, 3 uses.',
+    description: 'Creates turbulence (0.025 strength, 150px radius). Lasts 60s, recharges on tier 7+ merges.',
     icon: 'StormIcon',
+    maxUses: 1,
     physics: {
       gravity: 1.75,
       timeScale: 1.6,

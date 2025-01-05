@@ -220,6 +220,27 @@ export default function Home() {
     const xpGain = Math.floor(scoreGain * 0.5); // XP is 50% of score
     
     setScore(prev => prev + scoreGain);
+    
+    // Recharge flask effects on tier 7+ merges
+    if (tier >= 7) {
+      setPowerUps(prev => {
+        const newPowerUps = { ...prev.powerUps };
+        
+        // Find all flask slots
+        prev.slots.forEach(slotId => {
+          if (slotId?.startsWith('FLASK_')) {
+            // Set uses to max (1)
+            newPowerUps[slotId] = 1;
+          }
+        });
+        
+        return {
+          ...prev,
+          powerUps: newPowerUps
+        };
+      });
+    }
+
     setCurrentExp(prev => {
       // If all slots are filled, don't accumulate more XP
       if (powerUps.slots.every(slot => slot !== null)) {
