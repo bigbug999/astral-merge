@@ -38,6 +38,21 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   StormIcon,
 };
 
+const getTierKey = (tier: number): TierType => {
+  const tierMap: Record<number, TierType> = {
+    1: 'TIER_1',
+    2: 'TIER_2',
+    3: 'TIER_3',
+    4: 'TIER_4',
+    5: 'TIER_5',
+    6: 'TIER_6',
+    7: 'TIER_7',
+    8: 'TIER_8'
+  } as const;
+  
+  return tierMap[tier];
+};
+
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
   const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
@@ -201,8 +216,7 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                               ? tier === 7 
                               : tier === (powerUpLevel === 1 ? 5 : powerUpLevel === 2 ? 6 : 7);
 
-                            // Convert number to TierType
-                            const tierKey = `TIER_${tier}` as TierType;
+                            const tierKey = getTierKey(tier);
 
                             return (
                               <div 
