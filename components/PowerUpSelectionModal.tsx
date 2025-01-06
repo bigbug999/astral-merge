@@ -90,6 +90,16 @@ const getAvailableOptions = (powerUps: PowerUpState, availablePowerUps: PowerUp[
   return [...validPowerUps, ...validFlasks];
 };
 
+const renderChargeIndicator = (maxUses: number) => (
+  <div className="flex items-center gap-1">
+    <div className="text-[10px] text-zinc-500 mr-1">Charges:</div>
+    <div className="flex items-center gap-1">
+      <div className="h-2 w-2 rounded-full bg-white border border-white/20" />
+      <span className="text-[10px] text-zinc-400">×{maxUses}</span>
+    </div>
+  </div>
+);
+
 export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowerUps, powerUps }: PowerUpSelectionModalProps) {
   const [selectedItem, setSelectedItem] = useState<PowerUp | FlaskItem | null>(null);
   const [options, setOptions] = useState<(PowerUp | FlaskItem)[]>([]);
@@ -191,23 +201,33 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-2">
                   {IconComponent && (
                     <div className={cn(
-                      "w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0",
+                      "w-10 h-10 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0 mt-0.5",
                       !canFit && "opacity-50"
                     )}>
-                      <IconComponent className="w-4 h-4 text-white" />
+                      <IconComponent className="w-5 h-5 text-white" />
                     </div>
                   )}
                   
                   <div className="flex-1">
-                    <div className="text-left mb-1">
+                    <div className="text-left">
                       <div className={cn(
                         "font-medium text-zinc-200 text-xs truncate",
                         !canFit && "text-zinc-400"
                       )}>
-                        {option.name}
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            "font-medium",
+                            isFlask ? "text-blue-400" :
+                            powerUpLevel === 1 ? "text-green-400" :
+                            powerUpLevel === 2 ? "text-purple-400" :
+                            "text-orange-400"
+                          )}>
+                            {option.name}
+                          </span>
+                        </div>
                         {!canFit && isFlask && " (Needs 2 slots)"}
                       </div>
                       <div className={cn(
@@ -225,24 +245,28 @@ export function PowerUpSelectionModal({ isOpen, onClose, onSelect, availablePowe
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center gap-1">
-                        <div className="text-[10px] text-zinc-500 mr-1">Slots:</div>
-                        <div className="flex">
-                          <div className="flex gap-1 mx-auto">
-                            {isFlask ? (
-                              <>
+                    <div className="mt-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <div className="text-[10px] text-zinc-500 mr-1">Slots:</div>
+                          <div className="flex">
+                            <div className="flex gap-1 mx-auto">
+                              {isFlask ? (
+                                <>
+                                  <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                                  <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
+                                </>
+                              ) : (
                                 <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                                <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                              </>
-                            ) : (
-                              <div className="h-2.5 w-2.5 rounded-[2px] bg-zinc-700/80 border border-dashed border-zinc-600/80 [border-dash-pattern:2_2]" />
-                            )}
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        {renderChargeIndicator(option.maxUses)}
                       </div>
 
-                      <div className="flex items-center gap-1 overflow-x-auto">
+                      <div className="flex items-center gap-1">
                         <div className="text-[10px] text-zinc-500 mr-1 whitespace-nowrap">Recharges:</div>
                         <div className="flex gap-1">
                           {VALID_TIERS.map((tier) => {
