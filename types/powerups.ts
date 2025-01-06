@@ -128,7 +128,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   HEAVY_BALL: {
     id: 'HEAVY_BALL',
     name: 'Heavy Ball',
-    description: 'Increases ball mass by 300%. Recharges every 3 merges.',
+    description: 'Increases ball mass by 300% and launch speed by 50%.',
     maxUses: 5,
     icon: 'WeightIcon',
     group: 'GRAVITY',
@@ -153,7 +153,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   SUPER_HEAVY_BALL: {
     id: 'SUPER_HEAVY_BALL',
     name: 'Super Heavy Ball',
-    description: 'Increases ball mass by 600%. Recharges every 4 merges.',
+    description: 'Increases ball mass by 600% and launch speed by 100%.',
     maxUses: 3,
     icon: 'SuperWeightIcon',
     group: 'GRAVITY',
@@ -178,7 +178,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   ULTRA_HEAVY_BALL: {
     id: 'ULTRA_HEAVY_BALL',
     name: 'Ultra Heavy Ball',
-    description: 'Increases ball mass by 1000%. Recharges every 5 merges.',
+    description: 'Increases ball mass by 1000% and launch speed by 200%.',
     maxUses: 1,
     icon: 'UltraWeightIcon',
     group: 'GRAVITY',
@@ -205,7 +205,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   VOID_BALL: {
     id: 'VOID_BALL',
     name: 'Void Ball',
-    description: 'Creates a ball that absorbs same-tier balls within 100px. Recharges every 3 merges.',
+    description: 'Creates a bouncing ball that deletes the first three balls it touches.',
     maxUses: 5,
     icon: 'NegativeBallIcon',
     group: 'VOID',
@@ -230,7 +230,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   SUPER_VOID_BALL: {
     id: 'SUPER_VOID_BALL',
     name: 'Super Void Ball',
-    description: 'Creates a ball that absorbs same-tier balls within 150px. Recharges every 4 merges.',
+    description: 'Creates a ball that deletes the first two balls it touches without bouncing.',
     maxUses: 3,
     icon: 'SuperNegativeBallIcon',
     group: 'VOID',
@@ -256,7 +256,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
   ULTRA_VOID_BALL: {
     id: 'ULTRA_VOID_BALL',
     name: 'Ultra Void Ball',
-    description: 'Creates a ball that absorbs same-tier balls within 200px. Recharges every 5 merges.',
+    description: 'Creates a ball that deletes the first 10 balls it touches without bouncing.',
     maxUses: 1,
     icon: 'UltraNegativeBallIcon',
     group: 'VOID',

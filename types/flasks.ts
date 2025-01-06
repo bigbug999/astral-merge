@@ -78,7 +78,7 @@ export const FLASK_EFFECTS = {
   LOW_GRAVITY: {
     id: 'LOW_GRAVITY',
     name: 'Low Gravity',
-    description: 'Takes 2 slots. Reduces gravity to 0.15, increases restitution to 0.65. Lasts 60s, recharges on tier 7+ merges.',
+    description: 'Takes 2 slots. Creates a low gravity environment that affects all balls. Lasts 60s.',
     icon: 'FeatherIcon',
     maxUses: 1,
     physics: {
@@ -94,7 +94,7 @@ export const FLASK_EFFECTS = {
   NO_FRICTION: {
     id: 'NO_FRICTION',
     name: 'Frictionless',
-    description: 'Takes 2 slots. Near-zero friction (0.0001) and air resistance. Lasts 60s, recharges on tier 7+ merges.',
+    description: 'Takes 2 slots. Creates a frictionless environment with no air resistance. Lasts 60s.',
     icon: 'SparklesIcon',
     maxUses: 1,
     physics: {
@@ -110,7 +110,7 @@ export const FLASK_EFFECTS = {
   STORM: {
     id: 'STORM',
     name: 'Storm Field',
-    description: 'Takes 2 slots. Creates turbulence (0.025 strength, 150px radius). Lasts 60s, recharges on tier 7+ merges.',
+    description: 'Takes 2 slots. Creates turbulent forces that affect all balls in range. Lasts 60s.',
     icon: 'StormIcon',
     maxUses: 1,
     physics: {
