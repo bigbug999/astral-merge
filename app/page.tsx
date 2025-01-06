@@ -44,12 +44,10 @@ type TierType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 // Add this type near the top of the file
 type SelectedItem = {
-  section: 'gravity' | 'void' | 'upgrade' | 'size' | 'effect';
+  section: 'size' | 'effect' | 'gravity' | 'void' | 'environmental';
   id: string;
   name: string;
   description: string;
-  type?: 'flask';  // Make type optional to handle both power-ups and flasks
-  icon?: string;    // Add icon for flask items
 } | null;
 
 // Helper function to get random tier with weights
@@ -178,7 +176,7 @@ export default function Home() {
   const [isPaused, setIsPaused] = useState(false);
   const [modalView, setModalView] = useState<'menu' | 'collection'>('menu');
   const [selectedItem, setSelectedItem] = useState<{
-    section: 'size' | 'effect' | 'gravity' | 'void';
+    section: 'size' | 'effect' | 'gravity' | 'void' | 'environmental';
     id: string;
     name: string;
     description: string;
@@ -464,64 +462,73 @@ export default function Home() {
   };
 
   // Update the handlePowerUpSelect function
-  const handlePowerUpSelect = (selection: PowerUp | FlaskItem) => {
-    // Calculate filled slots
-    const filledSlots = powerUps.slots.filter(slot => slot !== null).length;
-    
-    // Check if we have room for this selection
-    const isFlask = 'type' in selection && selection.type === 'flask';
-    const slotsNeeded = isFlask ? 2 : 1;
-    const remainingSlots = 6 - filledSlots;
+  const handlePowerUpSelect = useCallback((selection: SelectedItem) => {
+    setPowerUps(prev => {
+      // Count current filled slots
+      const filledSlots = prev.slots.filter(slot => slot !== null).length;
+      
+      // Check if we have room for this selection
+      const isFlask = 'type' in selection && selection.type === 'flask';
+      const slotsNeeded = isFlask ? 2 : 1;
+      const remainingSlots = 6 - filledSlots;
 
-    if (remainingSlots >= slotsNeeded) {
-      setPowerUps(prev => {
-        const newState = { ...prev };
-        
-        // Find first valid empty slot
-        let firstEmptySlot = -1;
-        for (let i = 0; i < prev.slots.length; i++) {
-          // Skip if this slot is covered by a flask from previous slot
-          if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
-            continue;
-          }
-          
-          // For flasks, ensure we have two consecutive empty slots
-          if (isFlask) {
-            if (i < prev.slots.length - 1 && 
-                prev.slots[i] === null && 
-                prev.slots[i + 1] === null) {
-              firstEmptySlot = i;
-              break;
-            }
-          } else {
-            // For regular power-ups, just need one empty slot
-            if (prev.slots[i] === null) {
-              firstEmptySlot = i;
-              break;
-            }
-          }
-        }
+      // If not enough slots, return unchanged state
+      if (remainingSlots < slotsNeeded) {
+        return prev;
+      }
 
-        if (firstEmptySlot !== -1) {
-          if (isFlask) {
-            // For flasks, we need two slots
-            const flaskId = `FLASK_${selection.id}`;
-            newState.slots[firstEmptySlot] = flaskId;
-            newState.slots[firstEmptySlot + 1] = flaskId; // Mark both slots with the flask ID
-            newState.powerUps[flaskId] = selection.maxUses;
-          } else {
-            // For power-ups, just use one slot
-            newState.slots[firstEmptySlot] = selection.id;
-            newState.powerUps[selection.id] = selection.maxUses;
-          }
+      // Find first valid empty slot
+      let firstEmptySlot = -1;
+      for (let i = 0; i < prev.slots.length; i++) {
+        // Skip if this slot is covered by a flask from previous slot
+        if (i > 0 && prev.slots[i - 1]?.startsWith('FLASK_')) {
+          continue;
         }
         
-        return newState;
-      });
-    }
+        // For flasks, ensure we have two consecutive empty slots
+        if (isFlask) {
+          if (i < prev.slots.length - 1 && 
+              prev.slots[i] === null && 
+              prev.slots[i + 1] === null) {
+            firstEmptySlot = i;
+            break;
+          }
+        } else {
+          // For regular power-ups, just need one empty slot
+          if (prev.slots[i] === null) {
+            firstEmptySlot = i;
+            break;
+          }
+        }
+      }
+
+      // If no valid slot found, return unchanged state
+      if (firstEmptySlot === -1) {
+        return prev;
+      }
+
+      const newSlots = [...prev.slots];
+      const newPowerUps = { ...prev.powerUps };
+
+      if (isFlask) {
+        const flaskId = `FLASK_${selection.id}`;
+        newSlots[firstEmptySlot] = flaskId;
+        newSlots[firstEmptySlot + 1] = null; // Mark next slot as reserved
+        newPowerUps[flaskId] = selection.maxUses || 1;
+      } else {
+        newSlots[firstEmptySlot] = selection.id;
+        newPowerUps[selection.id] = selection.maxUses;
+      }
+
+      return {
+        ...prev,
+        slots: newSlots,
+        powerUps: newPowerUps
+      };
+    });
     
     setShowPowerUpSelection(false);
-  };
+  }, []);
 
   // Add an effect to clear expired flask effects
   useEffect(() => {
@@ -540,22 +547,6 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
-
-  // Update the handleFlaskSelect function
-  const handleFlaskSelect = (flaskId: string, flaskEffect: typeof FLASK_EFFECTS[keyof typeof FLASK_EFFECTS]) => {
-    const item: SelectedItem = {
-      section: 'effect',
-      id: flaskId,
-      name: flaskEffect.name,
-      description: flaskEffect.description,
-      type: 'flask',
-      icon: flaskEffect.icon
-    };
-    
-    setSelectedItem(prev => 
-      prev?.section === 'effect' && prev.id === flaskId ? null : item
-    );
-  };
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-900 p-4 select-none">
@@ -760,6 +751,52 @@ export default function Home() {
         {/* Color legend */}
         <div className="w-full">
           <ColorLegend />
+        </div>
+
+        {/* Environmental Power-ups */}
+        <div>
+          <h4 className="text-md font-medium text-white mb-1.5">Environmental</h4>
+          <div className="grid grid-cols-6 gap-1.5">
+            {[...Array(6)].map((_, index) => {
+              const entry = Object.entries(POWER_UPS)
+                .filter(([_, powerUp]) => powerUp.group === 'ENVIRONMENTAL')[index];
+              
+              return (
+                <div key={index} className="relative">
+                  <div 
+                    className={cn(
+                      "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
+                      selectedItem?.section === 'environmental' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
+                    )}
+                    onClick={() => entry && setSelectedItem(prev => 
+                      prev?.section === 'environmental' && prev.id === entry[0] ? null : {
+                        section: 'environmental',
+                        id: entry[0],
+                        name: entry[1].name,
+                        description: entry[1].description
+                      }
+                    )}
+                  >
+                    {entry ? (
+                      <>
+                        {entry[0] === 'TIER_UP' && <TierUpIcon className="w-4 h-4 text-white" />}
+                        {entry[0] === 'SUPER_TIER_UP' && <SuperTierUpIcon className="w-4 h-4 text-white" />}
+                        {entry[0] === 'ULTRA_TIER_UP' && <UltraTierUpIcon className="w-4 h-4 text-white" />}
+                      </>
+                    ) : (
+                      <div className="font-medium text-zinc-500 text-lg">?</div>
+                    )}
+                  </div>
+                  {selectedItem?.section === 'environmental' && selectedItem?.id === entry?.[0] && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
+                      <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
+                      <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -1037,52 +1074,6 @@ export default function Home() {
                           );
                         })}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Upgrade Power-ups */}
-                  <div>
-                    <h4 className="text-md font-medium text-white mb-1.5">Upgrade</h4>
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {[...Array(6)].map((_, index) => {
-                        const entry = Object.entries(POWER_UPS)
-                          .filter(([_, powerUp]) => powerUp.group === 'UPGRADE')[index];
-                        
-                        return (
-                          <div key={index} className="relative">
-                            <div 
-                              className={cn(
-                                "w-10 h-10 bg-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-zinc-600/50 transition-colors border border-zinc-600/50 cursor-pointer",
-                                selectedItem?.section === 'upgrade' && selectedItem?.id === entry?.[0] && "bg-zinc-600/50 border-zinc-500/50"
-                              )}
-                              onClick={() => entry && setSelectedItem(prev => 
-                                prev?.section === 'upgrade' && prev.id === entry[0] ? null : {
-                                  section: 'upgrade' as const,
-                                  id: entry[0],
-                                  name: entry[1].name,
-                                  description: entry[1].description
-                                }
-                              )}
-                            >
-                              {entry ? (
-                                <>
-                                  {entry[0] === 'TIER_UP' && <TierUpIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'SUPER_TIER_UP' && <SuperTierUpIcon className="w-4 h-4 text-white" />}
-                                  {entry[0] === 'ULTRA_TIER_UP' && <UltraTierUpIcon className="w-4 h-4 text-white" />}
-                                </>
-                              ) : (
-                                <div className="font-medium text-zinc-500 text-lg">?</div>
-                              )}
-                            </div>
-                            {selectedItem?.section === 'upgrade' && selectedItem?.id === entry?.[0] && (
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 p-2 bg-zinc-800 rounded-lg border border-zinc-600/50 shadow-xl z-10">
-                                <div className="text-white text-xs font-medium mb-0.5 text-center">{selectedItem.name}</div>
-                                <div className="text-zinc-300 text-[10px] text-center leading-tight">{selectedItem.description}</div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 </div>

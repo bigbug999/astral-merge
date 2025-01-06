@@ -105,7 +105,7 @@ interface ExtendedRendererOptions extends Matter.IRendererOptions {
 
 // Add CircleBody interface
 interface CircleBody extends Matter.Body {
-  tier: TierType;  // Change from optional to required
+  tier?: TierType;  // Use TierType instead of union
   isMerging?: boolean;
   isScaled?: boolean;
   isSpawnedBall?: boolean;
@@ -135,7 +135,7 @@ interface CircleBody extends Matter.Body {
       opacity: number;
     };
   };
-  originalTier?: TierType;  // Add this line
+  originalTier?: TierType; // Add this to store the original tier
 }
 
 // Add these interfaces near the top
@@ -391,10 +391,39 @@ export const useMatterJs = (
     if (!currentCircleRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
-    const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+    const activePowerUp = getActivePowerUp(powerUps);
+    
+    // Calculate effective tier based on power-up
+    let effectiveTier = (circle.tier || 1) as TierType;
+    if (activePowerUp?.effects?.tierIncrease) {
+      const newTier = Math.min(
+        Math.max(1, circle.tier || 1) + activePowerUp.effects.tierIncrease,
+        12
+      ) as TierType;
+      effectiveTier = newTier;
+      
+      // Update physics properties based on the new tier
+      const newConfig = CIRCLE_CONFIG[effectiveTier];
+      const baseConfig = CIRCLE_CONFIG[circle.originalTier || circle.tier || 1];
+      
+      // Scale physics properties based on tier difference
+      const scaleFactor = newConfig.radius / baseConfig.radius;
+      
+      // Update the circle's size and physics properties
+      const newRadius = newConfig.radius;
+      Matter.Body.scale(circle, scaleFactor, scaleFactor);
+      
+      Matter.Body.set(circle, {
+        density: circle.density * scaleFactor,
+        mass: circle.mass * scaleFactor,
+        inverseMass: 1 / (circle.mass * scaleFactor),
+        circleRadius: newRadius
+      });
+    }
+    
+    const visualConfig = CIRCLE_CONFIG[effectiveTier];
     const sizeConfig = FLASK_SIZES[flaskState.size];
     const effectConfig = FLASK_EFFECTS[flaskState.effect];
-    const activePowerUp = getActivePowerUp(powerUps);
     
     // Use size configuration for scaling
     const scale = circle.isScaled || flaskState.size !== 'DEFAULT' ? sizeConfig.physics.scale : 1;
@@ -415,6 +444,37 @@ export const useMatterJs = (
   useEffect(() => {
     updateCurrentBallAppearance();
   }, [powerUps.activePowerUpId, updateCurrentBallAppearance]);
+
+  // Add to the effect that handles power-up deactivation
+  useEffect(() => {
+    if (!currentCircleRef.current) return;
+    
+    const circle = currentCircleRef.current as CircleBody;
+    const activePowerUp = getActivePowerUp(powerUps);
+    
+    if (activePowerUp?.effects?.tierIncrease) {
+      // Store original tier when power-up is activated
+      circle.originalTier = circle.tier;
+      
+      // Apply tier increase
+      circle.tier = Math.min(
+        (circle.tier || 1) + activePowerUp.effects.tierIncrease,
+        12
+      ) as TierType;
+      
+      // Start a timer to revert the tier
+      const timer = setTimeout(() => {
+        if (circle && circle.originalTier) {
+          circle.tier = circle.originalTier;
+          delete circle.originalTier;
+          powerUps.activePowerUpId = null;
+          updateCurrentBallAppearance();
+        }
+      }, activePowerUp.effects.duration);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [powerUps.activePowerUpId, updateCurrentBallAppearance, getActivePowerUp]);
 
   // Add helper function to apply void power-up properties
   const applyVoidPowerUp = useCallback((circle: CircleBody, powerUp: PowerUp) => {
@@ -1405,44 +1465,14 @@ export const useMatterJs = (
     }
   }, []);
 
-  // Move revertTierChanges before endDrag
-  const revertTierChanges = useCallback((circle: CircleBody) => {
-    if (!circle.originalTier || circle.originalTier === circle.tier) return;
-
-    const originalTier = circle.originalTier as TierType;
-    circle.tier = originalTier;
-    
-    // Revert size and appearance
-    const circleConfig = CIRCLE_CONFIG[originalTier];
-    const scale = circleConfig.radius / (circle.circleRadius || 1);
-    
-    Matter.Body.scale(circle, scale, scale);
-    circle.circleRadius = circleConfig.radius;
-    
-    // Revert visual appearance
-    if (circle.render.sprite) {
-      circle.render.sprite.texture = createCircleTexture(
-        CIRCLE_CONFIG[originalTier].color,
-        circleConfig.strokeColor,
-        circleConfig.glowColor,
-        circleConfig.radius * 2
-      );
-    }
-    
-    // Clear the stored original tier
-    delete circle.originalTier;
-  }, []);
-
-  // Then define endDrag
+  // Update the endDrag function
   const endDrag = useCallback((mouseX: number) => {
     if (!currentCircleRef.current || !engineRef.current || isAnimatingRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
     
-    // If power-up was deselected before dropping, revert any tier changes
-    if (!powerUps.activePowerUpId && circle.originalTier) {
-      revertTierChanges(circle);
-    }
+    // Keep the current tier (which might be increased by power-up)
+    const currentTier = circle.tier;
     
     // Enable collisions with everything when dropped
     Matter.Body.set(circle, {
@@ -1464,7 +1494,7 @@ export const useMatterJs = (
       const scale = flaskState.size !== 'DEFAULT' ? FLASK_SIZES[flaskState.size].physics.scale : 1;
       
       // Apply visuals with correct scaling
-      const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
+      const visualConfig = CIRCLE_CONFIG[currentTier as keyof typeof CIRCLE_CONFIG];
       const visualRadius = (visualConfig.radius - 1) * scale;
       
       if (circle.render.sprite) {
@@ -1535,6 +1565,9 @@ export const useMatterJs = (
       Matter.Body.applyForce(circle, circle.position, { x: 0, y: 0.05 });
     }
 
+    // Restore the tier after all physics are applied
+    circle.tier = currentTier;
+    
     Matter.Body.set(circle, {
       isSleeping: false,
       motion: 1,
@@ -1554,7 +1587,7 @@ export const useMatterJs = (
       }
     }, 50);
 
-  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.effect, revertTierChanges]);
+  }, [onDrop, prepareNextSpawn, powerUps, onPowerUpUse, getActivePowerUp, applyGravityPowerUp, applyVoidPowerUp, flaskState.effect]);
 
   // Add helper function to get random tier for stress test
   const getRandomStressTestTier = (): TierType => {
@@ -2248,54 +2281,98 @@ export const useMatterJs = (
 
   // Modify your power-up handling to include storm fields
   const handlePowerUp = useCallback((power: PowerUp, x: number, y: number) => {
-    if (!currentCircleRef.current) return;
-    onPowerUpUse();
-  }, [onPowerUpUse]);
-
-  // Add this effect to handle power-up changes
-  useEffect(() => {
-    if (!currentCircleRef.current) return;
-    const circle = currentCircleRef.current as CircleBody;
-
-    // If a power-up is activated
-    if (powerUps.activePowerUpId) {
-      const activePowerUp = POWER_UPS[powerUps.activePowerUpId];
-      
-      // Store original tier if not already stored
-      if (circle.originalTier === undefined) {
-        circle.originalTier = circle.tier;
-      }
-      
-      // Apply tier upgrade if applicable
-      if (activePowerUp.effects?.tierIncrease) {
-        const newTier = Math.min(12, circle.originalTier + activePowerUp.effects.tierIncrease) as TierType;
-        circle.tier = newTier;
-        
-        // Update the circle's appearance and size
-        const circleConfig = CIRCLE_CONFIG[newTier];
-        const scale = circleConfig.radius / (circle.circleRadius || 1);
-        
-        Matter.Body.scale(circle, scale, scale);
-        circle.circleRadius = circleConfig.radius;
-        
-        // Update visual appearance
-        if (circle.render.sprite) {
-          circle.render.sprite.texture = createCircleTexture(
-            CIRCLE_CONFIG[newTier].color,
-            activePowerUp.visual.strokeColor,
-            activePowerUp.visual.glowColor,
-            circleConfig.radius * 2
-          );
-        }
-      }
-    } 
-    // If power-up is deactivated and we have an original tier stored
-    else if (circle.originalTier) {
-      revertTierChanges(circle);
+    if (power.id === 'STORM_FIELD') {
+      createStormField(x, y, power);
+      return;
     }
-  }, [powerUps.activePowerUpId, revertTierChanges]);
+    // ... existing power-up handling
+  }, [createStormField]);
 
-  // Add resetEngine function before the return statement
+  // Add to existing physics update effect
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const effectConfig = FLASK_EFFECTS[flaskState.effect];
+    
+    // ... existing physics setup ...
+
+    // Add special handling for storm effect
+    if (flaskState.effect === 'STORM') {
+      const stormUpdateHandler = () => {
+        const bodies = Matter.Composite.allBodies(engineRef.current!.world);
+        
+        bodies.forEach(body => {
+          if (body.isStatic || !body.label?.startsWith('circle-')) return;
+          
+          // Create more chaotic turbulence
+          const angle = Math.random() * Math.PI * 2;
+          const distanceFromCenter = Math.random() * 0.8;
+          
+          // Enhanced vertical oscillation
+          const time = Date.now() * 0.005;
+          const verticalOscillation = Math.sin(time) * 0.015 + Math.cos(time * 0.5) * 0.01;
+          
+          // Add occasional strong upward or downward gusts
+          const verticalGust = Math.random() < 0.15 ? 
+            (Math.random() < 0.5 ? -0.03 : 0.02) : 0;
+          
+          // Safely access turbulence properties with defaults
+          const turbulence = hasTurbulence(effectConfig.physics) ? 
+            effectConfig.physics.turbulence : {
+              strength: 0.025,
+              frequency: 0.9,
+              verticalBias: 0.4,
+              radius: 150
+            };
+          
+          const force = {
+            x: Math.cos(angle) * turbulence.strength * (1 + distanceFromCenter),
+            y: (Math.sin(angle) * turbulence.strength * (1 + distanceFromCenter)) + 
+               verticalOscillation + 
+               verticalGust
+          };
+          
+          // Apply force with increased frequency
+          if (Math.random() < turbulence.frequency) {
+            // More extreme burst multiplier
+            const burstMultiplier = Math.random() < 0.15 ? 
+              (Math.random() * 2 + 2.5) : 1;
+            
+            // Add vertical bias to create more up/down movement
+            const verticalBias = turbulence.verticalBias || 0.4;
+            const biasedForce = {
+              x: force.x * burstMultiplier,
+              y: force.y * burstMultiplier * (1 + verticalBias)
+            };
+            
+            Matter.Body.applyForce(
+              body,
+              body.position,
+              biasedForce
+            );
+            
+            // Occasionally add a rotational force for more chaos
+            if (Math.random() < 0.2) {
+              Matter.Body.setAngularVelocity(
+                body, 
+                (Math.random() - 0.5) * 0.2
+              );
+            }
+          }
+        });
+      };
+
+      Matter.Events.on(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+
+      return () => {
+        if (engineRef.current) {
+          Matter.Events.off(engineRef.current, 'beforeUpdate', stormUpdateHandler);
+        }
+      };
+    }
+  }, [flaskState.effect]);
+
+  // Update resetEngine function
   const resetEngine = useCallback(() => {
     if (!engineRef.current || !renderRef.current) return;
     
@@ -2329,9 +2406,9 @@ export const useMatterJs = (
     debug: {
       fps: fpsRef.current,
       isMobile,
-      slop: currentSlopRef.current
+      slop: currentSlopRef.current // Add current slop to debug info
     },
-    resetEngine
+    resetEngine  // Add resetEngine to the return object
   };
 }; 
 

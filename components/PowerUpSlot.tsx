@@ -25,15 +25,15 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   NegativeBallIcon,
   SuperNegativeBallIcon,
   UltraNegativeBallIcon,
-  TierUpIcon,
-  SuperTierUpIcon,
-  UltraTierUpIcon,
   TestTubeIcon,
   FlaskIcon,
   FeatherIcon,
   SparklesIcon,
   BounceIcon,
   StormIcon,
+  TierUpIcon,
+  SuperTierUpIcon,
+  UltraTierUpIcon,
 };
 
 interface PowerUpSlotProps {
