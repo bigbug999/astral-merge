@@ -15,9 +15,6 @@ import { SparklesIcon } from './icons/SparklesIcon';
 import { StormIcon } from './icons/StormIcon';
 import { FlaskItem } from '@/types/flasks';
 import { CIRCLE_CONFIG, TierType } from '@/types/game';
-import { TierUpIcon } from './icons/TierUpIcon';
-import { SuperTierUpIcon } from './icons/SuperTierUpIcon';
-import { UltraTierUpIcon } from './icons/UltraTierUpIcon';
 
 interface PowerUpSelectionModalProps {
   isOpen: boolean;
@@ -39,9 +36,6 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   FeatherIcon,
   SparklesIcon,
   StormIcon,
-  TierUpIcon,
-  SuperTierUpIcon,
-  UltraTierUpIcon,
 };
 
 // Add type-safe array of tiers

@@ -13,9 +13,6 @@ import { FeatherIcon } from './icons/FeatherIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BounceIcon } from './icons/BounceIcon';
 import { StormIcon } from './icons/StormIcon';
-import { TierUpIcon } from './icons/TierUpIcon';
-import { SuperTierUpIcon } from './icons/SuperTierUpIcon';
-import { UltraTierUpIcon } from './icons/UltraTierUpIcon';
 import { useEffect, useState } from 'react';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -31,9 +28,6 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   SparklesIcon,
   BounceIcon,
   StormIcon,
-  TierUpIcon,
-  SuperTierUpIcon,
-  UltraTierUpIcon,
 };
 
 interface PowerUpSlotProps {
@@ -138,21 +132,20 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick, isDoubl
   const renderUsageIndicator = () => {
     if (!powerUp) return null;
     
-    if (isFlaskItem(powerUp)) {
-      return (
-        <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+    // Use dots for all power-ups and flasks
+    return (
+      <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-0.5">
+        {[...Array(powerUp.maxUses)].map((_, i) => (
           <div
+            key={i}
             className={cn(
-              "w-2 h-2 rounded-full",
-              remainingUses > 0 ? "bg-blue-400" : "bg-zinc-600"
+              "w-1 h-1 rounded-full",
+              i < remainingUses ? "bg-white" : "bg-zinc-600"
             )}
           />
-        </div>
-      );
-    }
-    
-    // Existing usage dots for regular power-ups
-    return renderUsageDots();
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -189,12 +182,14 @@ export function PowerUpSlot({ powerUp, isActive, remainingUses, onClick, isDoubl
 
       {/* Icon */}
       {IconComponent ? (
-        <div className="relative flex flex-col items-center">
-          <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 relative z-10" />
+        <div className="relative flex items-center justify-center">
+          <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" />
           {timeLeft && (
-            <span className="text-[10px] font-medium mt-0.5 text-blue-300">
-              {timeLeft}s
-            </span>
+            <div className="absolute inset-0 flex items-center justify-center z-20">
+              <span className="text-[10px] font-medium bg-zinc-900/80 px-1 rounded text-blue-300">
+                {timeLeft}s
+              </span>
+            </div>
           )}
         </div>
       ) : (

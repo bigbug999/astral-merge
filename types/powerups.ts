@@ -86,20 +86,6 @@ export const POWER_UP_CONFIG = {
     }
   },
   SPAWN_PROTECTION_TIME: 500, // 500ms of spawn protection
-  TIER_UP: {
-    BASIC: {
-      TIER_INCREASE: 1,
-      DURATION: 5000, // 5 seconds
-    },
-    SUPER: {
-      TIER_INCREASE: 2,
-      DURATION: 5000,
-    },
-    ULTRA: {
-      TIER_INCREASE: 3,
-      DURATION: 5000,
-    },
-  },
 };
 
 // Define base power-up interface
@@ -133,7 +119,6 @@ export interface PowerUp {
     strength?: number;
     radius?: number;
     frequency?: number;
-    tierIncrease?: number;
   };
 }
 
@@ -293,63 +278,7 @@ export const POWER_UPS: Record<string, PowerUp> = {
       bounceForce: POWER_UP_CONFIG.VOID.ULTRA.BOUNCE_FORCE,
       initialSpeed: POWER_UP_CONFIG.VOID.ULTRA.INITIAL_SPEED,
     }
-  },
-
-  // TIER UP GROUP - Temporarily increases ball tier
-  TIER_UP: {
-    id: 'TIER_UP',
-    name: 'Tier Up',
-    description: 'Increases ball tier by 1. Recharges every 5 merges.',
-    maxUses: 3,
-    icon: 'TierUpIcon',
-    group: 'ENVIRONMENTAL',
-    level: 1,
-    physics: {},
-    visual: {
-      strokeColor: '#22c55e',
-      glowColor: 'rgba(34, 197, 94, 0.3)',
-    },
-    effects: {
-      tierIncrease: POWER_UP_CONFIG.TIER_UP.BASIC.TIER_INCREASE,
-      duration: POWER_UP_CONFIG.TIER_UP.BASIC.DURATION,
-    }
-  },
-  SUPER_TIER_UP: {
-    id: 'SUPER_TIER_UP',
-    name: 'Super Tier Up',
-    description: 'Increases ball tier by 2. Recharges every 6 merges.',
-    maxUses: 3,
-    icon: 'SuperTierUpIcon',
-    group: 'ENVIRONMENTAL',
-    level: 2,
-    physics: {},
-    visual: {
-      strokeColor: '#a855f7',
-      glowColor: 'rgba(168, 85, 247, 0.3)',
-    },
-    effects: {
-      tierIncrease: POWER_UP_CONFIG.TIER_UP.SUPER.TIER_INCREASE,
-      duration: POWER_UP_CONFIG.TIER_UP.SUPER.DURATION,
-    }
-  },
-  ULTRA_TIER_UP: {
-    id: 'ULTRA_TIER_UP',
-    name: 'Ultra Tier Up',
-    description: 'Increases ball tier by 3. Recharges every 7 merges.',
-    maxUses: 3,
-    icon: 'UltraTierUpIcon',
-    group: 'ENVIRONMENTAL',
-    level: 3,
-    physics: {},
-    visual: {
-      strokeColor: '#f97316',
-      glowColor: 'rgba(249, 115, 22, 0.4)',
-    },
-    effects: {
-      tierIncrease: POWER_UP_CONFIG.TIER_UP.ULTRA.TIER_INCREASE,
-      duration: POWER_UP_CONFIG.TIER_UP.ULTRA.DURATION,
-    }
-  },
+  }
 };
 
 // Helper function to get power-ups by group

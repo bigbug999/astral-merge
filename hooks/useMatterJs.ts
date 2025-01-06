@@ -135,7 +135,6 @@ interface CircleBody extends Matter.Body {
       opacity: number;
     };
   };
-  originalTier?: TierType; // Add this to store the original tier
 }
 
 // Add these interfaces near the top
@@ -391,39 +390,10 @@ export const useMatterJs = (
     if (!currentCircleRef.current) return;
     
     const circle = currentCircleRef.current as CircleBody;
-    const activePowerUp = getActivePowerUp(powerUps);
-    
-    // Calculate effective tier based on power-up
-    let effectiveTier = (circle.tier || 1) as TierType;
-    if (activePowerUp?.effects?.tierIncrease) {
-      const newTier = Math.min(
-        Math.max(1, circle.tier || 1) + activePowerUp.effects.tierIncrease,
-        12
-      ) as TierType;
-      effectiveTier = newTier;
-      
-      // Update physics properties based on the new tier
-      const newConfig = CIRCLE_CONFIG[effectiveTier];
-      const baseConfig = CIRCLE_CONFIG[circle.originalTier || circle.tier || 1];
-      
-      // Scale physics properties based on tier difference
-      const scaleFactor = newConfig.radius / baseConfig.radius;
-      
-      // Update the circle's size and physics properties
-      const newRadius = newConfig.radius;
-      Matter.Body.scale(circle, scaleFactor, scaleFactor);
-      
-      Matter.Body.set(circle, {
-        density: circle.density * scaleFactor,
-        mass: circle.mass * scaleFactor,
-        inverseMass: 1 / (circle.mass * scaleFactor),
-        circleRadius: newRadius
-      });
-    }
-    
-    const visualConfig = CIRCLE_CONFIG[effectiveTier];
+    const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
     const sizeConfig = FLASK_SIZES[flaskState.size];
     const effectConfig = FLASK_EFFECTS[flaskState.effect];
+    const activePowerUp = getActivePowerUp(powerUps);
     
     // Use size configuration for scaling
     const scale = circle.isScaled || flaskState.size !== 'DEFAULT' ? sizeConfig.physics.scale : 1;
@@ -444,37 +414,6 @@ export const useMatterJs = (
   useEffect(() => {
     updateCurrentBallAppearance();
   }, [powerUps.activePowerUpId, updateCurrentBallAppearance]);
-
-  // Add to the effect that handles power-up deactivation
-  useEffect(() => {
-    if (!currentCircleRef.current) return;
-    
-    const circle = currentCircleRef.current as CircleBody;
-    const activePowerUp = getActivePowerUp(powerUps);
-    
-    if (activePowerUp?.effects?.tierIncrease) {
-      // Store original tier when power-up is activated
-      circle.originalTier = circle.tier;
-      
-      // Apply tier increase
-      circle.tier = Math.min(
-        (circle.tier || 1) + activePowerUp.effects.tierIncrease,
-        12
-      ) as TierType;
-      
-      // Start a timer to revert the tier
-      const timer = setTimeout(() => {
-        if (circle && circle.originalTier) {
-          circle.tier = circle.originalTier;
-          delete circle.originalTier;
-          powerUps.activePowerUpId = null;
-          updateCurrentBallAppearance();
-        }
-      }, activePowerUp.effects.duration);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [powerUps.activePowerUpId, updateCurrentBallAppearance, getActivePowerUp]);
 
   // Add helper function to apply void power-up properties
   const applyVoidPowerUp = useCallback((circle: CircleBody, powerUp: PowerUp) => {
@@ -1471,9 +1410,6 @@ export const useMatterJs = (
     
     const circle = currentCircleRef.current as CircleBody;
     
-    // Keep the current tier (which might be increased by power-up)
-    const currentTier = circle.tier;
-    
     // Enable collisions with everything when dropped
     Matter.Body.set(circle, {
       collisionFilter: {
@@ -1494,7 +1430,7 @@ export const useMatterJs = (
       const scale = flaskState.size !== 'DEFAULT' ? FLASK_SIZES[flaskState.size].physics.scale : 1;
       
       // Apply visuals with correct scaling
-      const visualConfig = CIRCLE_CONFIG[currentTier as keyof typeof CIRCLE_CONFIG];
+      const visualConfig = CIRCLE_CONFIG[circle.tier as keyof typeof CIRCLE_CONFIG];
       const visualRadius = (visualConfig.radius - 1) * scale;
       
       if (circle.render.sprite) {
@@ -1565,9 +1501,6 @@ export const useMatterJs = (
       Matter.Body.applyForce(circle, circle.position, { x: 0, y: 0.05 });
     }
 
-    // Restore the tier after all physics are applied
-    circle.tier = currentTier;
-    
     Matter.Body.set(circle, {
       isSleeping: false,
       motion: 1,

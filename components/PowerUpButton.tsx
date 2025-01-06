@@ -6,9 +6,6 @@ import { UltraWeightIcon } from './icons/UltraWeightIcon';
 import { NegativeBallIcon } from './icons/NegativeBallIcon';
 import { SuperNegativeBallIcon } from './icons/SuperNegativeBallIcon';
 import { UltraNegativeBallIcon } from './icons/UltraNegativeBallIcon';
-import { TierUpIcon } from './icons/TierUpIcon';
-import { SuperTierUpIcon } from './icons/SuperTierUpIcon';
-import { UltraTierUpIcon } from './icons/UltraTierUpIcon';
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   WeightIcon,
@@ -17,9 +14,6 @@ const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }
   NegativeBallIcon,
   SuperNegativeBallIcon,
   UltraNegativeBallIcon,
-  TierUpIcon,
-  SuperTierUpIcon,
-  UltraTierUpIcon,
 };
 
 interface PowerUpButtonProps {
